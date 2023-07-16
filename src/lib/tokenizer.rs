@@ -19,6 +19,14 @@ const SEMICOLON_REGEX: &str = r#"^;"#;
 const OPEN_BLOCK_REGEX: &str = r#"^\{"#;
 //language=regexp
 const CLOSE_BLOCK_REGEX: &str = r#"^\}"#;
+//language=regexp
+const MULTIPLICATIVE_OPERATORS_REGEX: &str = r#"^[*\\%]"#;
+//language=regexp
+const ADDITIVE_OPERATORS_REGEX: &str = r#"^[+\-]"#;
+//language=regexp
+const OPEN_PAREN_REGEX: &str = r#"^\("#;
+//language=regexp
+const CLOSE_PAREN_REGEX: &str = r#"^\)"#;
 
 static REGEX_TO_TOKEN_TYPE: Lazy<Vec<(Regex, Option<TokenType>)>> = Lazy::new(|| {
 	let regex_str_with_type = [
@@ -30,6 +38,10 @@ static REGEX_TO_TOKEN_TYPE: Lazy<Vec<(Regex, Option<TokenType>)>> = Lazy::new(||
 		(SEMICOLON_REGEX, Some(TokenType::Semicolon)),
 		(OPEN_BLOCK_REGEX, Some(TokenType::OpenBlock)),
 		(CLOSE_BLOCK_REGEX, Some(TokenType::CloseBlock)),
+		(MULTIPLICATIVE_OPERATORS_REGEX, Some(TokenType::MultiplicativeOperator)),
+		(ADDITIVE_OPERATORS_REGEX, Some(TokenType::AdditiveOperator)),
+		(OPEN_PAREN_REGEX, Some(TokenType::OpenParen)),
+		(CLOSE_PAREN_REGEX, Some(TokenType::CloseParen)),
 	];
 	return regex_str_with_type
 		.iter()
@@ -44,6 +56,10 @@ pub enum TokenType {
 	Semicolon,
 	OpenBlock,
 	CloseBlock,
+	MultiplicativeOperator,
+	AdditiveOperator,
+	OpenParen,
+	CloseParen,
 }
 
 #[derive(Eq, PartialEq, Hash)]
@@ -89,4 +105,3 @@ impl TokenStream {
 		return TokenStream { str, position: 0, /*chars: str.chars(), words: str.split_word_bounds()*/ };
 	}
 }
-

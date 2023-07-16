@@ -16,6 +16,8 @@ pub enum ErrorT {
 	InvalidTokenType,
 	#[error("Token Cannot be Parsed")]
 	TokenCannotBeParsed,
+	#[error("Unknown Operator")]
+	UnknownOperator,
 }
 
 #[derive(Debug, Clone)]
