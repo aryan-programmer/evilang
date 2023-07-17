@@ -27,6 +27,10 @@ const ADDITIVE_OPERATORS_REGEX: &str = r#"^[+\-]"#;
 const OPEN_PAREN_REGEX: &str = r#"^\("#;
 //language=regexp
 const CLOSE_PAREN_REGEX: &str = r#"^\)"#;
+//language=regexp
+const IDENTIFIER_REGEX: &str = r#"^[a-zA-Z_$][a-zA-Z0-9_$]*"#;
+//language=regexp
+const ASSIGNMENT_REGEX: &str = r#"^[+\-*\\%]?="#;
 
 static REGEX_TO_TOKEN_TYPE: Lazy<Vec<(Regex, Option<TokenType>)>> = Lazy::new(|| {
 	let regex_str_with_type = [
@@ -38,10 +42,14 @@ static REGEX_TO_TOKEN_TYPE: Lazy<Vec<(Regex, Option<TokenType>)>> = Lazy::new(||
 		(SEMICOLON_REGEX, Some(TokenType::Semicolon)),
 		(OPEN_BLOCK_REGEX, Some(TokenType::OpenBlock)),
 		(CLOSE_BLOCK_REGEX, Some(TokenType::CloseBlock)),
-		(MULTIPLICATIVE_OPERATORS_REGEX, Some(TokenType::MultiplicativeOperator)),
-		(ADDITIVE_OPERATORS_REGEX, Some(TokenType::AdditiveOperator)),
 		(OPEN_PAREN_REGEX, Some(TokenType::OpenParen)),
 		(CLOSE_PAREN_REGEX, Some(TokenType::CloseParen)),
+		(ASSIGNMENT_REGEX, Some(TokenType::AssignmentOperator)),
+		(MULTIPLICATIVE_OPERATORS_REGEX, Some(TokenType::MultiplicativeOperator)),
+		(ADDITIVE_OPERATORS_REGEX, Some(TokenType::AdditiveOperator)),
+		// (COMBINED_ASSIGNMENT_REGEX, Some(TokenType::CombinedAssignmentOperator)),
+
+		(IDENTIFIER_REGEX, Some(TokenType::Identifier)),
 	];
 	return regex_str_with_type
 		.iter()
@@ -60,6 +68,9 @@ pub enum TokenType {
 	AdditiveOperator,
 	OpenParen,
 	CloseParen,
+	Identifier,
+	AssignmentOperator,
+	// CombinedAssignmentOperator,
 }
 
 #[derive(Eq, PartialEq, Hash)]
@@ -73,6 +84,15 @@ pub struct TokenStream {
 	position: usize,
 	// chars: Chars<'_>,
 	// words: UWordBounds<'_>,
+}
+
+impl TokenType {
+	pub fn is_literal(&self) -> bool {
+		return match self {
+			TokenType::String | TokenType::Integer => true,
+			_ => false,
+		};
+	}
 }
 
 impl Iterator for TokenStream {

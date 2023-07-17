@@ -18,6 +18,8 @@ pub enum ErrorT {
 	TokenCannotBeParsed,
 	#[error("Unknown Operator")]
 	UnknownOperator,
+	#[error("Expected a left hand side expression")]
+	ExpectedLhsExpression,
 }
 
 #[derive(Debug, Clone)]
@@ -29,9 +31,9 @@ pub struct EvilangError {
 impl Display for EvilangError {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		if let Some(trace) = &self.backtrace {
-			write!(f, "{}: {:?}", error_type_to_string(self.typ), trace)
+			write!(f, "{}: {:?}", self.typ, trace)
 		} else {
-			write!(f, "{}", error_type_to_string(self.typ))
+			write!(f, "{}", self.typ)
 		}
 	}
 }
@@ -54,15 +56,6 @@ impl EvilangError {
 	}
 }
 
-static ERROR_TYPE_TO_STRING: Lazy<HashMap<ErrorT, String>> = Lazy::new(|| {
-	return HashMap::from_iter([
-		(ErrorT::EndOfTokenStream, "End of Token Stream"),
-		(ErrorT::InvalidTokenType, "Invalid Token Type"),
-		(ErrorT::TokenCannotBeParsed, "Token Cannot be Parsed"),
-	].map(|t| (t.0, t.1.parse().unwrap())));
-});
-static UNKNOWN_ERROR: Lazy<String> = Lazy::new(|| "Unknown error".parse().unwrap());
-
-pub fn error_type_to_string(et: ErrorT) -> &'static String {
-	return ERROR_TYPE_TO_STRING.get(&et).unwrap_or(&UNKNOWN_ERROR);
+pub fn ensure(v: bool, err: ErrorT) -> ResultWithError<()> {
+	return if v { Ok(()) } else { Err(err.into()) };
 }

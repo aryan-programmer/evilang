@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use crate::ast::{BoxStatement, Operator, Statement, StatementList};
-use crate::errors::{ErrorT, ResultWithError};
+use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Token, TokenStream, TokenType};
 
 pub fn parse(program: String) -> ResultWithError<StatementList> {
@@ -116,19 +116,27 @@ impl Parser {
 		| multiplicative_expression
 	*/
 	fn expression(&mut self) -> ResultWithError<Statement> {
-		return self.additive_expression();
+		return self.assignment_expression();
 	}
 
 	/*
-	multiplicative_expression:
-		| primary_expression
-		| multiplicative_expression MultiplicativeOperator primary_expression
+	assignment_expression:
+		| additive_expression
+		| lhs AssignmentOperator assignment_expression
 	*/
-	fn multiplicative_expression(&mut self) -> ResultWithError<Statement> {
-		return self.left_to_right_binary_expression(
-			Self::primary_expression,
-			TokenType::MultiplicativeOperator
-		);
+	fn assignment_expression(&mut self) -> ResultWithError<Statement> {
+		let left = self.additive_expression()?;
+		if self.lookahead()?.typ != TokenType::AssignmentOperator {
+			return Ok(left);
+		}
+		let op = self.eat(TokenType::AssignmentOperator)?;
+		ensure(left.is_lhs(), ErrorT::ExpectedLhsExpression)?;
+		let right = self.assignment_expression()?;
+		return Ok(Statement::assignment_expression(
+			Operator::try_from(&op.data)?,
+			BoxStatement::from(left),
+			BoxStatement::from(right),
+		));
 	}
 
 	/*
@@ -144,14 +152,39 @@ impl Parser {
 	}
 
 	/*
+	multiplicative_expression:
+		| primary_expression
+		| multiplicative_expression MultiplicativeOperator primary_expression
+	*/
+	fn multiplicative_expression(&mut self) -> ResultWithError<Statement> {
+		return self.left_to_right_binary_expression(
+			Self::primary_expression,
+			TokenType::MultiplicativeOperator
+		);
+	}
+
+	/*
+	lhs_expression:
+		| identifier
+	*/
+	fn lhs_expression(&mut self) -> ResultWithError<Statement> {
+		return Ok(Statement::Identifier(self.eat(TokenType::Identifier)?.data));
+	}
+
+	/*
 	primary_expression:
 		| literal
 		| parenthesized_expression
+		| lhs_expression
 	*/
 	fn primary_expression(&mut self) -> ResultWithError<Statement> {
-		return match self.lookahead()?.typ {
-			TokenType::OpenParen=>self.parenthesized_expression(),
-			_=>self.literal(),
+		let token_type = self.lookahead()?.typ;
+		if token_type.is_literal(){
+			return self.literal();
+		}
+		return match token_type {
+			TokenType::OpenParen => self.parenthesized_expression(),
+			_ => self.lhs_expression(),
 		};
 	}
 
@@ -173,18 +206,18 @@ impl Parser {
 	*/
 	fn left_to_right_binary_expression(
 		&mut self,
-		sub_expression: fn(&mut Self)->ResultWithError<Statement>,
+		sub_expression: fn(&mut Self) -> ResultWithError<Statement>,
 		expression_operator_token_type: TokenType,
 	) -> ResultWithError<Statement> {
 		let mut left = sub_expression(self)?;
 		while self.lookahead()?.typ == expression_operator_token_type {
 			let op = self.eat(expression_operator_token_type)?;
 			let right = sub_expression(self)?;
-			left = Statement::BinaryExpression {
-				left: BoxStatement::from(left),
-				right: BoxStatement::from(right),
-				operator: Operator::try_from(&op.data)?
-			};
+			left = Statement::binary_expression(
+				Operator::try_from(&op.data)?,
+				BoxStatement::from(left),
+				BoxStatement::from(right),
+			);
 		}
 		return Ok(left);
 	}

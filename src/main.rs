@@ -33,7 +33,7 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	print_program("2+3*4+5;");
+	print_program("x += y = 1+2*(z=1)+4;");
 	dbg!(size_of::<Statement>());
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
