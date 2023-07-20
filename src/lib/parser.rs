@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
-use crate::ast::statement::VariableDeclaration;
+use crate::ast::statement::{BoxStatement, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
@@ -16,7 +16,7 @@ pub struct Parser {
 }
 
 impl Parser {
-	fn new(stream: TokenStream) -> Parser {
+	pub fn new(stream: TokenStream) -> Parser {
 		return Parser { peekable_stream: stream.peekable() };
 	}
 
@@ -40,7 +40,7 @@ impl Parser {
 	program:
 		| statement_list
 	*/
-	fn program(&mut self) -> ResultWithError<StatementList> {
+	pub fn program(&mut self) -> ResultWithError<StatementList> {
 		return self.statement_list(None);
 	}
 
@@ -50,17 +50,12 @@ impl Parser {
 	*/
 	fn statement_list(&mut self, stop_lookahead_type: Option<TokenType>) -> ResultWithError<StatementList> {
 		let mut res = StatementList::new();
-		if let Some(stop) = stop_lookahead_type {
-			while let Ok(lookahead) = self.lookahead() {
-				if lookahead.typ == stop {
-					break
-				}
-				res.push(self.statement()?);
+		let stop = stop_lookahead_type.unwrap_or(TokenType::_EOFDummy);
+		while let Ok(lookahead) = self.lookahead() {
+			if lookahead.typ == stop {
+				break
 			}
-		} else {
-			while let Ok(_lookahead) = self.lookahead() {
-				res.push(self.statement()?);
-			}
+			res.push(self.statement()?);
 		}
 		return Ok(res);
 	}
@@ -77,10 +72,36 @@ impl Parser {
 			TokenType::OpenBlock => self.block_statement(),
 			TokenType::Semicolon => self.empty_statement(),
 			TokenType::Keyword(Keyword::Let) => self.variable_declarations_statement(),
+			TokenType::Keyword(Keyword::If) => self.if_statement(),
 			_ => self.expression_statement(),
 		}
 	}
 
+	/*
+	if_statement:
+		| 'if' '(' expression ')' statement
+		| 'if' '(' expression ')' statement 'else' statement
+	*/
+	fn if_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::If))?;
+		self.eat(TokenType::OpenParen)?;
+		let condition = self.expression()?;
+		self.eat(TokenType::CloseParen)?;
+		let if_branch = BoxStatement::from(self.statement()?);
+		let else_branch = match self.lookahead()?.typ {
+			TokenType::Keyword(Keyword::Else) => {
+				self.eat(TokenType::Keyword(Keyword::Else))?;
+				Some(BoxStatement::from(self.statement()?))
+			},
+			_ => None
+		};
+		return Ok(Statement::if_statement(condition, if_branch, else_branch));
+	}
+
+	/*
+	variable_declarations_statement:
+		| 'let' variable_declarations ';'
+	*/
 	fn variable_declarations_statement(&mut self) -> ResultWithError<Statement> {
 		self.eat(TokenType::Keyword(Keyword::Let))?;
 		let res = self.variable_declarations()?;
@@ -88,6 +109,11 @@ impl Parser {
 		return Ok(Statement::VariableDeclarations(res));
 	}
 
+	/*
+	variable_declarations:
+		| variable_declaration
+		| variable_declaration ',' variable_declarations
+	*/
 	fn variable_declarations(&mut self) -> ResultWithError<Vec<VariableDeclaration>> {
 		let mut res = Vec::<VariableDeclaration>::new();
 		loop {
@@ -101,6 +127,11 @@ impl Parser {
 		return Ok(res);
 	}
 
+	/*
+	variable_declaration:
+		| Identifier
+		| Identifier variable_initializer
+	*/
 	fn variable_declaration(&mut self) -> ResultWithError<VariableDeclaration> {
 		let identifier = self.eat(TokenType::Identifier)?.data;
 		let initializer = match self.lookahead()?.typ {
@@ -113,6 +144,10 @@ impl Parser {
 		});
 	}
 
+	/*
+	variable_declaration:
+		| '=' assignment_expression
+	*/
 	fn variable_initializer(&mut self) -> ResultWithError<Expression> {
 		let oper = Operator::try_from(&self.eat(TokenType::AssignmentOperator)?.data)?;
 		if oper != Operator::Assignment {
@@ -164,11 +199,11 @@ impl Parser {
 
 	/*
 	assignment_expression:
-		| additive_expression
+		| relational_expression
 		| lhs AssignmentOperator assignment_expression
 	*/
 	fn assignment_expression(&mut self) -> ResultWithError<Expression> {
-		let left = self.additive_expression()?;
+		let left = self.relational_expression()?;
 		if self.lookahead()?.typ != TokenType::AssignmentOperator {
 			return Ok(left);
 		}
@@ -180,6 +215,18 @@ impl Parser {
 			BoxExpression::from(left),
 			BoxExpression::from(right),
 		));
+	}
+
+	/*
+	relational_expression:
+		| additive_expression
+		| relational_expression AdditiveOperator additive_expression
+	*/
+	fn relational_expression(&mut self) -> ResultWithError<Expression> {
+		return self.left_to_right_binary_expression(
+			Self::additive_expression,
+			TokenType::RelationalOperator
+		);
 	}
 
 	/*

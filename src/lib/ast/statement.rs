@@ -10,6 +10,11 @@ pub enum Statement {
 	EmptyStatement,
 	ExpressionStatement(Expression),
 	VariableDeclarations(Vec<VariableDeclaration>),
+	IfStatement {
+		condition: Expression,
+		if_branch: BoxStatement,
+		else_branch: Option<BoxStatement>,
+	}
 }
 
 impl Statement {
@@ -18,6 +23,18 @@ impl Statement {
 			Statement::ExpressionStatement(ex) => ex.is_lhs(),
 			_ => false,
 		};
+	}
+
+	pub fn if_statement(
+		condition: Expression,
+		if_branch: BoxStatement,
+		else_branch: Option<BoxStatement>,
+	) -> Statement {
+		return Statement::IfStatement {
+			condition,
+			if_branch,
+			else_branch,
+		}
 	}
 }
 

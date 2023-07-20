@@ -15,17 +15,7 @@ pub struct TokenStream {
 	str: String,
 	position: usize,
 	token_matchers: Vec<(Matcher, Option<TokenType>)>,
-	// chars: Chars<'_>,
-	// words: UWordBounds<'_>,
-}
-
-impl TokenType {
-	pub fn is_literal(&self) -> bool {
-		return match self {
-			TokenType::String | TokenType::Integer => true,
-			_ => false,
-		};
-	}
+	sent_eof_dummy: bool,
 }
 
 impl Iterator for TokenStream {
@@ -33,11 +23,13 @@ impl Iterator for TokenStream {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		'outer: loop {
-			// let word_opt = self.words.next();
 			if self.position >= self.str.len() {
-				return None;
+				if self.sent_eof_dummy {
+					return None;
+				} else {
+					return Some(Ok(Token { typ: TokenType::_EOFDummy, data: String::new() }));
+				}
 			}
-			// let word = word_opt.unwrap();
 			let from = &self.str[self.position..];
 			for (matcher, token_t) in self.token_matchers.iter() {
 				let Some(s) = matcher(from) else { continue };
@@ -58,6 +50,7 @@ impl TokenStream {
 			str,
 			position: 0,
 			token_matchers: get_token_matchers(),
+			sent_eof_dummy: false,
 		};
 	}
 }

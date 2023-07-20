@@ -1,6 +1,6 @@
 use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{BinaryExpression, IntegerLiteral};
-use evilang_lib::ast::operator::Operator::{Minus, Multiplication, Plus};
+use evilang_lib::ast::operator::Operator::{Division, Minus, Modulus, Multiplication, Plus};
 
 use crate::common::{ensure_program, TestRes};
 
@@ -69,6 +69,33 @@ fn addition_and_multiplication() -> TestRes {
 			left: BoxExpression::from(IntegerLiteral(2)),
 			right: BoxExpression::from(BinaryExpression {
 				operator: Multiplication,
+				left: BoxExpression::from(IntegerLiteral(3)),
+				right: BoxExpression::from(IntegerLiteral(4)),
+			}),
+		}),
+		right: BoxExpression::from(IntegerLiteral(5)),
+	}.consume_as_statement()]);
+}
+
+#[test]
+fn subtraction_division_and_modulus() -> TestRes {
+	ensure_program("2-3/4;", vec![BinaryExpression {
+		operator: Minus,
+		left: BoxExpression::from(IntegerLiteral(2)),
+		right: BoxExpression::from(BinaryExpression {
+			operator: Division,
+			left: BoxExpression::from(IntegerLiteral(3)),
+			right: BoxExpression::from(IntegerLiteral(4)),
+		}),
+	}.consume_as_statement()]);
+
+	ensure_program("2-3%4-5;", vec![BinaryExpression {
+		operator: Minus,
+		left: BoxExpression::from(BinaryExpression {
+			operator: Minus,
+			left: BoxExpression::from(IntegerLiteral(2)),
+			right: BoxExpression::from(BinaryExpression {
+				operator: Modulus,
 				left: BoxExpression::from(IntegerLiteral(3)),
 				right: BoxExpression::from(IntegerLiteral(4)),
 			}),

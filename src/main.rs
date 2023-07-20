@@ -36,7 +36,9 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	print_program("let $foo = 1 + 2, bar, baz = $foo += 4;");
+	print_program(r#"
+	y = x > 13;
+"#);
 	dbg!(size_of::<Statement>());
 	dbg!(size_of::<Expression>());
 	dbg!(size_of::<Operator>());

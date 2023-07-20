@@ -1,6 +1,6 @@
 use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
-use evilang_lib::ast::operator::Operator::{Assignment, Multiplication, Plus, PlusAssignment};
+use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, MinusAssignment, ModulusAssignment, Multiplication, MultiplicationAssignment, Plus, PlusAssignment};
 
 use crate::common::{ensure_program, TestRes};
 
@@ -10,6 +10,35 @@ mod common;
 fn simple_assignment() -> TestRes {
 	ensure_program("x = 1;", vec![AssignmentExpression {
 		operator: Assignment,
+		left: BoxExpression::from(Identifier("x".to_string())),
+		right: BoxExpression::from(IntegerLiteral(1)),
+	}.consume_as_statement()]);
+}
+
+#[test]
+fn complex_assignment() -> TestRes {
+	ensure_program("x += 1;", vec![AssignmentExpression {
+		operator: PlusAssignment,
+		left: BoxExpression::from(Identifier("x".to_string())),
+		right: BoxExpression::from(IntegerLiteral(1)),
+	}.consume_as_statement()]);
+	ensure_program("x -= 1;", vec![AssignmentExpression {
+		operator: MinusAssignment,
+		left: BoxExpression::from(Identifier("x".to_string())),
+		right: BoxExpression::from(IntegerLiteral(1)),
+	}.consume_as_statement()]);
+	ensure_program("x *= 1;", vec![AssignmentExpression {
+		operator: MultiplicationAssignment,
+		left: BoxExpression::from(Identifier("x".to_string())),
+		right: BoxExpression::from(IntegerLiteral(1)),
+	}.consume_as_statement()]);
+	ensure_program("x /= 1;", vec![AssignmentExpression {
+		operator: DivisionAssignment,
+		left: BoxExpression::from(Identifier("x".to_string())),
+		right: BoxExpression::from(IntegerLiteral(1)),
+	}.consume_as_statement()]);
+	ensure_program("x %= 1;", vec![AssignmentExpression {
+		operator: ModulusAssignment,
 		left: BoxExpression::from(Identifier("x".to_string())),
 		right: BoxExpression::from(IntegerLiteral(1)),
 	}.consume_as_statement()]);

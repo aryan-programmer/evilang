@@ -1,6 +1,6 @@
 use crate::errors::{ErrorT, EvilangError};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Operator {
 	Plus,
 	Minus,
@@ -13,6 +13,10 @@ pub enum Operator {
 	MultiplicationAssignment,
 	DivisionAssignment,
 	ModulusAssignment,
+	LessThan,
+	GreaterThan,
+	LessThanOrEqualTo,
+	GreaterThanOrEqualTo,
 }
 
 impl TryFrom<&String> for Operator {
@@ -31,6 +35,10 @@ impl TryFrom<&String> for Operator {
 			"*=" => Ok(Operator::MultiplicationAssignment),
 			"/=" => Ok(Operator::DivisionAssignment),
 			"%=" => Ok(Operator::ModulusAssignment),
+			"<" => Ok(Operator::LessThan),
+			">" => Ok(Operator::GreaterThan),
+			"<=" => Ok(Operator::LessThanOrEqualTo),
+			">=" => Ok(Operator::GreaterThanOrEqualTo),
 			_ => Err(ErrorT::UnknownOperator.into())
 		};
 	}

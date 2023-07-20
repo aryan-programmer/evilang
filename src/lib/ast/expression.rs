@@ -3,7 +3,7 @@ use crate::ast::statement::Statement;
 
 pub type BoxExpression = Box<Expression>;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Expression {
 	IntegerLiteral(i64),
 	StringLiteral(String),

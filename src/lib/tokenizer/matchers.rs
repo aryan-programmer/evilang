@@ -13,13 +13,15 @@ const SINGLE_LINE_COMMENT_REGEX: &str = r#"^//.*"#;
 //language=regexp
 const MULTI_LINE_COMMENT_REGEX: &str = r#"^/\*[^*]*\*+(?:[^/*][^*]*\*+)*/"#;
 //language=regexp
-const MULTIPLICATIVE_OPERATORS_REGEX: &str = r#"^[*\\%]"#;
+const MULTIPLICATIVE_OPERATORS_REGEX: &str = r#"^[*/%]"#;
 //language=regexp
 const ADDITIVE_OPERATORS_REGEX: &str = r#"^[+\-]"#;
 //language=regexp
 const IDENTIFIER_REGEX: &str = r#"^[a-zA-Z_$][a-zA-Z0-9_$]*"#;
 //language=regexp
-const ASSIGNMENT_REGEX: &str = r#"^[+\-*\\%]?="#;
+const ASSIGNMENT_REGEX: &str = r#"^[+\-*/%]?="#;
+//language=regexp
+const RELATIONAL_OPERATORS_REGEX: &str = r#"^[<>]=?"#;
 
 pub(super) type Matcher = Box<dyn Fn(&str) -> Option<&str>>;
 
@@ -52,11 +54,14 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(regex_matcher(ASSIGNMENT_REGEX), Some(TokenType::AssignmentOperator)),
 		(regex_matcher(MULTIPLICATIVE_OPERATORS_REGEX), Some(TokenType::MultiplicativeOperator)),
 		(regex_matcher(ADDITIVE_OPERATORS_REGEX), Some(TokenType::AdditiveOperator)),
+		(regex_matcher(RELATIONAL_OPERATORS_REGEX), Some(TokenType::RelationalOperator)),
 		//
 		(regex_matcher(INTEGER_REGEX), Some(TokenType::Integer)),
 		(regex_matcher(STRING_REGEX), Some(TokenType::String)),
 		//
 		(starts_with_matcher("let"), Some(TokenType::Keyword(Keyword::Let))),
+		(starts_with_matcher("if"), Some(TokenType::Keyword(Keyword::If))),
+		(starts_with_matcher("else"), Some(TokenType::Keyword(Keyword::Else))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];
