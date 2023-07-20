@@ -1,40 +1,40 @@
-use evilang_lib::ast::Statement;
+use evilang_lib::ast::{expression::Expression, statement::Statement};
 
 use crate::common::{ensure_program, TestRes};
 
 mod common;
 
 #[test]
-fn multiple_statements() -> TestRes {
+fn multiple_expressions() -> TestRes {
 	ensure_program(r#""This is a string and this is a double quote: \"";
 42;
 "More stuff";"#, vec![
-		Statement::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()),
-		Statement::IntegerLiteral(42),
-		Statement::StringLiteral("More stuff".parse().unwrap()),
+		Expression::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()).consume_as_statement(),
+		Expression::IntegerLiteral(42).consume_as_statement(),
+		Expression::StringLiteral("More stuff".parse().unwrap()).consume_as_statement(),
 	]);
 }
 
 #[test]
-fn block_statement() -> TestRes {
+fn block_expression() -> TestRes {
 	ensure_program(r#"{
 	"This is a string and this is a double quote: \"";
 	42;
 }
 "More stuff";"#, vec![
 		Statement::BlockStatement(vec![
-			Statement::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()),
-			Statement::IntegerLiteral(42),
+			Expression::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()).consume_as_statement(),
+			Expression::IntegerLiteral(42).consume_as_statement(),
 		]),
-		Statement::StringLiteral("More stuff".parse().unwrap()),
+		Expression::StringLiteral("More stuff".parse().unwrap()).consume_as_statement(),
 	]);
 }
 
 #[test]
-fn empty_statement() -> TestRes {
+fn empty_expression() -> TestRes {
 	ensure_program(r#"42;;"data";"#, vec![
-		Statement::IntegerLiteral(42),
+		Expression::IntegerLiteral(42).consume_as_statement(),
 		Statement::EmptyStatement,
-		Statement::StringLiteral("data".to_string()),
+		Expression::StringLiteral("data".to_string()).consume_as_statement(),
 	]);
 }

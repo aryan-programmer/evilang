@@ -1,8 +1,9 @@
 use std::iter::Peekable;
 
-use crate::ast::{BoxStatement, Operator, Statement, StatementList};
+use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
+use crate::ast::statement::VariableDeclaration;
 use crate::errors::{ensure, ErrorT, ResultWithError};
-use crate::tokenizer::{Token, TokenStream, TokenType};
+use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
 pub fn parse(program: String) -> ResultWithError<StatementList> {
 	let mut p = Parser::new(TokenStream::new(program));
@@ -68,14 +69,56 @@ impl Parser {
 	statement:
 		| block_statement
 		| expression_statement
-		|
+		| empty_statement
+		| variable_declarations_statement
 	*/
 	fn statement(&mut self) -> ResultWithError<Statement> {
 		return match self.lookahead()?.typ {
 			TokenType::OpenBlock => self.block_statement(),
 			TokenType::Semicolon => self.empty_statement(),
+			TokenType::Keyword(Keyword::Let) => self.variable_declarations_statement(),
 			_ => self.expression_statement(),
 		}
+	}
+
+	fn variable_declarations_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Let))?;
+		let res = self.variable_declarations()?;
+		self.eat(TokenType::Semicolon)?;
+		return Ok(Statement::VariableDeclarations(res));
+	}
+
+	fn variable_declarations(&mut self) -> ResultWithError<Vec<VariableDeclaration>> {
+		let mut res = Vec::<VariableDeclaration>::new();
+		loop {
+			res.push(self.variable_declaration()?);
+			if self.lookahead()?.typ != TokenType::Comma {
+				break;
+			} else {
+				self.eat(TokenType::Comma)?;
+			}
+		}
+		return Ok(res);
+	}
+
+	fn variable_declaration(&mut self) -> ResultWithError<VariableDeclaration> {
+		let identifier = self.eat(TokenType::Identifier)?.data;
+		let initializer = match self.lookahead()?.typ {
+			TokenType::Semicolon | TokenType::Comma => None,
+			_ => Some(self.variable_initializer()?)
+		};
+		return Ok(VariableDeclaration {
+			identifier,
+			initializer,
+		});
+	}
+
+	fn variable_initializer(&mut self) -> ResultWithError<Expression> {
+		let oper = Operator::try_from(&self.eat(TokenType::AssignmentOperator)?.data)?;
+		if oper != Operator::Assignment {
+			return Err(ErrorT::ExpectedSimpleAssignmentOperator.into())
+		}
+		return self.assignment_expression();
 	}
 
 	/*
@@ -99,7 +142,7 @@ impl Parser {
 	fn expression_statement(&mut self) -> ResultWithError<Statement> {
 		let res = self.expression()?;
 		self.eat(TokenType::Semicolon)?;
-		return Ok(res);
+		return Ok(Statement::ExpressionStatement(res));
 	}
 
 	/*
@@ -115,7 +158,7 @@ impl Parser {
 	expression:
 		| multiplicative_expression
 	*/
-	fn expression(&mut self) -> ResultWithError<Statement> {
+	fn expression(&mut self) -> ResultWithError<Expression> {
 		return self.assignment_expression();
 	}
 
@@ -124,7 +167,7 @@ impl Parser {
 		| additive_expression
 		| lhs AssignmentOperator assignment_expression
 	*/
-	fn assignment_expression(&mut self) -> ResultWithError<Statement> {
+	fn assignment_expression(&mut self) -> ResultWithError<Expression> {
 		let left = self.additive_expression()?;
 		if self.lookahead()?.typ != TokenType::AssignmentOperator {
 			return Ok(left);
@@ -132,10 +175,10 @@ impl Parser {
 		let op = self.eat(TokenType::AssignmentOperator)?;
 		ensure(left.is_lhs(), ErrorT::ExpectedLhsExpression)?;
 		let right = self.assignment_expression()?;
-		return Ok(Statement::assignment_expression(
+		return Ok(Expression::assignment_expression(
 			Operator::try_from(&op.data)?,
-			BoxStatement::from(left),
-			BoxStatement::from(right),
+			BoxExpression::from(left),
+			BoxExpression::from(right),
 		));
 	}
 
@@ -144,7 +187,7 @@ impl Parser {
 		| multiplicative_expression
 		| additive_expression AdditiveOperator multiplicative_expression
 	*/
-	fn additive_expression(&mut self) -> ResultWithError<Statement> {
+	fn additive_expression(&mut self) -> ResultWithError<Expression> {
 		return self.left_to_right_binary_expression(
 			Self::multiplicative_expression,
 			TokenType::AdditiveOperator
@@ -156,7 +199,7 @@ impl Parser {
 		| primary_expression
 		| multiplicative_expression MultiplicativeOperator primary_expression
 	*/
-	fn multiplicative_expression(&mut self) -> ResultWithError<Statement> {
+	fn multiplicative_expression(&mut self) -> ResultWithError<Expression> {
 		return self.left_to_right_binary_expression(
 			Self::primary_expression,
 			TokenType::MultiplicativeOperator
@@ -167,8 +210,8 @@ impl Parser {
 	lhs_expression:
 		| identifier
 	*/
-	fn lhs_expression(&mut self) -> ResultWithError<Statement> {
-		return Ok(Statement::Identifier(self.eat(TokenType::Identifier)?.data));
+	fn lhs_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(Expression::Identifier(self.eat(TokenType::Identifier)?.data));
 	}
 
 	/*
@@ -177,9 +220,9 @@ impl Parser {
 		| parenthesized_expression
 		| lhs_expression
 	*/
-	fn primary_expression(&mut self) -> ResultWithError<Statement> {
+	fn primary_expression(&mut self) -> ResultWithError<Expression> {
 		let token_type = self.lookahead()?.typ;
-		if token_type.is_literal(){
+		if token_type.is_literal() {
 			return self.literal();
 		}
 		return match token_type {
@@ -192,7 +235,7 @@ impl Parser {
 	parenthesized_expression:
 		| '(' expression ')'
 	*/
-	fn parenthesized_expression(&mut self) -> ResultWithError<Statement> {
+	fn parenthesized_expression(&mut self) -> ResultWithError<Expression> {
 		self.eat(TokenType::OpenParen)?;
 		let res = self.expression();
 		self.eat(TokenType::CloseParen)?;
@@ -206,17 +249,17 @@ impl Parser {
 	*/
 	fn left_to_right_binary_expression(
 		&mut self,
-		sub_expression: fn(&mut Self) -> ResultWithError<Statement>,
+		sub_expression: fn(&mut Self) -> ResultWithError<Expression>,
 		expression_operator_token_type: TokenType,
-	) -> ResultWithError<Statement> {
+	) -> ResultWithError<Expression> {
 		let mut left = sub_expression(self)?;
 		while self.lookahead()?.typ == expression_operator_token_type {
 			let op = self.eat(expression_operator_token_type)?;
 			let right = sub_expression(self)?;
-			left = Statement::binary_expression(
+			left = Expression::binary_expression(
 				Operator::try_from(&op.data)?,
-				BoxStatement::from(left),
-				BoxStatement::from(right),
+				BoxExpression::from(left),
+				BoxExpression::from(right),
 			);
 		}
 		return Ok(left);
@@ -227,7 +270,7 @@ impl Parser {
 		| integer_literal
 		| string_literal
 	*/
-	fn literal(&mut self) -> ResultWithError<Statement> {
+	fn literal(&mut self) -> ResultWithError<Expression> {
 		return match self.lookahead()?.typ {
 			TokenType::Integer => self.integer_literal(),
 			TokenType::String => self.string_literal(),
@@ -235,14 +278,14 @@ impl Parser {
 		}
 	}
 
-	fn string_literal(&mut self) -> ResultWithError<Statement> {
+	fn string_literal(&mut self) -> ResultWithError<Expression> {
 		let v = self.eat(TokenType::String)?;
 		let rep_v = v.data[1..v.data.len() - 1].replace("\\\"", "\"");
-		return Ok(Statement::StringLiteral(rep_v))
+		return Ok(Expression::StringLiteral(rep_v))
 	}
 
-	fn integer_literal(&mut self) -> ResultWithError<Statement> {
+	fn integer_literal(&mut self) -> ResultWithError<Expression> {
 		let v = self.eat(TokenType::Integer)?;
-		return Ok(Statement::IntegerLiteral(v.data.parse().unwrap()))
+		return Ok(Expression::IntegerLiteral(v.data.parse().unwrap()))
 	}
 }

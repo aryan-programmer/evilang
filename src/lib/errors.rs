@@ -1,9 +1,7 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 use backtrace::Backtrace;
-use once_cell::sync::Lazy;
 use thiserror::Error;
 
 pub type ResultWithError<T, E = EvilangError> = anyhow::Result<T, E>;
@@ -20,6 +18,8 @@ pub enum ErrorT {
 	UnknownOperator,
 	#[error("Expected a left hand side expression")]
 	ExpectedLhsExpression,
+	#[error("Expected a simple assignment operator")]
+	ExpectedSimpleAssignmentOperator,
 }
 
 #[derive(Debug, Clone)]

@@ -1,8 +1,11 @@
 #![allow(dead_code)]
+
 use std::mem::size_of;
 use std::ops::Deref;
 
-use evilang_lib::ast::{Statement, StatementList};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::operator::Operator;
+use evilang_lib::ast::statement::{Statement, StatementList, VariableDeclaration};
 use evilang_lib::parser::parse;
 
 type TestRes = ();
@@ -33,8 +36,11 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	print_program("x += y = 1+2*(z=1)+4;");
+	print_program("let $foo = 1 + 2, bar, baz = $foo += 4;");
 	dbg!(size_of::<Statement>());
+	dbg!(size_of::<Expression>());
+	dbg!(size_of::<Operator>());
+	dbg!(size_of::<VariableDeclaration>());
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
 }

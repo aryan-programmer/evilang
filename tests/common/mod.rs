@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use evilang_lib::ast::{Statement, StatementList};
+use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::parser::parse;
 
 pub type TestRes = ();
