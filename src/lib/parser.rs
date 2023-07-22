@@ -15,9 +15,46 @@ pub struct Parser {
 	peekable_stream: Peekable<TokenStream>,
 }
 
+macro_rules! binary_expressions {
+    ($base_vis: vis fn $base_fn_name: ident(&mut self) -> $res_type: ty {
+	    wrapper_function: $wrapper: ident;
+	    $sub_vis1: vis $fn_name1: ident: $token_type1: expr;
+	    $($sub_vis: vis $fn_name: ident: $token_type: expr);*;
+    }) => {
+	    $base_vis fn $base_fn_name(&mut self) -> $res_type {
+		    return self.$fn_name1();
+	    }
+	    binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis1, $fn_name1, $token_type1 $(; $sub_vis, $fn_name, $token_type)*;);
+    };
+	(@@sub_parse
+		$res_type: ty, $wrapper: ident,
+	    $sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
+	    $sub_vis2: vis, $fn_name2: ident, $token_type2: expr;
+	    $($sub_vis: vis, $fn_name: ident, $token_type: expr);*;) => {
+		$sub_vis1 fn $fn_name1(&mut self) -> $res_type {
+		    return self.$wrapper(Self::$fn_name2, $token_type1);
+	    }
+	    binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis2, $fn_name2, $token_type2 $(; $sub_vis, $fn_name, $token_type)*;);
+	};
+	(@@sub_parse
+		$res_type: ty, $wrapper: ident,
+	    $sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
+	    $sub_vis2: vis, $fn_name2: ident, $token_type2: expr;) => {
+		$sub_vis1 fn $fn_name1(&mut self) -> $res_type {
+			static_assertions::const_assert!(const_str::equal!(stringify!($token_type2), "None"));
+			static_assertions::const_assert!(const_str::equal!(stringify!($sub_vis2), ""));
+		    return self.$wrapper(Self::$fn_name2, $token_type1);
+	    }
+	}
+}
+
 impl Parser {
 	pub fn new(stream: TokenStream) -> Parser {
 		return Parser { peekable_stream: stream.peekable() };
+	}
+
+	fn eat_any(&mut self) -> ResultWithError<Token> {
+		return Ok(self.peekable_stream.next().ok_or(ErrorT::EndOfTokenStream)??)
 	}
 
 	fn eat(&mut self, typ: TokenType) -> ResultWithError<Token> {
@@ -203,7 +240,7 @@ impl Parser {
 		| lhs AssignmentOperator assignment_expression
 	*/
 	fn assignment_expression(&mut self) -> ResultWithError<Expression> {
-		let left = self.relational_expression()?;
+		let left = self.base_binary_expression()?;
 		if self.lookahead()?.typ != TokenType::AssignmentOperator {
 			return Ok(left);
 		}
@@ -217,49 +254,18 @@ impl Parser {
 		));
 	}
 
-	/*
-	relational_expression:
-		| additive_expression
-		| relational_expression AdditiveOperator additive_expression
-	*/
-	fn relational_expression(&mut self) -> ResultWithError<Expression> {
-		return self.left_to_right_binary_expression(
-			Self::additive_expression,
-			TokenType::RelationalOperator
-		);
-	}
-
-	/*
-	additive_expression:
-		| multiplicative_expression
-		| additive_expression AdditiveOperator multiplicative_expression
-	*/
-	fn additive_expression(&mut self) -> ResultWithError<Expression> {
-		return self.left_to_right_binary_expression(
-			Self::multiplicative_expression,
-			TokenType::AdditiveOperator
-		);
-	}
-
-	/*
-	multiplicative_expression:
-		| primary_expression
-		| multiplicative_expression MultiplicativeOperator primary_expression
-	*/
-	fn multiplicative_expression(&mut self) -> ResultWithError<Expression> {
-		return self.left_to_right_binary_expression(
-			Self::primary_expression,
-			TokenType::MultiplicativeOperator
-		);
-	}
-
-	/*
-	lhs_expression:
-		| identifier
-	*/
-	fn lhs_expression(&mut self) -> ResultWithError<Expression> {
-		return Ok(Expression::Identifier(self.eat(TokenType::Identifier)?.data));
-	}
+	binary_expressions!(
+		fn base_binary_expression(&mut self) -> ResultWithError<Expression>{
+			wrapper_function: left_to_right_binary_expression;
+			logical_or_expresion: TokenType::LogicalOrOperator;
+			logical_and_expresion: TokenType::LogicalAndOperator;
+			equality_expression: TokenType::EqualityOperator;
+			relational_expression: TokenType::RelationalOperator;
+			additive_expression: TokenType::AdditiveOperator;
+			multiplicative_expression: TokenType::MultiplicativeOperator;
+			primary_expression: None;
+		}
+	);
 
 	/*
 	primary_expression:
@@ -276,6 +282,14 @@ impl Parser {
 			TokenType::OpenParen => self.parenthesized_expression(),
 			_ => self.lhs_expression(),
 		};
+	}
+
+	/*
+	lhs_expression:
+		| identifier
+	*/
+	fn lhs_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(Expression::Identifier(self.eat(TokenType::Identifier)?.data));
 	}
 
 	/*
@@ -316,13 +330,28 @@ impl Parser {
 	literal:
 		| integer_literal
 		| string_literal
+		| 'true'
+		| 'false'
 	*/
 	fn literal(&mut self) -> ResultWithError<Expression> {
 		return match self.lookahead()?.typ {
 			TokenType::Integer => self.integer_literal(),
 			TokenType::String => self.string_literal(),
-			_ => Err(ErrorT::InvalidTokenType.into()),
+			_ => self.singular_literal(),
 		}
+	}
+
+	fn singular_literal(&mut self) -> ResultWithError<Expression> {
+		let res = match self.lookahead()?.typ {
+			TokenType::Keyword(Keyword::True) => Ok(Expression::BooleanLiteral(true)),
+			TokenType::Keyword(Keyword::False) => Ok(Expression::BooleanLiteral(false)),
+			TokenType::Keyword(Keyword::Null) => Ok(Expression::NullLiteral),
+			_ => Err(ErrorT::InvalidTokenType.into()),
+		};
+		if res.is_ok() {
+			self.eat_any()?;
+		}
+		return res;
 	}
 
 	fn string_literal(&mut self) -> ResultWithError<Expression> {

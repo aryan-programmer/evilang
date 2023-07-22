@@ -1,27 +1,13 @@
-use evilang_lib::ast::expression::Expression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
-use evilang_lib::ast::operator::Operator::{Assignment, Division, GreaterThan, GreaterThanOrEqualTo, LessThan, LessThanOrEqualTo};
-use evilang_lib::ast::statement::Statement::ExpressionStatement;
+use evilang_lib::ast::expression::Expression::{BinaryExpression, Identifier, IntegerLiteral};
+use evilang_lib::ast::operator::Operator::{Division, GreaterThan, GreaterThanOrEqualTo, LessThan, LessThanOrEqualTo};
 
-use crate::common::{ensure_parsed_statement, TestRes};
+use crate::common::{test_expression_and_assignment, TestRes};
 
 mod common;
 
-fn relational_tests(input: &str, expr: Expression) -> TestRes {
-	ensure_parsed_statement(input, expr.clone().consume_as_statement());
-	let new_input = "y = ".to_string() + input;
-	ensure_parsed_statement(new_input.as_str(), ExpressionStatement(
-		AssignmentExpression {
-			operator: Assignment,
-			left: Identifier("y".to_string()).into(),
-			right: expr.into(),
-		},
-	));
-}
-
 #[test]
 fn gte() -> TestRes {
-	return relational_tests("x >= 12;", BinaryExpression {
+	return test_expression_and_assignment("x >= 12;", BinaryExpression {
 		operator: GreaterThanOrEqualTo,
 		left: Identifier("x".parse().unwrap()).into(),
 		right: IntegerLiteral(12).into(),
@@ -30,7 +16,7 @@ fn gte() -> TestRes {
 
 #[test]
 fn lte() -> TestRes {
-	return relational_tests("x <= 12;", BinaryExpression {
+	return test_expression_and_assignment("x <= 12;", BinaryExpression {
 		operator: LessThanOrEqualTo,
 		left: Identifier("x".parse().unwrap()).into(),
 		right: IntegerLiteral(12).into(),
@@ -39,7 +25,7 @@ fn lte() -> TestRes {
 
 #[test]
 fn gt() -> TestRes {
-	return relational_tests("x > 12;", BinaryExpression {
+	return test_expression_and_assignment("x > 12;", BinaryExpression {
 		operator: GreaterThan,
 		left: Identifier("x".parse().unwrap()).into(),
 		right: IntegerLiteral(12).into(),
@@ -48,7 +34,7 @@ fn gt() -> TestRes {
 
 #[test]
 fn lt() -> TestRes {
-	return relational_tests("x < 12;", BinaryExpression {
+	return test_expression_and_assignment("x < 12;", BinaryExpression {
 		operator: LessThan,
 		left: Identifier("x".parse().unwrap()).into(),
 		right: IntegerLiteral(12).into(),
@@ -57,7 +43,7 @@ fn lt() -> TestRes {
 
 #[test]
 fn gte_with_addition() -> TestRes {
-	return relational_tests("x / 2 >= 12;", BinaryExpression {
+	return test_expression_and_assignment("x / 2 >= 12;", BinaryExpression {
 		operator: GreaterThanOrEqualTo,
 		left: BinaryExpression {
 			operator: Division,

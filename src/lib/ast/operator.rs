@@ -17,6 +17,10 @@ pub enum Operator {
 	GreaterThan,
 	LessThanOrEqualTo,
 	GreaterThanOrEqualTo,
+	Equals,
+	NotEquals,
+	LogicalAnd,
+	LogicalOr,
 }
 
 impl TryFrom<&String> for Operator {
@@ -39,6 +43,10 @@ impl TryFrom<&String> for Operator {
 			">" => Ok(Operator::GreaterThan),
 			"<=" => Ok(Operator::LessThanOrEqualTo),
 			">=" => Ok(Operator::GreaterThanOrEqualTo),
+			"==" => Ok(Operator::Equals),
+			"!=" => Ok(Operator::NotEquals),
+			"&&" => Ok(Operator::LogicalAnd),
+			"||" => Ok(Operator::LogicalOr),
 			_ => Err(ErrorT::UnknownOperator.into())
 		};
 	}

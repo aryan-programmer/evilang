@@ -7,6 +7,7 @@ use evilang_lib::ast::expression::Expression;
 use evilang_lib::ast::operator::Operator;
 use evilang_lib::ast::statement::{Statement, StatementList, VariableDeclaration};
 use evilang_lib::parser::parse;
+use evilang_lib::tokenizer::{Token, TokenType};
 
 type TestRes = ();
 
@@ -37,11 +38,13 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 
 fn main() {
 	print_program(r#"
-	y = x > 13;
+	x * y + 13 > 15 == true || bool_val && false == null + 10;
 "#);
 	dbg!(size_of::<Statement>());
 	dbg!(size_of::<Expression>());
 	dbg!(size_of::<Operator>());
+	dbg!(size_of::<TokenType>());
+	dbg!(size_of::<Token>());
 	dbg!(size_of::<VariableDeclaration>());
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());

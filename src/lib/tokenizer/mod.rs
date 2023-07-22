@@ -24,10 +24,10 @@ impl Iterator for TokenStream {
 	fn next(&mut self) -> Option<Self::Item> {
 		'outer: loop {
 			if self.position >= self.str.len() {
-				if self.sent_eof_dummy {
-					return None;
+				return if self.sent_eof_dummy {
+					None
 				} else {
-					return Some(Ok(Token { typ: TokenType::_EOFDummy, data: String::new() }));
+					Some(Ok(Token { typ: TokenType::_EOFDummy, data: String::new() }))
 				}
 			}
 			let from = &self.str[self.position..];

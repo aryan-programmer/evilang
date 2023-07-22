@@ -5,6 +5,8 @@ pub type BoxExpression = Box<Expression>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Expression {
+	NullLiteral,
+	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
 	BinaryExpression {

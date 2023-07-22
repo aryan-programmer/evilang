@@ -13,15 +13,7 @@ const SINGLE_LINE_COMMENT_REGEX: &str = r#"^//.*"#;
 //language=regexp
 const MULTI_LINE_COMMENT_REGEX: &str = r#"^/\*[^*]*\*+(?:[^/*][^*]*\*+)*/"#;
 //language=regexp
-const MULTIPLICATIVE_OPERATORS_REGEX: &str = r#"^[*/%]"#;
-//language=regexp
-const ADDITIVE_OPERATORS_REGEX: &str = r#"^[+\-]"#;
-//language=regexp
 const IDENTIFIER_REGEX: &str = r#"^[a-zA-Z_$][a-zA-Z0-9_$]*"#;
-//language=regexp
-const ASSIGNMENT_REGEX: &str = r#"^[+\-*/%]?="#;
-//language=regexp
-const RELATIONAL_OPERATORS_REGEX: &str = r#"^[<>]=?"#;
 
 pub(super) type Matcher = Box<dyn Fn(&str) -> Option<&str>>;
 
@@ -38,6 +30,18 @@ fn starts_with_matcher(start: &'static str) -> Matcher {
 	});
 }
 
+fn one_of_many<const COUNT: usize>(starters: [&'static str; COUNT]) -> Matcher {
+	return Box::new(move |s: &str| {
+		for starter in starters.iter() {
+			let start = *starter;
+			if s.starts_with(start) {
+				return Some(start);
+			}
+		}
+		return None;
+	});
+}
+
 pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 	let regex_str_with_type = vec![
 		(regex_matcher(WHITESPACE_REGEX), None),
@@ -51,10 +55,14 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher(")"), Some(TokenType::CloseParen)),
 		(starts_with_matcher(","), Some(TokenType::Comma)),
 		//
-		(regex_matcher(ASSIGNMENT_REGEX), Some(TokenType::AssignmentOperator)),
-		(regex_matcher(MULTIPLICATIVE_OPERATORS_REGEX), Some(TokenType::MultiplicativeOperator)),
-		(regex_matcher(ADDITIVE_OPERATORS_REGEX), Some(TokenType::AdditiveOperator)),
-		(regex_matcher(RELATIONAL_OPERATORS_REGEX), Some(TokenType::RelationalOperator)),
+		(starts_with_matcher("&&"), Some(TokenType::LogicalAndOperator)),
+		(starts_with_matcher("||"), Some(TokenType::LogicalOrOperator)),
+		(one_of_many(["==", "!="]), Some(TokenType::EqualityOperator)),
+		(one_of_many(["=", "+=", "-=", "*=", "/=", "%="]), Some(TokenType::AssignmentOperator)),
+		(one_of_many(["*", "/", "%"]), Some(TokenType::MultiplicativeOperator)),
+		(one_of_many(["+", "-"]), Some(TokenType::AdditiveOperator)),
+		(one_of_many(["<=", ">="]), Some(TokenType::RelationalOperator)),
+		(one_of_many(["<", ">"]), Some(TokenType::RelationalOperator)),
 		//
 		(regex_matcher(INTEGER_REGEX), Some(TokenType::Integer)),
 		(regex_matcher(STRING_REGEX), Some(TokenType::String)),
@@ -62,6 +70,9 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher("let"), Some(TokenType::Keyword(Keyword::Let))),
 		(starts_with_matcher("if"), Some(TokenType::Keyword(Keyword::If))),
 		(starts_with_matcher("else"), Some(TokenType::Keyword(Keyword::Else))),
+		(starts_with_matcher("true"), Some(TokenType::Keyword(Keyword::True))),
+		(starts_with_matcher("false"), Some(TokenType::Keyword(Keyword::False))),
+		(starts_with_matcher("null"), Some(TokenType::Keyword(Keyword::Null))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];
