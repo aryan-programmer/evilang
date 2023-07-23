@@ -37,9 +37,6 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	print_program(r#"
-	x * y + 13 > 15 == true || bool_val && false == null + 10;
-"#);
 	dbg!(size_of::<Statement>());
 	dbg!(size_of::<Expression>());
 	dbg!(size_of::<Operator>());
@@ -48,4 +45,9 @@ fn main() {
 	dbg!(size_of::<VariableDeclaration>());
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
+	print_program(r#"
+	for(let i = 1; i <= 10; i += 1){
+		+i;
+	}
+"#);
 }

@@ -9,7 +9,7 @@ pub enum Expression {
 	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
-	UnaryExpression{
+	UnaryExpression {
 		operator: Operator,
 		argument: BoxExpression
 	},
@@ -33,6 +33,10 @@ impl Expression {
 			left,
 			right,
 		};
+	}
+
+	pub fn unary_expression(operator: Operator, argument: BoxExpression) -> Expression {
+		return Expression::UnaryExpression { operator, argument };
 	}
 
 	pub fn assignment_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {

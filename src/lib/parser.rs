@@ -103,6 +103,10 @@ impl Parser {
 		| expression_statement
 		| empty_statement
 		| variable_declarations_statement
+		| if_statement
+		| while_loop
+		| do_while_loop
+		| for_loop
 	*/
 	fn statement(&mut self) -> ResultWithError<Statement> {
 		return match self.lookahead()?.typ {
@@ -110,8 +114,11 @@ impl Parser {
 			TokenType::Semicolon => self.empty_statement(),
 			TokenType::Keyword(Keyword::Let) => self.variable_declarations_statement(),
 			TokenType::Keyword(Keyword::If) => self.if_statement(),
+			TokenType::Keyword(Keyword::While) => self.while_loop(),
+			TokenType::Keyword(Keyword::Do) => self.do_while_loop(),
+			TokenType::Keyword(Keyword::For) => self.for_loop(),
 			_ => self.expression_statement(),
-		}
+		};
 	}
 
 	/*
@@ -133,6 +140,97 @@ impl Parser {
 			_ => None
 		};
 		return Ok(Statement::if_statement(condition, if_branch, else_branch));
+	}
+
+	/*
+	while_loop:
+		| 'while' '(' expression ')' statement
+	*/
+	fn while_loop(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::While))?;
+		self.eat(TokenType::OpenParen)?;
+		let condition = self.expression()?;
+		self.eat(TokenType::CloseParen)?;
+		let body = BoxStatement::from(self.statement()?);
+		return Ok(Statement::while_loop(condition, body));
+	}
+
+	/*
+	do_while_loop:
+		| 'do' block_statement 'while' '(' expression ')' ';'
+	*/
+	fn do_while_loop(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Do))?;
+		let body = BoxStatement::from(self.block_statement()?);
+		self.eat(TokenType::Keyword(Keyword::While))?;
+		self.eat(TokenType::OpenParen)?;
+		let condition = self.expression()?;
+		self.eat(TokenType::CloseParen)?;
+		self.eat(TokenType::Semicolon)?;
+		return Ok(Statement::do_while_loop(condition, body));
+	}
+
+	/*
+	for_loop:
+		| 'for' '(' expression ')' statement
+	*/
+	fn for_loop(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::For))?;
+		self.eat(TokenType::OpenParen)?;
+		let init = self.for_loop_initialization_statement()?;
+		let condition = self.for_loop_condition_expression()?;
+		let increment = self.for_loop_increment_statement()?;
+		self.eat(TokenType::CloseParen)?;
+		let body = self.statement()?;
+		return Ok(Statement::for_loop(init.into(), condition, increment.into(), body.into()));
+	}
+
+	/*
+	for_loop_initialization_statement:
+		| block_statement ';'
+		| empty_statement
+		| variable_declarations_statement
+		| expression_statement
+	*/
+	fn for_loop_initialization_statement(&mut self) -> ResultWithError<Statement> {
+		return match self.lookahead()?.typ {
+			TokenType::OpenBlock => {
+				let res = self.block_statement()?;
+				self.eat(TokenType::Semicolon)?;
+				Ok(res)
+			},
+			TokenType::Semicolon => self.empty_statement(),
+			TokenType::Keyword(Keyword::Let) => self.variable_declarations_statement(),
+			_ => self.expression_statement(),
+		};
+	}
+
+	/*
+	for_loop_condition_expression:
+		| empty_statement
+		| expression_statement
+	*/
+	fn for_loop_condition_expression(&mut self) -> ResultWithError<Expression> {
+		let result = match self.lookahead()?.typ {
+			TokenType::Semicolon => Expression::BooleanLiteral(true),
+			_ => self.expression()?,
+		};
+		self.eat(TokenType::Semicolon)?;
+		return Ok(result);
+	}
+
+	/*
+	for_loop_increment_statement:
+		| block_statement
+		| empty_statement
+		| expression
+	*/
+	fn for_loop_increment_statement(&mut self) -> ResultWithError<Statement> {
+		return match self.lookahead()?.typ {
+			TokenType::OpenBlock => self.block_statement(),
+			TokenType::CloseParen => Ok(Statement::EmptyStatement),
+			_ => Ok(Statement::ExpressionStatement(self.expression()?)),
+		};
 	}
 
 	/*
@@ -278,10 +376,7 @@ impl Parser {
 			return self.primary_expression();
 		}
 		let operator = Operator::try_from(&self.eat_any()?.data)?;
-		return Ok(Expression::UnaryExpression {
-			operator,
-			argument: self.unary_expression()?.into(),
-		});
+		return Ok(Expression::unary_expression(operator, self.unary_expression()?.into()));
 	}
 
 	/*
