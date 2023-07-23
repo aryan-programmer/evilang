@@ -55,9 +55,10 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher(")"), Some(TokenType::CloseParen)),
 		(starts_with_matcher(","), Some(TokenType::Comma)),
 		//
+		(one_of_many(["==", "!="]), Some(TokenType::EqualityOperator)),
 		(starts_with_matcher("&&"), Some(TokenType::LogicalAndOperator)),
 		(starts_with_matcher("||"), Some(TokenType::LogicalOrOperator)),
-		(one_of_many(["==", "!="]), Some(TokenType::EqualityOperator)),
+		(starts_with_matcher("!"), Some(TokenType::LogicalNotOperator)),
 		(one_of_many(["=", "+=", "-=", "*=", "/=", "%="]), Some(TokenType::AssignmentOperator)),
 		(one_of_many(["*", "/", "%"]), Some(TokenType::MultiplicativeOperator)),
 		(one_of_many(["+", "-"]), Some(TokenType::AdditiveOperator)),

@@ -21,6 +21,7 @@ pub enum Operator {
 	NotEquals,
 	LogicalAnd,
 	LogicalOr,
+	LogicalNot,
 }
 
 impl TryFrom<&String> for Operator {
@@ -47,6 +48,7 @@ impl TryFrom<&String> for Operator {
 			"!=" => Ok(Operator::NotEquals),
 			"&&" => Ok(Operator::LogicalAnd),
 			"||" => Ok(Operator::LogicalOr),
+			"!" => Ok(Operator::LogicalNot),
 			_ => Err(ErrorT::UnknownOperator.into())
 		};
 	}

@@ -263,9 +263,26 @@ impl Parser {
 			relational_expression: TokenType::RelationalOperator;
 			additive_expression: TokenType::AdditiveOperator;
 			multiplicative_expression: TokenType::MultiplicativeOperator;
-			primary_expression: None;
+			unary_expression: None;
 		}
 	);
+
+	/*
+	unary_expression:
+		| primary_expression
+		| AdditiveOperator unary_expression
+		| LogicalNotOperator unary_expression
+	*/
+	fn unary_expression(&mut self) -> ResultWithError<Expression> {
+		if !(self.lookahead()?.typ.is_unary_operator()) {
+			return self.primary_expression();
+		}
+		let operator = Operator::try_from(&self.eat_any()?.data)?;
+		return Ok(Expression::UnaryExpression {
+			operator,
+			argument: self.unary_expression()?.into(),
+		});
+	}
 
 	/*
 	primary_expression:
@@ -289,6 +306,10 @@ impl Parser {
 		| identifier
 	*/
 	fn lhs_expression(&mut self) -> ResultWithError<Expression> {
+		return self.identifier();
+	}
+
+	fn identifier(&mut self) -> ResultWithError<Expression> {
 		return Ok(Expression::Identifier(self.eat(TokenType::Identifier)?.data));
 	}
 

@@ -23,6 +23,7 @@ pub enum TokenType {
 	EqualityOperator,
 	LogicalAndOperator,
 	LogicalOrOperator,
+	LogicalNotOperator,
 	AssignmentOperator,
 	OpenParen,
 	CloseParen,
@@ -41,6 +42,14 @@ impl TokenType {
 				Keyword::False |
 				Keyword::Null
 			) => true,
+			_ => false,
+		};
+	}
+
+	pub fn is_unary_operator(&self) -> bool {
+		return match self {
+			TokenType::AdditiveOperator |
+			TokenType::LogicalNotOperator => true,
 			_ => false,
 		};
 	}

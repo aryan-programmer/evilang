@@ -9,6 +9,10 @@ pub enum Expression {
 	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
+	UnaryExpression{
+		operator: Operator,
+		argument: BoxExpression
+	},
 	BinaryExpression {
 		operator: Operator,
 		left: BoxExpression,
