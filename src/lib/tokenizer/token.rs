@@ -32,8 +32,11 @@ pub enum TokenType {
 	AssignmentOperator,
 	OpenParen,
 	CloseParen,
+	OpenSquareBracket,
+	CloseSquareBracket,
 	Identifier,
 	Comma,
+	Dot,
 	Keyword(Keyword),
 }
 

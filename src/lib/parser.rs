@@ -55,6 +55,10 @@ impl Parser {
 		return Parser { peekable_stream: stream.peekable() };
 	}
 
+	fn identifier(&mut self) -> ResultWithError<IdentifierT> {
+		return Ok(self.eat(TokenType::Identifier)?.data);
+	}
+
 	fn eat_any(&mut self) -> ResultWithError<Token> {
 		return Ok(self.peekable_stream.next().ok_or(ErrorT::EndOfTokenStream)??)
 	}
@@ -145,7 +149,7 @@ impl Parser {
 	*/
 	fn function_statement(&mut self) -> ResultWithError<Statement> {
 		self.eat(TokenType::Keyword(Keyword::Fn))?;
-		let name: IdentifierT = self.eat(TokenType::Identifier)?.data;
+		let name: IdentifierT = self.identifier()?;
 		self.eat(TokenType::OpenParen)?;
 		let params = self.function_parameter_declarations()?;
 		self.eat(TokenType::CloseParen)?;
@@ -179,7 +183,7 @@ impl Parser {
 		| Identifier
 	*/
 	fn function_parameter_declaration(&mut self) -> ResultWithError<FunctionParameterDeclaration> {
-		return Ok(FunctionParameterDeclaration::new(self.eat(TokenType::Identifier)?.data));
+		return Ok(FunctionParameterDeclaration::new(self.identifier()?));
 	}
 
 	/*
@@ -329,7 +333,7 @@ impl Parser {
 		| Identifier variable_initializer
 	*/
 	fn variable_declaration(&mut self) -> ResultWithError<VariableDeclaration> {
-		let identifier = self.eat(TokenType::Identifier)?.data;
+		let identifier = self.identifier()?;
 		let initializer = match self.lookahead()?.typ {
 			TokenType::Semicolon | TokenType::Comma => None,
 			_ => Some(self.variable_initializer()?)
@@ -419,7 +423,7 @@ impl Parser {
 			relational_expression: TokenType::RelationalOperator;
 			additive_expression: TokenType::AdditiveOperator;
 			multiplicative_expression: TokenType::MultiplicativeOperator;
-			unary_expression: None;
+			base_unary_expression: None;
 		}
 	);
 
@@ -429,19 +433,53 @@ impl Parser {
 		| AdditiveOperator unary_expression
 		| LogicalNotOperator unary_expression
 	*/
-	fn unary_expression(&mut self) -> ResultWithError<Expression> {
+	fn base_unary_expression(&mut self) -> ResultWithError<Expression> {
 		if !(self.lookahead()?.typ.is_unary_operator()) {
-			return self.primary_expression();
+			return self.base_expression();
 		}
 		let operator = Operator::try_from(&self.eat_any()?.data)?;
-		return Ok(Expression::unary_expression(operator, self.unary_expression()?.into()));
+		return Ok(Expression::unary_expression(operator, self.base_unary_expression()?.into()));
+	}
+
+	/*
+	base_expression:
+		| primary_expression
+	*/
+	fn base_expression(&mut self) -> ResultWithError<Expression> {
+		return self.member_expression();
+	}
+
+	/*
+	member_expression:
+		| primary_expression
+		| member_expression . Identifier
+		| member_expression '[' expression ']'
+	*/
+	fn member_expression(&mut self) -> ResultWithError<Expression> {
+		let mut res = self.primary_expression()?;
+		while match self.lookahead()?.typ {
+			TokenType::Dot | TokenType::OpenSquareBracket => true,
+			_ => false
+		} {
+			if self.lookahead()?.typ == TokenType::Dot {
+				self.eat(TokenType::Dot)?;
+				let property_name = self.identifier()?;
+				res = Expression::member_property_access(res.into(), property_name);
+			} else {
+				self.eat(TokenType::OpenSquareBracket)?;
+				let expr = self.expression()?.into();
+				res = Expression::member_subscript(res.into(), expr);
+				self.eat(TokenType::CloseSquareBracket)?;
+			}
+		}
+		return Ok(res);
 	}
 
 	/*
 	primary_expression:
 		| literal
 		| parenthesized_expression
-		| lhs_expression
+		| identifier
 	*/
 	fn primary_expression(&mut self) -> ResultWithError<Expression> {
 		let token_type = self.lookahead()?.typ;
@@ -450,20 +488,12 @@ impl Parser {
 		}
 		return match token_type {
 			TokenType::OpenParen => self.parenthesized_expression(),
-			_ => self.lhs_expression(),
+			_ => self.identifier_expression(),
 		};
 	}
 
-	/*
-	lhs_expression:
-		| identifier
-	*/
-	fn lhs_expression(&mut self) -> ResultWithError<Expression> {
-		return self.identifier();
-	}
-
-	fn identifier(&mut self) -> ResultWithError<Expression> {
-		return Ok(Expression::Identifier(self.eat(TokenType::Identifier)?.data));
+	fn identifier_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(Expression::Identifier(self.identifier()?));
 	}
 
 	/*

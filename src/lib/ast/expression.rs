@@ -6,6 +6,12 @@ pub type BoxExpression = Box<Expression>;
 pub type IdentifierT = String;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub enum MemberIndexer {
+	PropertyName(IdentifierT),
+	SubscriptExpression(BoxExpression),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Expression {
 	NullLiteral,
 	BooleanLiteral(bool),
@@ -26,15 +32,15 @@ pub enum Expression {
 		right: BoxExpression,
 	},
 	Identifier(IdentifierT),
+	MemberAccess {
+		object: BoxExpression,
+		member: MemberIndexer,
+	},
 }
 
 impl Expression {
 	pub fn binary_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
-		return Expression::BinaryExpression {
-			operator,
-			left,
-			right,
-		};
+		return Expression::BinaryExpression { operator, left, right };
 	}
 
 	pub fn unary_expression(operator: Operator, argument: BoxExpression) -> Expression {
@@ -42,16 +48,21 @@ impl Expression {
 	}
 
 	pub fn assignment_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
-		return Expression::AssignmentExpression {
-			operator,
-			left,
-			right,
-		};
+		return Expression::AssignmentExpression { operator, left, right };
+	}
+
+	pub fn member_property_access(object: BoxExpression, property_name: IdentifierT) -> Expression {
+		return Expression::MemberAccess { object, member: MemberIndexer::PropertyName(property_name) };
+	}
+
+	pub fn member_subscript(object: BoxExpression, expr: BoxExpression) -> Expression {
+		return Expression::MemberAccess { object, member: MemberIndexer::SubscriptExpression(expr) };
 	}
 
 	pub fn is_lhs(&self) -> bool {
 		return match self {
 			Expression::Identifier(_) => true,
+			Expression::MemberAccess { .. } => true,
 			_ => false,
 		};
 	}

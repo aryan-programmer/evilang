@@ -2,8 +2,8 @@ use evilang_lib::ast::expression::Expression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, UnaryExpression};
 use evilang_lib::ast::operator::Operator::{LessThanOrEqualTo, Multiplication, MultiplicationAssignment, Plus, PlusAssignment};
 use evilang_lib::ast::statement::Statement;
-use evilang_lib::ast::structs::VariableDeclaration;
 use evilang_lib::ast::statement::Statement::{BlockStatement, DoWhileLoop, EmptyStatement, ExpressionStatement, ForLoop, VariableDeclarations, WhileLoop};
+use evilang_lib::ast::structs::VariableDeclaration;
 
 use crate::common::{ensure_program, ensure_program_fails, TestRes};
 

@@ -22,4 +22,3 @@ impl FunctionParameterDeclaration {
 		Self { identifier }
 	}
 }
-

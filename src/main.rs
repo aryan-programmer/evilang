@@ -3,7 +3,7 @@
 use std::mem::size_of;
 use std::ops::Deref;
 
-use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::{Expression, MemberIndexer};
 use evilang_lib::ast::operator::Operator;
 use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::structs::VariableDeclaration;
@@ -40,6 +40,7 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 fn main() {
 	dbg!(size_of::<Statement>());
 	dbg!(size_of::<Expression>());
+	dbg!(size_of::<MemberIndexer>());
 	dbg!(size_of::<Operator>());
 	dbg!(size_of::<TokenType>());
 	dbg!(size_of::<Token>());
@@ -47,13 +48,6 @@ fn main() {
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
 	print_program(r#"
-	fn func_name(param1, val2){
-		param1 += val2;
-		if(param1 != 0){
-			return val2 *= param1;
-		} else {
-			return;
-		}
-	}
+	a.b["c"].d;
 "#);
 }
