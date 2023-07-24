@@ -20,6 +20,8 @@ pub enum ErrorT {
 	ExpectedLhsExpression,
 	#[error("Expected a simple assignment operator")]
 	ExpectedSimpleAssignmentOperator,
+	#[error("Expected at least one variable in declaration")]
+	ExpectedVariableDeclaration,
 }
 
 #[derive(Debug, Clone)]

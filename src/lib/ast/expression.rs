@@ -36,6 +36,10 @@ pub enum Expression {
 		object: BoxExpression,
 		member: MemberIndexer,
 	},
+	FunctionCall {
+		function: BoxExpression,
+		arguments: Vec<Expression>,
+	},
 }
 
 impl Expression {
@@ -57,6 +61,10 @@ impl Expression {
 
 	pub fn member_subscript(object: BoxExpression, expr: BoxExpression) -> Expression {
 		return Expression::MemberAccess { object, member: MemberIndexer::SubscriptExpression(expr) };
+	}
+
+	pub fn function_call(function: BoxExpression, arguments: Vec<Expression>) -> Expression {
+		return Expression::FunctionCall { function, arguments };
 	}
 
 	pub fn is_lhs(&self) -> bool {

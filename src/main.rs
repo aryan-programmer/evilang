@@ -48,6 +48,6 @@ fn main() {
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
 	print_program(r#"
-	a.b["c"].d;
+	console.log("values");
 "#);
 }

@@ -151,31 +151,14 @@ impl Parser {
 		self.eat(TokenType::Keyword(Keyword::Fn))?;
 		let name: IdentifierT = self.identifier()?;
 		self.eat(TokenType::OpenParen)?;
-		let params = self.function_parameter_declarations()?;
+		let params = self.delimited_items(
+			Self::function_parameter_declaration,
+			TokenType::Comma,
+			TokenType::CloseParen
+		)?;
 		self.eat(TokenType::CloseParen)?;
 		let body = self.block_statement()?;
 		return Ok(Statement::function_declaration(name, params, body.into()));
-	}
-
-	/*
-	function_parameter_declarations:
-		|
-		| function_parameter_declaration
-		| function_parameter_declaration ',' function_parameter_declarations
-	*/
-	fn function_parameter_declarations(&mut self) -> ResultWithError<Vec<FunctionParameterDeclaration>> {
-		let mut res = Vec::<FunctionParameterDeclaration>::new();
-		if self.lookahead()?.typ != TokenType::CloseParen {
-			loop {
-				res.push(self.function_parameter_declaration()?);
-				if self.lookahead()?.typ == TokenType::Comma {
-					self.eat(TokenType::Comma)?;
-				} else {
-					break;
-				}
-			}
-		}
-		return Ok(res);
 	}
 
 	/*
@@ -304,27 +287,16 @@ impl Parser {
 	*/
 	fn variable_declarations_statement(&mut self) -> ResultWithError<Statement> {
 		self.eat(TokenType::Keyword(Keyword::Let))?;
-		let res = self.variable_declarations()?;
+		let res = self.delimited_items(
+			Self::variable_declaration,
+			TokenType::Comma,
+			TokenType::Semicolon
+		)?;
+		if res.len() == 0 {
+			return Err(ErrorT::ExpectedVariableDeclaration.into());
+		}
 		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::VariableDeclarations(res));
-	}
-
-	/*
-	variable_declarations:
-		| variable_declaration
-		| variable_declaration ',' variable_declarations
-	*/
-	fn variable_declarations(&mut self) -> ResultWithError<Vec<VariableDeclaration>> {
-		let mut res = Vec::<VariableDeclaration>::new();
-		loop {
-			res.push(self.variable_declaration()?);
-			if self.lookahead()?.typ != TokenType::Comma {
-				break;
-			} else {
-				self.eat(TokenType::Comma)?;
-			}
-		}
-		return Ok(res);
 	}
 
 	/*
@@ -444,32 +416,46 @@ impl Parser {
 	/*
 	base_expression:
 		| primary_expression
-	*/
+	 */
 	fn base_expression(&mut self) -> ResultWithError<Expression> {
-		return self.member_expression();
+		return self.call_or_member_expression();
 	}
 
 	/*
-	member_expression:
+	call_or_member_expression:
 		| primary_expression
-		| member_expression . Identifier
-		| member_expression '[' expression ']'
+		| call_or_member_expression . Identifier
+		| call_or_member_expression '[' expression ']'
+		| call_or_member_expression '(' call_arguments ')'
 	*/
-	fn member_expression(&mut self) -> ResultWithError<Expression> {
+	fn call_or_member_expression(&mut self) -> ResultWithError<Expression> {
 		let mut res = self.primary_expression()?;
 		while match self.lookahead()?.typ {
-			TokenType::Dot | TokenType::OpenSquareBracket => true,
+			TokenType::Dot | TokenType::OpenSquareBracket | TokenType::OpenParen => true,
 			_ => false
 		} {
 			if self.lookahead()?.typ == TokenType::Dot {
 				self.eat(TokenType::Dot)?;
 				let property_name = self.identifier()?;
 				res = Expression::member_property_access(res.into(), property_name);
-			} else {
+			} else if self.lookahead()?.typ == TokenType::OpenSquareBracket {
 				self.eat(TokenType::OpenSquareBracket)?;
 				let expr = self.expression()?.into();
-				res = Expression::member_subscript(res.into(), expr);
 				self.eat(TokenType::CloseSquareBracket)?;
+
+				res = Expression::member_subscript(res.into(), expr);
+			} else if self.lookahead()?.typ == TokenType::OpenParen {
+				self.eat(TokenType::OpenParen)?;
+				let exprs = self.delimited_items(
+					Self::expression,
+					TokenType::Comma,
+					TokenType::CloseParen
+				)?;
+				self.eat(TokenType::CloseParen)?;
+
+				res = Expression::function_call(res.into(), exprs);
+			} else {
+				return Err(ErrorT::InvalidTokenType.into());
 			}
 		}
 		return Ok(res);
@@ -505,29 +491,6 @@ impl Parser {
 		let res = self.expression();
 		self.eat(TokenType::CloseParen)?;
 		return res;
-	}
-
-	/*
-	left_to_right_binary_expression(sub_expression, ExprOperator):
-		| sub_expression
-		| left_to_right_binary_expression(sub_expression, ExprOperator) ExprOperator sub_expression
-	*/
-	fn left_to_right_binary_expression(
-		&mut self,
-		sub_expression: fn(&mut Self) -> ResultWithError<Expression>,
-		expression_operator_token_type: TokenType,
-	) -> ResultWithError<Expression> {
-		let mut left = sub_expression(self)?;
-		while self.lookahead()?.typ == expression_operator_token_type {
-			let op = self.eat(expression_operator_token_type)?;
-			let right = sub_expression(self)?;
-			left = Expression::binary_expression(
-				Operator::try_from(&op.data)?,
-				BoxExpression::from(left),
-				BoxExpression::from(right),
-			);
-		}
-		return Ok(left);
 	}
 
 	/*
@@ -568,4 +531,54 @@ impl Parser {
 		let v = self.eat(TokenType::Integer)?;
 		return Ok(Expression::IntegerLiteral(v.data.parse().unwrap()))
 	}
+
+	// region ...Utilities
+	/*
+left_to_right_binary_expression(sub_expression, ExprOperator):
+	| sub_expression
+	| left_to_right_binary_expression(sub_expression, ExprOperator) ExprOperator sub_expression
+*/
+	fn left_to_right_binary_expression(
+		&mut self,
+		sub_expression: fn(&mut Self) -> ResultWithError<Expression>,
+		expression_operator_token_type: TokenType,
+	) -> ResultWithError<Expression> {
+		let mut left = sub_expression(self)?;
+		while self.lookahead()?.typ == expression_operator_token_type {
+			let op = self.eat(expression_operator_token_type)?;
+			let right = sub_expression(self)?;
+			left = Expression::binary_expression(
+				Operator::try_from(&op.data)?,
+				BoxExpression::from(left),
+				BoxExpression::from(right),
+			);
+		}
+		return Ok(left);
+	}
+
+	/*
+	delimited_items:
+		| item
+		| item delimiter delimited_items
+	*/
+	fn delimited_items<T>(
+		&mut self,
+		item: fn(&mut Self) -> ResultWithError<T>,
+		delimiter: TokenType,
+		end: TokenType
+	) -> ResultWithError<Vec<T>> {
+		let mut res = Vec::<T>::new();
+		if self.lookahead()?.typ != end {
+			loop {
+				res.push(item(self)?);
+				if self.lookahead()?.typ == delimiter {
+					self.eat(TokenType::Comma)?;
+				} else {
+					break;
+				}
+			}
+		}
+		return Ok(res);
+	}
+	// endregion
 }
