@@ -5,7 +5,8 @@ use std::ops::Deref;
 
 use evilang_lib::ast::expression::Expression;
 use evilang_lib::ast::operator::Operator;
-use evilang_lib::ast::statement::{Statement, StatementList, VariableDeclaration};
+use evilang_lib::ast::statement::{Statement, StatementList};
+use evilang_lib::ast::structs::VariableDeclaration;
 use evilang_lib::parser::parse;
 use evilang_lib::tokenizer::{Token, TokenType};
 
@@ -46,8 +47,13 @@ fn main() {
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
 	print_program(r#"
-	for(let i = 1; i <= 10; i += 1){
-		+i;
+	fn func_name(param1, val2){
+		param1 += val2;
+		if(param1 != 0){
+			return val2 *= param1;
+		} else {
+			return;
+		}
 	}
 "#);
 }

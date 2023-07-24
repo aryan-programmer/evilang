@@ -3,6 +3,8 @@ use crate::ast::statement::Statement;
 
 pub type BoxExpression = Box<Expression>;
 
+pub type IdentifierT = String;
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Expression {
 	NullLiteral,
@@ -23,7 +25,7 @@ pub enum Expression {
 		left: BoxExpression,
 		right: BoxExpression,
 	},
-	Identifier(String),
+	Identifier(IdentifierT),
 }
 
 impl Expression {

@@ -9,6 +9,8 @@ pub enum Keyword {
 	While,
 	Do,
 	For,
+	Fn,
+	Return,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

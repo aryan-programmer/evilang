@@ -2,7 +2,7 @@ use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
 use evilang_lib::ast::operator::Operator::{Plus, PlusAssignment};
 use evilang_lib::ast::statement::Statement::VariableDeclarations;
-use evilang_lib::ast::statement::VariableDeclaration;
+use evilang_lib::ast::structs::VariableDeclaration;
 
 use crate::common::{ensure_program, TestRes};
 

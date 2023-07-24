@@ -77,6 +77,8 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher("while"), Some(TokenType::Keyword(Keyword::While))),
 		(starts_with_matcher("do"), Some(TokenType::Keyword(Keyword::Do))),
 		(starts_with_matcher("for"), Some(TokenType::Keyword(Keyword::For))),
+		(starts_with_matcher("fn"), Some(TokenType::Keyword(Keyword::Fn))),
+		(starts_with_matcher("return"), Some(TokenType::Keyword(Keyword::Return))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];

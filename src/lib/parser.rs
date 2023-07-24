@@ -1,7 +1,9 @@
 use std::iter::Peekable;
 
 use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
-use crate::ast::statement::{BoxStatement, VariableDeclaration};
+use crate::ast::expression::IdentifierT;
+use crate::ast::statement::BoxStatement;
+use crate::ast::structs::{FunctionParameterDeclaration, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
@@ -117,8 +119,67 @@ impl Parser {
 			TokenType::Keyword(Keyword::While) => self.while_loop(),
 			TokenType::Keyword(Keyword::Do) => self.do_while_loop(),
 			TokenType::Keyword(Keyword::For) => self.for_loop(),
+			TokenType::Keyword(Keyword::Fn) => self.function_statement(),
+			TokenType::Keyword(Keyword::Return) => self.return_statement(),
 			_ => self.expression_statement(),
 		};
+	}
+
+	/*
+	return_statement:
+		| 'return' ';'
+		| 'return' expression ';'
+	*/
+	fn return_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Return))?;
+		let res = if self.lookahead()?.typ != TokenType::Semicolon {
+			Some(self.expression()?)
+		} else { None };
+		self.eat(TokenType::Semicolon)?;
+		return Ok(Statement::ReturnStatement(res));
+	}
+
+	/*
+	function_statement:
+		| 'fn' Identifier '(' function_parameter_declarations ')' block_statement
+	*/
+	fn function_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Fn))?;
+		let name: IdentifierT = self.eat(TokenType::Identifier)?.data;
+		self.eat(TokenType::OpenParen)?;
+		let params = self.function_parameter_declarations()?;
+		self.eat(TokenType::CloseParen)?;
+		let body = self.block_statement()?;
+		return Ok(Statement::function_declaration(name, params, body.into()));
+	}
+
+	/*
+	function_parameter_declarations:
+		|
+		| function_parameter_declaration
+		| function_parameter_declaration ',' function_parameter_declarations
+	*/
+	fn function_parameter_declarations(&mut self) -> ResultWithError<Vec<FunctionParameterDeclaration>> {
+		let mut res = Vec::<FunctionParameterDeclaration>::new();
+		if self.lookahead()?.typ != TokenType::CloseParen {
+			loop {
+				res.push(self.function_parameter_declaration()?);
+				if self.lookahead()?.typ == TokenType::Comma {
+					self.eat(TokenType::Comma)?;
+				} else {
+					break;
+				}
+			}
+		}
+		return Ok(res);
+	}
+
+	/*
+	function_parameter_declaration:
+		| Identifier
+	*/
+	fn function_parameter_declaration(&mut self) -> ResultWithError<FunctionParameterDeclaration> {
+		return Ok(FunctionParameterDeclaration::new(self.eat(TokenType::Identifier)?.data));
 	}
 
 	/*
@@ -273,10 +334,7 @@ impl Parser {
 			TokenType::Semicolon | TokenType::Comma => None,
 			_ => Some(self.variable_initializer()?)
 		};
-		return Ok(VariableDeclaration {
-			identifier,
-			initializer,
-		});
+		return Ok(VariableDeclaration::new(identifier, initializer));
 	}
 
 	/*

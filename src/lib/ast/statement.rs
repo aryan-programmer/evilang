@@ -1,4 +1,5 @@
-use crate::ast::expression::Expression;
+use crate::ast::expression::{Expression, IdentifierT};
+use crate::ast::structs::{FunctionParameterDeclaration, VariableDeclaration};
 
 pub type BoxStatement = Box<Statement>;
 
@@ -9,6 +10,7 @@ pub enum Statement {
 	BlockStatement(StatementList),
 	EmptyStatement,
 	ExpressionStatement(Expression),
+	ReturnStatement(Option<Expression>),
 	VariableDeclarations(Vec<VariableDeclaration>),
 	IfStatement {
 		condition: Expression,
@@ -27,6 +29,11 @@ pub enum Statement {
 		initialization: BoxStatement,
 		condition: Expression,
 		increment: BoxStatement,
+		body: BoxStatement,
+	},
+	FunctionDeclaration {
+		name: IdentifierT,
+		parameters: Vec<FunctionParameterDeclaration>,
 		body: BoxStatement,
 	},
 }
@@ -72,16 +79,18 @@ impl Statement {
 			body,
 		};
 	}
+
+	pub fn function_declaration(
+		name: IdentifierT,
+		parameters: Vec<FunctionParameterDeclaration>,
+		body: BoxStatement,
+	) -> Statement {
+		return Statement::FunctionDeclaration { name, parameters, body };
+	}
 }
 
 impl From<Expression> for Statement {
 	fn from(value: Expression) -> Self {
 		return Statement::ExpressionStatement(value);
 	}
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct VariableDeclaration {
-	pub identifier: String,
-	pub initializer: Option<Expression>,
 }
