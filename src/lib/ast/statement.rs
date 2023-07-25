@@ -1,5 +1,5 @@
 use crate::ast::expression::{Expression, IdentifierT};
-use crate::ast::structs::{FunctionParameterDeclaration, VariableDeclaration};
+use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 
 pub type BoxStatement = Box<Statement>;
 
@@ -31,31 +31,21 @@ pub enum Statement {
 		increment: BoxStatement,
 		body: BoxStatement,
 	},
-	FunctionDeclaration {
+	FunctionDeclarationStatement(FunctionDeclaration),
+	ClassDeclarationStatement {
 		name: IdentifierT,
-		parameters: Vec<FunctionParameterDeclaration>,
-		body: BoxStatement,
+		super_class: Option<Expression>,
+		methods: Vec<FunctionDeclaration>,
 	},
 }
 
 impl Statement {
-	pub fn is_lhs(&self) -> bool {
-		return match self {
-			Statement::ExpressionStatement(ex) => ex.is_lhs(),
-			_ => false,
-		};
-	}
-
 	pub fn if_statement(
 		condition: Expression,
 		if_branch: BoxStatement,
 		else_branch: Option<BoxStatement>,
 	) -> Statement {
-		return Statement::IfStatement {
-			condition,
-			if_branch,
-			else_branch,
-		}
+		return Statement::IfStatement { condition, if_branch, else_branch };
 	}
 
 	pub fn while_loop(condition: Expression, body: BoxStatement) -> Statement {
@@ -85,7 +75,15 @@ impl Statement {
 		parameters: Vec<FunctionParameterDeclaration>,
 		body: BoxStatement,
 	) -> Statement {
-		return Statement::FunctionDeclaration { name, parameters, body };
+		return Statement::FunctionDeclarationStatement(FunctionDeclaration::new(name, parameters, body));
+	}
+
+	pub fn class_declaration(
+		name: IdentifierT,
+		super_class: Option<Expression>,
+		methods: Vec<FunctionDeclaration>,
+	) -> Statement {
+		return Statement::ClassDeclarationStatement { name, super_class, methods };
 	}
 }
 

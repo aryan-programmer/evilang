@@ -1,6 +1,7 @@
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
 use evilang_lib::ast::operator::Operator::{MultiplicationAssignment, NotEquals, PlusAssignment};
-use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, FunctionDeclaration, IfStatement, ReturnStatement};
+use evilang_lib::ast::statement::Statement;
+use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, IfStatement, ReturnStatement};
 use evilang_lib::ast::structs::FunctionParameterDeclaration;
 
 use crate::common::{ensure_program, ensure_program_fails, TestRes};
@@ -18,20 +19,20 @@ fn invalids() -> TestRes {
 fn function_with_no_params_and_no_body() -> TestRes {
 	ensure_program(r#"
 	fn func_name(){}
-"#, vec![FunctionDeclaration {
-		name: "func_name".to_string(),
-		parameters: vec![],
-		body: BlockStatement(vec![]).into(),
-	}]);
+"#, vec![Statement::function_declaration(
+		"func_name".to_string(),
+		vec![],
+		BlockStatement(vec![]).into(),
+	)]);
 }
 
 #[test]
 fn function_with_params_and_no_body() -> TestRes {
 	ensure_program(r#"
 	fn func_name(param1, val2){}
-"#, vec![FunctionDeclaration {
-		name: "func_name".to_string(),
-		parameters: vec![
+"#, vec![Statement::function_declaration(
+		"func_name".to_string(),
+		vec![
 			FunctionParameterDeclaration {
 				identifier: "param1".to_string(),
 			},
@@ -39,8 +40,8 @@ fn function_with_params_and_no_body() -> TestRes {
 				identifier: "val2".to_string(),
 			}
 		],
-		body: BlockStatement(vec![]).into(),
-	}]);
+		BlockStatement(vec![]).into(),
+	)]);
 }
 
 #[test]
@@ -49,11 +50,11 @@ fn function_with_no_params() -> TestRes {
 	fn func_name(){
 		return;
 	}
-"#, vec![FunctionDeclaration {
-		name: "func_name".to_string(),
-		parameters: vec![],
-		body: BlockStatement(vec![ReturnStatement(None)]).into(),
-	}]);
+"#, vec![Statement::function_declaration(
+		"func_name".to_string(),
+		vec![],
+		BlockStatement(vec![ReturnStatement(None)]).into(),
+	)]);
 }
 
 #[test]
@@ -67,9 +68,9 @@ fn function_with_params_and_return() -> TestRes {
 			return;
 		}
 	}
-"#, vec![FunctionDeclaration {
-		name: "func_name".to_string(),
-		parameters: vec![
+"#, vec![Statement::function_declaration(
+		"func_name".to_string(),
+		vec![
 			FunctionParameterDeclaration {
 				identifier: "param1".to_string(),
 			},
@@ -77,7 +78,7 @@ fn function_with_params_and_return() -> TestRes {
 				identifier: "val2".to_string(),
 			}
 		],
-		body: BlockStatement(vec![
+		BlockStatement(vec![
 			ExpressionStatement(
 				AssignmentExpression {
 					operator: PlusAssignment,
@@ -103,5 +104,5 @@ fn function_with_params_and_return() -> TestRes {
 				else_branch: Some(BlockStatement(vec![ReturnStatement(None)]).into()),
 			}.into(),
 		]).into(),
-	}]);
+	)]);
 }

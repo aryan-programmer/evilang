@@ -3,7 +3,7 @@ use std::iter::Peekable;
 use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
 use crate::ast::expression::IdentifierT;
 use crate::ast::statement::BoxStatement;
-use crate::ast::structs::{FunctionParameterDeclaration, VariableDeclaration};
+use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
@@ -79,6 +79,10 @@ impl Parser {
 		};
 	}
 
+	fn lookahead_type(&mut self) -> ResultWithError<TokenType> {
+		return Ok(self.lookahead()?.typ);
+	}
+
 	/*
 	program:
 		| statement_list
@@ -115,7 +119,7 @@ impl Parser {
 		| for_loop
 	*/
 	fn statement(&mut self) -> ResultWithError<Statement> {
-		return match self.lookahead()?.typ {
+		return match self.lookahead_type()? {
 			TokenType::OpenBlock => self.block_statement(),
 			TokenType::Semicolon => self.empty_statement(),
 			TokenType::Keyword(Keyword::Let) => self.variable_declarations_statement(),
@@ -123,10 +127,30 @@ impl Parser {
 			TokenType::Keyword(Keyword::While) => self.while_loop(),
 			TokenType::Keyword(Keyword::Do) => self.do_while_loop(),
 			TokenType::Keyword(Keyword::For) => self.for_loop(),
-			TokenType::Keyword(Keyword::Fn) => self.function_statement(),
+			TokenType::Keyword(Keyword::Fn) => self.function_declaration_statement(),
 			TokenType::Keyword(Keyword::Return) => self.return_statement(),
+			TokenType::Keyword(Keyword::Class) => self.class_declaration_statement(),
 			_ => self.expression_statement(),
 		};
+	}
+
+	/*
+	class_declaration_statement:
+		| 'class' identifier ('extends' identifier)? '{'
+		      function_declarations
+		  '}'
+	*/
+	fn class_declaration_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Class))?;
+		let name = self.identifier()?;
+		let super_class = if self.lookahead_type()? == TokenType::Keyword(Keyword::Extends) {
+			self.eat(TokenType::Keyword(Keyword::Extends))?;
+			Some(self.expression()?)
+		} else { None };
+		self.eat(TokenType::OpenBlock)?;
+		let methods = self.un_delimited_items(Self::function_declaration, TokenType::CloseBlock)?;
+		self.eat(TokenType::CloseBlock)?;
+		return Ok(Statement::class_declaration(name, super_class, methods));
 	}
 
 	/*
@@ -136,7 +160,7 @@ impl Parser {
 	*/
 	fn return_statement(&mut self) -> ResultWithError<Statement> {
 		self.eat(TokenType::Keyword(Keyword::Return))?;
-		let res = if self.lookahead()?.typ != TokenType::Semicolon {
+		let res = if self.lookahead_type()? != TokenType::Semicolon {
 			Some(self.expression()?)
 		} else { None };
 		self.eat(TokenType::Semicolon)?;
@@ -144,10 +168,18 @@ impl Parser {
 	}
 
 	/*
-	function_statement:
+	function_declaration_statement:
+		| function_declaration
+	*/
+	fn function_declaration_statement(&mut self) -> ResultWithError<Statement> {
+		return Ok(Statement::FunctionDeclarationStatement(self.function_declaration()?));
+	}
+
+	/*
+	function_declaration:
 		| 'fn' Identifier '(' function_parameter_declarations ')' block_statement
 	*/
-	fn function_statement(&mut self) -> ResultWithError<Statement> {
+	fn function_declaration(&mut self) -> ResultWithError<FunctionDeclaration> {
 		self.eat(TokenType::Keyword(Keyword::Fn))?;
 		let name: IdentifierT = self.identifier()?;
 		self.eat(TokenType::OpenParen)?;
@@ -158,7 +190,8 @@ impl Parser {
 		)?;
 		self.eat(TokenType::CloseParen)?;
 		let body = self.block_statement()?;
-		return Ok(Statement::function_declaration(name, params, body.into()));
+		let function_declaration = FunctionDeclaration::new(name, params, body.into());
+		Ok(function_declaration)
 	}
 
 	/*
@@ -180,7 +213,7 @@ impl Parser {
 		let condition = self.expression()?;
 		self.eat(TokenType::CloseParen)?;
 		let if_branch = BoxStatement::from(self.statement()?);
-		let else_branch = match self.lookahead()?.typ {
+		let else_branch = match self.lookahead_type()? {
 			TokenType::Keyword(Keyword::Else) => {
 				self.eat(TokenType::Keyword(Keyword::Else))?;
 				Some(BoxStatement::from(self.statement()?))
@@ -241,7 +274,7 @@ impl Parser {
 		| expression_statement
 	*/
 	fn for_loop_initialization_statement(&mut self) -> ResultWithError<Statement> {
-		return match self.lookahead()?.typ {
+		return match self.lookahead_type()? {
 			TokenType::OpenBlock => {
 				let res = self.block_statement()?;
 				self.eat(TokenType::Semicolon)?;
@@ -259,7 +292,7 @@ impl Parser {
 		| expression_statement
 	*/
 	fn for_loop_condition_expression(&mut self) -> ResultWithError<Expression> {
-		let result = match self.lookahead()?.typ {
+		let result = match self.lookahead_type()? {
 			TokenType::Semicolon => Expression::BooleanLiteral(true),
 			_ => self.expression()?,
 		};
@@ -274,7 +307,7 @@ impl Parser {
 		| expression
 	*/
 	fn for_loop_increment_statement(&mut self) -> ResultWithError<Statement> {
-		return match self.lookahead()?.typ {
+		return match self.lookahead_type()? {
 			TokenType::OpenBlock => self.block_statement(),
 			TokenType::CloseParen => Ok(Statement::EmptyStatement),
 			_ => Ok(Statement::ExpressionStatement(self.expression()?)),
@@ -306,7 +339,7 @@ impl Parser {
 	*/
 	fn variable_declaration(&mut self) -> ResultWithError<VariableDeclaration> {
 		let identifier = self.identifier()?;
-		let initializer = match self.lookahead()?.typ {
+		let initializer = match self.lookahead_type()? {
 			TokenType::Semicolon | TokenType::Comma => None,
 			_ => Some(self.variable_initializer()?)
 		};
@@ -330,7 +363,7 @@ impl Parser {
 		| '{' statement_list '}'
 	*/
 	fn block_statement(&mut self) -> ResultWithError<Statement> {
-		if self.lookahead()?.typ == TokenType::CloseBlock {
+		if self.lookahead_type()? == TokenType::CloseBlock {
 			return Ok(Statement::BlockStatement(vec![]));
 		}
 		self.eat(TokenType::OpenBlock)?;
@@ -373,7 +406,7 @@ impl Parser {
 	*/
 	fn assignment_expression(&mut self) -> ResultWithError<Expression> {
 		let left = self.base_binary_expression()?;
-		if self.lookahead()?.typ != TokenType::AssignmentOperator {
+		if self.lookahead_type()? != TokenType::AssignmentOperator {
 			return Ok(left);
 		}
 		let op = self.eat(TokenType::AssignmentOperator)?;
@@ -406,7 +439,7 @@ impl Parser {
 		| LogicalNotOperator unary_expression
 	*/
 	fn base_unary_expression(&mut self) -> ResultWithError<Expression> {
-		if !(self.lookahead()?.typ.is_unary_operator()) {
+		if !(self.lookahead_type()?.is_unary_operator()) {
 			return self.base_expression();
 		}
 		let operator = Operator::try_from(&self.eat_any()?.data)?;
@@ -426,39 +459,105 @@ impl Parser {
 		| primary_expression
 		| call_or_member_expression . Identifier
 		| call_or_member_expression '[' expression ']'
-		| call_or_member_expression '(' call_arguments ')'
+		| call_or_member_expression '(' function_call_arguments ')'
 	*/
 	fn call_or_member_expression(&mut self) -> ResultWithError<Expression> {
-		let mut res = self.primary_expression()?;
-		while match self.lookahead()?.typ {
-			TokenType::Dot | TokenType::OpenSquareBracket | TokenType::OpenParen => true,
-			_ => false
-		} {
-			if self.lookahead()?.typ == TokenType::Dot {
-				self.eat(TokenType::Dot)?;
-				let property_name = self.identifier()?;
-				res = Expression::member_property_access(res.into(), property_name);
-			} else if self.lookahead()?.typ == TokenType::OpenSquareBracket {
-				self.eat(TokenType::OpenSquareBracket)?;
-				let expr = self.expression()?.into();
-				self.eat(TokenType::CloseSquareBracket)?;
+		let mut res = self.primary_or_super_expression()?;
+		while self.check_if_next_token_is_member_access_or_call_like()? {
+			let (res2, changed) = self.member_access_part(res)?;
+			res = res2;
+			if !changed {
+				if self.lookahead_type()? == TokenType::OpenParen {
+					res = Expression::function_call(
+						res.into(),
+						self.function_call_args_in_parens()?
+					);
+				} else {
+					return Err(ErrorT::InvalidTokenType.into());
+				}
+			}
+		}
+		return Ok(res);
+	}
 
-				res = Expression::member_subscript(res.into(), expr);
-			} else if self.lookahead()?.typ == TokenType::OpenParen {
-				self.eat(TokenType::OpenParen)?;
-				let exprs = self.delimited_items(
-					Self::expression,
-					TokenType::Comma,
-					TokenType::CloseParen
-				)?;
-				self.eat(TokenType::CloseParen)?;
-
-				res = Expression::function_call(res.into(), exprs);
-			} else {
+	/*
+	member_expression:
+		| primary_expression
+		| member_expression '[' expression ']'
+		| member_expression '(' call_arguments ')'
+	*/
+	fn member_expression(&mut self) -> ResultWithError<Expression> {
+		let mut res = self.primary_or_super_expression()?;
+		while self.check_if_next_token_is_member_access_like()? {
+			let (res2, changed) = self.member_access_part(res)?;
+			res = res2;
+			if !changed {
 				return Err(ErrorT::InvalidTokenType.into());
 			}
 		}
 		return Ok(res);
+	}
+
+	/*
+	primary_or_super_expression:
+		| primary_expression
+		| super_expression
+	*/
+	fn primary_or_super_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(match self.lookahead_type()? {
+			TokenType::Keyword(Keyword::Super) => self.super_expression()?,
+			_ => self.primary_expression()?
+		})
+	}
+
+	fn member_access_part(&mut self, res: Expression) -> ResultWithError<(Expression, bool)> {
+		if self.lookahead_type()? == TokenType::Dot {
+			self.eat(TokenType::Dot)?;
+			let property_name = self.identifier()?;
+			return Ok((Expression::member_property_access(res.into(), property_name), true));
+		} else if self.lookahead_type()? == TokenType::OpenSquareBracket {
+			self.eat(TokenType::OpenSquareBracket)?;
+			let expr = self.expression()?.into();
+			self.eat(TokenType::CloseSquareBracket)?;
+
+			return Ok((Expression::member_subscript(res.into(), expr), true));
+		}
+		return Ok((res, false));
+	}
+
+	/*
+	function_call_args_in_parens:
+		| '(' function_call_args ')'
+	*/
+	fn function_call_args_in_parens(&mut self) -> ResultWithError<Vec<Expression>> {
+		self.eat(TokenType::OpenParen)?;
+		let exprs = self.function_call_args()?;
+		self.eat(TokenType::CloseParen)?;
+		return Ok(exprs);
+	}
+
+	/*
+	function_call_args:
+		| !empty!
+		| expression
+		| expression ',' function_call_args
+	*/
+	fn function_call_args(&mut self) -> ResultWithError<Vec<Expression>> {
+		return self.delimited_items(Self::expression, TokenType::Comma, TokenType::CloseParen);
+	}
+
+	fn check_if_next_token_is_member_access_like(&mut self) -> ResultWithError<bool> {
+		return Ok(match self.lookahead_type()? {
+			TokenType::Dot | TokenType::OpenSquareBracket => true,
+			_ => false
+		});
+	}
+
+	fn check_if_next_token_is_member_access_or_call_like(&mut self) -> ResultWithError<bool> {
+		return Ok(self.check_if_next_token_is_member_access_like()? || match self.lookahead_type()? {
+			TokenType::OpenParen => true,
+			_ => false
+		});
 	}
 
 	/*
@@ -468,14 +567,35 @@ impl Parser {
 		| identifier
 	*/
 	fn primary_expression(&mut self) -> ResultWithError<Expression> {
-		let token_type = self.lookahead()?.typ;
+		let token_type = self.lookahead_type()?;
 		if token_type.is_literal() {
 			return self.literal();
 		}
 		return match token_type {
 			TokenType::OpenParen => self.parenthesized_expression(),
+			TokenType::Keyword(Keyword::This) => {
+				self.eat(TokenType::Keyword(Keyword::This))?;
+				Ok(Expression::ThisExpression)
+			},
+			TokenType::Keyword(Keyword::New) => self.new_expression(),
 			_ => self.identifier_expression(),
 		};
+	}
+
+	/*
+	new_expression:
+		| 'new' member_expression '(' function_call_arguments ')'
+	*/
+	fn new_expression(&mut self) -> ResultWithError<Expression> {
+		self.eat(TokenType::Keyword(Keyword::New))?;
+		let class_val = self.member_expression()?;
+		let args = self.function_call_args_in_parens()?;
+		return Ok(Expression::new_object_expression(class_val.into(), args));
+	}
+
+	fn super_expression(&mut self) -> ResultWithError<Expression> {
+		self.eat(TokenType::Keyword(Keyword::Super))?;
+		return Ok(Expression::SuperExpression);
 	}
 
 	fn identifier_expression(&mut self) -> ResultWithError<Expression> {
@@ -501,7 +621,7 @@ impl Parser {
 		| 'false'
 	*/
 	fn literal(&mut self) -> ResultWithError<Expression> {
-		return match self.lookahead()?.typ {
+		return match self.lookahead_type()? {
 			TokenType::Integer => self.integer_literal(),
 			TokenType::String => self.string_literal(),
 			_ => self.singular_literal(),
@@ -509,7 +629,7 @@ impl Parser {
 	}
 
 	fn singular_literal(&mut self) -> ResultWithError<Expression> {
-		let res = match self.lookahead()?.typ {
+		let res = match self.lookahead_type()? {
 			TokenType::Keyword(Keyword::True) => Ok(Expression::BooleanLiteral(true)),
 			TokenType::Keyword(Keyword::False) => Ok(Expression::BooleanLiteral(false)),
 			TokenType::Keyword(Keyword::Null) => Ok(Expression::NullLiteral),
@@ -534,17 +654,17 @@ impl Parser {
 
 	// region ...Utilities
 	/*
-left_to_right_binary_expression(sub_expression, ExprOperator):
-	| sub_expression
-	| left_to_right_binary_expression(sub_expression, ExprOperator) ExprOperator sub_expression
-*/
+	left_to_right_binary_expression(sub_expression, ExprOperator):
+		| sub_expression
+		| left_to_right_binary_expression(sub_expression, ExprOperator) ExprOperator sub_expression
+	*/
 	fn left_to_right_binary_expression(
 		&mut self,
 		sub_expression: fn(&mut Self) -> ResultWithError<Expression>,
 		expression_operator_token_type: TokenType,
 	) -> ResultWithError<Expression> {
 		let mut left = sub_expression(self)?;
-		while self.lookahead()?.typ == expression_operator_token_type {
+		while self.lookahead_type()? == expression_operator_token_type {
 			let op = self.eat(expression_operator_token_type)?;
 			let right = sub_expression(self)?;
 			left = Expression::binary_expression(
@@ -565,18 +685,31 @@ left_to_right_binary_expression(sub_expression, ExprOperator):
 		&mut self,
 		item: fn(&mut Self) -> ResultWithError<T>,
 		delimiter: TokenType,
-		end: TokenType
+		end: TokenType,
 	) -> ResultWithError<Vec<T>> {
 		let mut res = Vec::<T>::new();
-		if self.lookahead()?.typ != end {
+		if self.lookahead_type()? != end {
 			loop {
 				res.push(item(self)?);
-				if self.lookahead()?.typ == delimiter {
-					self.eat(TokenType::Comma)?;
+				if self.lookahead_type()? == delimiter {
+					self.eat(delimiter)?;
 				} else {
 					break;
 				}
 			}
+		}
+		return Ok(res);
+	}
+
+	/*
+	un_delimited_items:
+		| item
+		| item un_delimited_items
+	*/
+	fn un_delimited_items<T>(&mut self, item: fn(&mut Self) -> ResultWithError<T>, end: TokenType) -> ResultWithError<Vec<T>> {
+		let mut res = Vec::<T>::new();
+		while self.lookahead_type()? != end {
+			res.push(item(self)?);
 		}
 		return Ok(res);
 	}

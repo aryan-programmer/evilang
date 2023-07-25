@@ -48,6 +48,29 @@ fn main() {
 	dbg!(size_of::<String>());
 	dbg!(size_of::<StatementList>());
 	print_program(r#"
-	console.log("values");
+	class Point {
+      fn constructor(x, y) {
+        this.x = x;
+        this.y = y;
+      }
+
+      fn calc() {
+        return this.x + this.y;
+      }
+    }
+
+    class Point3D extends Point {
+      fn constructor(x, y, z) {
+        super(x, y);
+        this.z = z;
+      }
+
+      fn calc() {
+        return super.calc() + this.z;
+      }
+    }
+
+    let p = new Point(10, 12);
+    let p3 = new Point3D(10, 20, 30);
 "#);
 }

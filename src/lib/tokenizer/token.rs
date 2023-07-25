@@ -11,6 +11,11 @@ pub enum Keyword {
 	For,
 	Fn,
 	Return,
+	Class,
+	Extends,
+	New,
+	Super,
+	This,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

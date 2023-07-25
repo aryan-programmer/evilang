@@ -82,6 +82,11 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher("for"), Some(TokenType::Keyword(Keyword::For))),
 		(starts_with_matcher("fn"), Some(TokenType::Keyword(Keyword::Fn))),
 		(starts_with_matcher("return"), Some(TokenType::Keyword(Keyword::Return))),
+		(starts_with_matcher("class"), Some(TokenType::Keyword(Keyword::Class))),
+		(starts_with_matcher("extends"), Some(TokenType::Keyword(Keyword::Extends))),
+		(starts_with_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
+		(starts_with_matcher("super"), Some(TokenType::Keyword(Keyword::Super))),
+		(starts_with_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];

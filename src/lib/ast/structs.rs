@@ -1,4 +1,5 @@
-use crate::ast::expression::{Expression, IdentifierT};
+use crate::ast::expression::{BoxExpression, Expression, IdentifierT};
+use crate::ast::statement::BoxStatement;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct VariableDeclaration {
@@ -22,3 +23,29 @@ impl FunctionParameterDeclaration {
 		Self { identifier }
 	}
 }
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FunctionDeclaration {
+	pub name: IdentifierT,
+	pub parameters: Vec<FunctionParameterDeclaration>,
+	pub body: BoxStatement,
+}
+
+impl FunctionDeclaration {
+	pub fn new(name: IdentifierT, parameters: Vec<FunctionParameterDeclaration>, body: BoxStatement) -> Self {
+		Self { name, parameters, body }
+	}
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CallExpression {
+	pub callee: BoxExpression,
+	pub arguments: Vec<Expression>,
+}
+
+impl CallExpression {
+	pub fn new(callee: BoxExpression, arguments: Vec<Expression>) -> Self {
+		Self { callee, arguments }
+	}
+}
+

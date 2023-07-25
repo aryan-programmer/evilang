@@ -1,5 +1,6 @@
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
+use crate::ast::structs::CallExpression;
 
 pub type BoxExpression = Box<Expression>;
 
@@ -17,6 +18,8 @@ pub enum Expression {
 	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
+	ThisExpression,
+	SuperExpression,
 	UnaryExpression {
 		operator: Operator,
 		argument: BoxExpression
@@ -36,10 +39,8 @@ pub enum Expression {
 		object: BoxExpression,
 		member: MemberIndexer,
 	},
-	FunctionCall {
-		function: BoxExpression,
-		arguments: Vec<Expression>,
-	},
+	FunctionCall(CallExpression),
+	NewObjectExpression(CallExpression),
 }
 
 impl Expression {
@@ -64,7 +65,11 @@ impl Expression {
 	}
 
 	pub fn function_call(function: BoxExpression, arguments: Vec<Expression>) -> Expression {
-		return Expression::FunctionCall { function, arguments };
+		return Expression::FunctionCall(CallExpression::new(function, arguments));
+	}
+
+	pub fn new_object_expression(class_expr: BoxExpression, arguments: Vec<Expression>) -> Expression {
+		return Expression::NewObjectExpression(CallExpression::new(class_expr, arguments));
 	}
 
 	pub fn is_lhs(&self) -> bool {
