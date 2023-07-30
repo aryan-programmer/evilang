@@ -8,7 +8,7 @@ mod token;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Token {
 	pub typ: TokenType,
-	pub data: String
+	pub data: String,
 }
 
 pub struct TokenStream {
@@ -28,11 +28,11 @@ impl Iterator for TokenStream {
 					None
 				} else {
 					Some(Ok(Token { typ: TokenType::_EOFDummy, data: String::new() }))
-				}
+				};
 			}
 			let from = &self.str[self.position..];
 			for (matcher, token_t) in self.token_matchers.iter() {
-				let Some(s) = matcher(from) else { continue };
+				let Some(s) = matcher(from) else { continue; };
 				self.position += s.len();
 				if let None = token_t {
 					continue 'outer;

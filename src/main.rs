@@ -1,14 +1,10 @@
 #![allow(dead_code)]
 
-use std::mem::size_of;
 use std::ops::Deref;
 
-use evilang_lib::ast::expression::{Expression, MemberIndexer};
-use evilang_lib::ast::operator::Operator;
-use evilang_lib::ast::statement::{Statement, StatementList};
-use evilang_lib::ast::structs::VariableDeclaration;
+use evilang_lib::ast::statement::StatementList;
+use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::parser::parse;
-use evilang_lib::tokenizer::{Token, TokenType};
 
 type TestRes = ();
 
@@ -38,39 +34,14 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	dbg!(size_of::<Statement>());
-	dbg!(size_of::<Expression>());
-	dbg!(size_of::<MemberIndexer>());
-	dbg!(size_of::<Operator>());
-	dbg!(size_of::<TokenType>());
-	dbg!(size_of::<Token>());
-	dbg!(size_of::<VariableDeclaration>());
-	dbg!(size_of::<String>());
-	dbg!(size_of::<StatementList>());
-	print_program(r#"
-	class Point {
-      fn constructor(x, y) {
-        this.x = x;
-        this.y = y;
-      }
-
-      fn calc() {
-        return this.x + this.y;
-      }
-    }
-
-    class Point3D extends Point {
-      fn constructor(x, y, z) {
-        super(x, y);
-        this.z = z;
-      }
-
-      fn calc() {
-        return super.calc() + this.z;
-      }
-    }
-
-    let p = new Point(10, 12);
-    let p3 = new Point3D(10, 20, 30);
-"#);
+	let mut env = Environment::new_with_parent(None);
+	env.parse_and_run_program(r#"
+	let a = "y";
+	let b = "z";
+	a += "12";
+	a += a;
+	a += b;
+	push_res_stack(a);
+"#.to_string()).unwrap();
+	dbg!(env.res_stack);
 }

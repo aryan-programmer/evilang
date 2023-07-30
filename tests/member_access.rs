@@ -49,13 +49,13 @@ fn member_complex_assignment() -> TestRes {
 					operator: Multiplication,
 					left: MemberAccess {
 						object: Identifier("$".to_string()).into(),
-						member: PropertyName("left".to_string())
+						member: PropertyName("left".to_string()),
 					}.into(),
 					right: AssignmentExpression {
 						operator: Assignment,
 						left: MemberAccess {
 							object: Identifier("$".to_string()).into(),
-							member: PropertyName("right".to_string())
+							member: PropertyName("right".to_string()),
 						}.into(),
 						right: IntegerLiteral(1).into(),
 					}.into(),

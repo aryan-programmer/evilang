@@ -1,6 +1,6 @@
-use crate::errors::{ErrorT, EvilangError};
+use crate::errors::{ErrorT, EvilangError, ResultWithError};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum Operator {
 	Plus,
 	Minus,
@@ -22,6 +22,32 @@ pub enum Operator {
 	LogicalAnd,
 	LogicalOr,
 	LogicalNot,
+}
+
+impl Operator {
+	pub fn is_assignment(&self) -> bool {
+		return match self {
+			Operator::Assignment |
+			Operator::PlusAssignment |
+			Operator::MinusAssignment |
+			Operator::MultiplicationAssignment |
+			Operator::DivisionAssignment |
+			Operator::ModulusAssignment => true,
+			_ => false,
+		};
+	}
+
+	pub fn strip_assignment(&self) -> ResultWithError<Operator> {
+		return match self {
+			Operator::Assignment => Err(ErrorT::CantStripAssignment(Operator::Assignment).into()),
+			Operator::PlusAssignment => Ok(Operator::Plus),
+			Operator::MinusAssignment => Ok(Operator::Minus),
+			Operator::MultiplicationAssignment => Ok(Operator::Multiplication),
+			Operator::DivisionAssignment => Ok(Operator::Division),
+			Operator::ModulusAssignment => Ok(Operator::Modulus),
+			v => Err(ErrorT::CantStripAssignment(v.clone()).into()),
+		};
+	}
 }
 
 impl TryFrom<&String> for Operator {

@@ -1,5 +1,6 @@
 <component name="ProjectCodeStyleConfiguration">
   <code_scheme name="Project" version="173">
+    <option name="LINE_SEPARATOR" value="&#10;" />
     <option name="RIGHT_MARGIN" value="100" />
     <XML>
       <option name="XML_KEEP_LINE_BREAKS" value="false" />
@@ -57,6 +58,12 @@
         <option name="USE_TAB_CHARACTER" value="true" />
         <option name="SMART_TABS" value="true" />
         <option name="LABEL_INDENT_ABSOLUTE" value="true" />
+      </indentOptions>
+    </codeStyleSettings>
+    <codeStyleSettings language="Rust">
+      <indentOptions>
+        <option name="USE_TAB_CHARACTER" value="true" />
+        <option name="SMART_TABS" value="true" />
       </indentOptions>
     </codeStyleSettings>
     <codeStyleSettings language="XML">

@@ -6,13 +6,13 @@ pub type BoxExpression = Box<Expression>;
 
 pub type IdentifierT = String;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum MemberIndexer {
 	PropertyName(IdentifierT),
 	SubscriptExpression(BoxExpression),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Expression {
 	NullLiteral,
 	BooleanLiteral(bool),
@@ -22,7 +22,7 @@ pub enum Expression {
 	SuperExpression,
 	UnaryExpression {
 		operator: Operator,
-		argument: BoxExpression
+		argument: BoxExpression,
 	},
 	BinaryExpression {
 		operator: Operator,

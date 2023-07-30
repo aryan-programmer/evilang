@@ -42,14 +42,14 @@ fn complex_unary() -> TestRes {
 									argument: UnaryExpression {
 										operator: Minus,
 										argument: Identifier("x".parse().unwrap()).into(),
-									}.into()
+									}.into(),
 								}.into(),
 								right: UnaryExpression {
 									operator: Plus,
 									argument: UnaryExpression {
 										operator: Minus,
 										argument: Identifier("y".parse().unwrap()).into(),
-									}.into()
+									}.into(),
 								}.into(),
 							}.into(),
 							right: UnaryExpression {

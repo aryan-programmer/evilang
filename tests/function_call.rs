@@ -80,14 +80,14 @@ fn member_complex_assignment() -> TestRes {
 				right: Expression::function_call(
 					MemberAccess {
 						object: Identifier("$".to_string()).into(),
-						member: PropertyName("left".to_string())
+						member: PropertyName("left".to_string()),
 					}.into(),
 					vec![
 						AssignmentExpression {
 							operator: Assignment,
 							left: MemberAccess {
 								object: Identifier("$".to_string()).into(),
-								member: PropertyName("right".to_string())
+								member: PropertyName("right".to_string()),
 							}.into(),
 							right: IntegerLiteral(1).into(),
 						}

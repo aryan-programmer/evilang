@@ -38,7 +38,7 @@ fn function_with_params_and_no_body() -> TestRes {
 			},
 			FunctionParameterDeclaration {
 				identifier: "val2".to_string(),
-			}
+			},
 		],
 		BlockStatement(vec![]).into(),
 	)]);
@@ -76,7 +76,7 @@ fn function_with_params_and_return() -> TestRes {
 			},
 			FunctionParameterDeclaration {
 				identifier: "val2".to_string(),
-			}
+			},
 		],
 		BlockStatement(vec![
 			ExpressionStatement(

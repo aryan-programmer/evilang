@@ -3,6 +3,8 @@ use regex::Regex;
 use crate::tokenizer::{Keyword, TokenType};
 
 //language=regexp
+const NUMBER_REGEX: &str = r"^(0x[0-9a-f]+|0b[01]+|((?!0)|[-+]|(?=0+\.))(\d*\.)?\d+(e\d+)?)";
+//language=regexp
 const WHITESPACE_REGEX: &str = r"^[\s\r\n]+";
 //language=regexp
 const INTEGER_REGEX: &str = r"^\d+";

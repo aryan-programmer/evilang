@@ -22,6 +22,7 @@ pub enum Keyword {
 pub enum TokenType {
 	_EOFDummy,
 
+	//	Number,
 	Integer,
 	String,
 	Semicolon,
