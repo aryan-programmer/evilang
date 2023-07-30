@@ -5,7 +5,7 @@ use evilang_lib::ast::statement::Statement::VariableDeclarations;
 use evilang_lib::ast::structs::VariableDeclaration;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
 
-use crate::common::{ensure_program_statement_results, TestRes};
+use crate::common::{ensure_program_statement_results, identifier_stmt, TestRes};
 
 mod common;
 
@@ -20,7 +20,7 @@ fn basic_declaration() -> TestRes {
 				right: BoxExpression::from(IntegerLiteral(2)),
 			}),
 		},
-	])), Identifier("x".into()).consume_as_statement()], vec![
+	])), identifier_stmt("x")], vec![
 		PrimitiveValue::Null,
 		PrimitiveValue::Integer(3),
 	]);
@@ -56,9 +56,9 @@ baz;
 				}),
 			},
 		])),
-		Identifier("$foo".into()).consume_as_statement(),
-		Identifier("bar1".into()).consume_as_statement(),
-		Identifier("baz".into()).consume_as_statement(),
+		identifier_stmt("$foo"),
+		identifier_stmt("bar1"),
+		identifier_stmt("baz"),
 	], vec![
 		PrimitiveValue::Null,
 		PrimitiveValue::Integer(7),

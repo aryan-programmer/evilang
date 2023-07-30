@@ -6,8 +6,8 @@ use std::ops::Deref;
 use evilang_lib::ast::expression::Expression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, Identifier};
 use evilang_lib::ast::operator::Operator::Assignment;
+use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::statement::Statement::ExpressionStatement;
-use evilang_lib::ast::statement::StatementList;
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
@@ -52,8 +52,22 @@ pub fn ensure_program_statement_results(
 	expected: StatementList,
 	results: Vec<PrimitiveValue>,
 ) -> TestRes {
-	ensure_program_ref(input, &expected);
 	let mut env = Environment::new_with_parent(None);
+	return ensure_execution_results(input, expected, &mut env, results);
+}
+
+pub fn ensure_program_and_run(input: &str, expected: StatementList, env: &mut Environment) -> TestRes {
+	ensure_program_ref(input, &expected);
+	env.run_statements(&expected).expect("Expected no error in execution");
+}
+
+pub fn ensure_execution_results(
+	input: &str,
+	expected: StatementList,
+	env: &mut Environment,
+	results: Vec<PrimitiveValue>,
+) -> TestRes {
+	ensure_program_ref(input, &expected);
 	assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
 	for (stmt, expected_val) in expected.iter().zip(results.iter()) {
 		if let ExpressionStatement(expr) = stmt {
@@ -80,4 +94,8 @@ pub fn test_expression_and_assignment(input: &str, expr: Expression) -> TestRes 
 			right: expr.into(),
 		},
 	)]);
+}
+
+pub fn identifier_stmt(iden: &str) -> Statement {
+	return Identifier(iden.into()).consume_as_statement();
 }

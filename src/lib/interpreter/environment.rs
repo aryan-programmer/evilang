@@ -59,8 +59,15 @@ impl Environment {
 		Self { variables: HashMap::new(), parent, res_stack: Vec::new() }
 	}
 
-	pub fn new(variables: HashMap<IdentifierT, RcCellValue>, parent: Option<Box<Environment>>) -> Self {
-		Self { variables, parent, res_stack: Vec::new() }
+	pub fn new(variables: HashMap<IdentifierT, PrimitiveValue>, parent: Option<Box<Environment>>) -> Self {
+		Self {
+			variables: variables
+				.into_iter()
+				.map(|(iden, val)| (iden, rc_cell_from(val)))
+				.collect(),
+			parent,
+			res_stack: Vec::new(),
+		}
 	}
 
 	pub fn parse_and_run_program(&mut self, input: String) -> ResultWithError<EnvironmentExecutionResultType> {
