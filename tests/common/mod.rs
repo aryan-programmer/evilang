@@ -47,25 +47,16 @@ pub fn ensure_program_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
 	return;
 }
 
-pub fn ensure_program_statement_results(
+pub fn ensure_program_statement_results(input: &str, expected: StatementList, results: Vec<PrimitiveValue>) -> TestRes {
+	let mut env = Environment::new();
+	return ensure_program_statement_results_with_env(input, expected, results, &mut env);
+}
+
+pub fn ensure_program_statement_results_with_env(
 	input: &str,
 	expected: StatementList,
 	results: Vec<PrimitiveValue>,
-) -> TestRes {
-	let mut env = Environment::new_with_parent(None);
-	return ensure_execution_results(input, expected, &mut env, results);
-}
-
-pub fn ensure_program_and_run(input: &str, expected: StatementList, env: &mut Environment) -> TestRes {
-	ensure_program_ref(input, &expected);
-	env.run_statements(&expected).expect("Expected no error in execution");
-}
-
-pub fn ensure_execution_results(
-	input: &str,
-	expected: StatementList,
 	env: &mut Environment,
-	results: Vec<PrimitiveValue>,
 ) -> TestRes {
 	ensure_program_ref(input, &expected);
 	assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
@@ -81,6 +72,21 @@ pub fn ensure_execution_results(
 		}
 	}
 
+	return;
+}
+
+pub fn ensure_res_stack_matches(input: &str, results: Vec<PrimitiveValue>) -> TestRes {
+	let mut env = Environment::new();
+	return ensure_res_stack_matches_with_env(input, results, &mut env);
+}
+
+pub fn ensure_res_stack_matches_with_env(
+	input: &str,
+	results: Vec<PrimitiveValue>,
+	env: &mut Environment,
+) -> TestRes {
+	env.parse_and_run_program(input.into()).unwrap();
+	assert_eq!(env.global_scope.borrow().res_stack, results, "Expected result values to match");
 	return;
 }
 

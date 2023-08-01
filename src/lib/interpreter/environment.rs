@@ -1,14 +1,28 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::{Add, Deref, DerefMut, Div, Mul, Rem, Sub};
+use std::rc::Rc;
+
+use delegate::delegate;
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::{Statement, StatementList};
 use crate::ast::structs::CallExpression;
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_value::{DerefOfRefToValue, PrimitiveValue, rc_cell_from, RcCellValue, RefToValue};
+use crate::interpreter::runtime_value::{DerefOfRefToValue, PrimitiveValue, RefToValue};
+use crate::interpreter::variables_map::{GlobalScope, IVariablesMap, VariableScope, VariablesMap};
 use crate::parser::parse;
+use crate::utils::cell_ref::RcCell;
+
+macro_rules! auto_implement_binary_operators {
+    ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident);*;) => {
+	    match $val {
+	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) => Some(PrimitiveValue::$typ($a.$oper($b)).into()),)*
+		    _ => None,
+	    }
+    };
+}
 
 pub type EnvironmentExecutionResultType = ();
 
@@ -40,34 +54,51 @@ fn try_left_borrow_mut<'a>(left: &'a mut RefToValue, right: &'a RefToValue) -> R
 }
 
 pub struct Environment {
-	variables: HashMap<IdentifierT, RcCellValue>,
-	parent: Option<Box<Environment>>,
-	pub res_stack: Vec<PrimitiveValue>,
+	scope: RcCell<VariableScope>,
+	pub global_scope: Rc<RefCell<GlobalScope>>,
 }
 
-macro_rules! auto_implement_binary_operators {
-    ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident);*;) => {
-	    match $val {
-	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) => Some(PrimitiveValue::$typ($a.$oper($b)).into()),)*
-		    _ => None,
-	    }
-    };
+impl IVariablesMap for Environment {
+	delegate! {
+		to self.scope.borrow_mut() {
+			fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+			fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue;
+			fn declare(&mut self, name: &IdentifierT, value: RefToValue);
+		}
+		to self.scope.borrow() {
+			fn get(&self, name: &IdentifierT) -> Option<RefToValue>;
+			fn contains_key(&self, name: &IdentifierT) -> bool;
+		}
+	}
 }
 
 impl Environment {
-	pub fn new_with_parent(parent: Option<Box<Environment>>) -> Self {
-		Self { variables: HashMap::new(), parent, res_stack: Vec::new() }
+	pub fn new() -> Environment {
+		return Self::new_from_variables(VariablesMap::new());
 	}
 
-	pub fn new(variables: HashMap<IdentifierT, PrimitiveValue>, parent: Option<Box<Environment>>) -> Self {
-		Self {
-			variables: variables
-				.into_iter()
-				.map(|(iden, val)| (iden, rc_cell_from(val)))
-				.collect(),
-			parent,
-			res_stack: Vec::new(),
-		}
+	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Environment {
+		return Self::new_from_variables(VariablesMap::new_from_primitives(variables));
+	}
+
+	pub fn new_from_variables(variables: VariablesMap) -> Environment {
+		let global_scope = GlobalScope::new_rc_from_variables(variables);
+		let rc = Rc::clone(&(global_scope.borrow_mut().scope));
+		return Environment {
+			scope: rc,
+			global_scope,
+		};
+	}
+
+	pub fn new_with_parent(env: &Environment) -> Environment {
+		let global_scope = Rc::clone(&env.global_scope);
+		return Environment {
+			scope: VariableScope::new_rc(
+				VariablesMap::new(),
+				Some(Rc::clone(&env.scope)),
+			),
+			global_scope,
+		};
 	}
 
 	pub fn parse_and_run_program(&mut self, input: String) -> ResultWithError<EnvironmentExecutionResultType> {
@@ -86,6 +117,11 @@ impl Environment {
 			Statement::EmptyStatement => {
 				// Empty intentionally
 			}
+			Statement::BlockStatement(statements) => {
+				let mut env = Environment::new_with_parent(self);
+				let result = env.run_statements(statements);
+				return result;
+			}
 			Statement::ExpressionStatement(expr) => {
 				self.eval(expr)?;
 			}
@@ -96,7 +132,7 @@ impl Environment {
 					} else {
 						PrimitiveValue::Null.into()
 					};
-					self.assign_variable(decl.identifier.clone(), value);
+					self.declare(&decl.identifier, value);
 				}
 			}
 			stmt => {
@@ -123,7 +159,7 @@ impl Environment {
 				let right_eval = self.eval(right.deref())?;
 				self.eval_binary_expression(operator, left_eval, right_eval)?
 			}
-			Expression::Identifier(name) => self.get_variable_or_put_null(name),
+			Expression::Identifier(name) => self.get_or_put_null(name),
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			expr => {
 				return Err(ErrorT::UnimplementedExpressionTypeForInterpreter(expr.clone()).into());
@@ -227,34 +263,12 @@ impl Environment {
 				for expr in call_expr.arguments.iter() {
 					rvec.push(self.eval(expr)?.consume_or_clone());
 				}
-				self.res_stack.extend(rvec.iter().map(|v| v.clone()));
+				self.global_scope.borrow_mut().res_stack.extend(rvec.iter().map(|v| v.clone()));
 				Ok(PrimitiveValue::Null.into())
 			}
 			expr => {
 				Err(ErrorT::UnimplementedFunction(expr.clone()).into())
 			}
 		};
-	}
-
-	pub fn assign_variable(&mut self, name: IdentifierT, value: RefToValue) {
-		self.variables.insert(name, rc_cell_from(value.consume_or_clone()));
-	}
-
-	pub fn get_variable(&self, name: &IdentifierT) -> Option<RefToValue> {
-		return if let Some(v) = self.variables.get(name) {
-			Some(RefToValue::from_rc(v))
-		} else {
-			None
-		};
-	}
-
-	pub fn get_variable_or_put_null(&mut self, name: &IdentifierT) -> RefToValue {
-		if let Some(v) = self.variables.get(name) {
-			return RefToValue::from_rc(v);
-		}
-		let rv = RcCellValue::new(RefCell::new(PrimitiveValue::Null));
-		let res = RefToValue::from_rc(&rv);
-		self.variables.insert(name.clone(), rv);
-		return res;
 	}
 }

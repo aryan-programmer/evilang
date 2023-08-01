@@ -6,16 +6,16 @@ use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, Minus
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
 
-use crate::common::{ensure_execution_results, identifier_stmt, TestRes};
+use crate::common::{ensure_program_statement_results_with_env, identifier_stmt, TestRes};
 
 mod common;
 
 #[test]
 fn simple_assignment() -> TestRes {
-	let mut env = Environment::new(HashMap::from([
+	let mut env = Environment::new_from_primitives(HashMap::from([
 		("x".into(), PrimitiveValue::Integer(-1))
-	]), None);
-	ensure_execution_results("x;x = 1;x;", vec![
+	]));
+	ensure_program_statement_results_with_env("x;x = 1;x;", vec![
 		identifier_stmt("x"),
 		AssignmentExpression {
 			operator: Assignment,
@@ -23,25 +23,25 @@ fn simple_assignment() -> TestRes {
 			right: BoxExpression::from(IntegerLiteral(1)),
 		}.consume_as_statement(),
 		identifier_stmt("x"),
-	], &mut env, vec![
+	], vec![
 		PrimitiveValue::Integer(-1),
 		PrimitiveValue::Integer(1),
 		PrimitiveValue::Integer(1),
-	]);
+	], &mut env);
 }
 
 #[test]
 fn complex_assignment() -> TestRes {
-	let mut env = Environment::new(HashMap::from([
+	let mut env = Environment::new_from_primitives(HashMap::from([
 		("x".into(), PrimitiveValue::Integer(12))
-	]), None);
-	ensure_execution_results(r#"
-x += 1;
-x -= 1;
-x *= 10;
-x /= 12;
-x %= 3;
-"#, vec![
+	]));
+	ensure_program_statement_results_with_env(r#"
+	x += 1;
+	x -= 1;
+	x *= 10;
+	x /= 12;
+	x %= 3;
+	"#, vec![
 		AssignmentExpression {
 			operator: PlusAssignment,
 			left: BoxExpression::from(Identifier("x".to_string())),
@@ -67,28 +67,28 @@ x %= 3;
 			left: BoxExpression::from(Identifier("x".to_string())),
 			right: BoxExpression::from(IntegerLiteral(3)),
 		}.consume_as_statement(),
-	], &mut env, vec![
+	], vec![
 		PrimitiveValue::Integer(13),
 		PrimitiveValue::Integer(12),
 		PrimitiveValue::Integer(120),
 		PrimitiveValue::Integer(10),
 		PrimitiveValue::Integer(1),
-	]);
+	], &mut env);
 }
 
 #[test]
 fn chained_assignment() -> TestRes {
-	let mut env = Environment::new(HashMap::from([
+	let mut env = Environment::new_from_primitives(HashMap::from([
 		("x".into(), PrimitiveValue::Integer(5)),
 		("y".into(), PrimitiveValue::Integer(6)),
-	]), None);
-	ensure_execution_results(r#"
-x;
-y;
-x = y = 1;
-x;
-y;
-"#, vec![
+	]));
+	ensure_program_statement_results_with_env(r#"
+	x;
+	y;
+	x = y = 1;
+	x;
+	y;
+	"#, vec![
 		identifier_stmt("x"),
 		identifier_stmt("y"),
 		AssignmentExpression {
@@ -102,31 +102,31 @@ y;
 		}.consume_as_statement(),
 		identifier_stmt("x"),
 		identifier_stmt("y"),
-	], &mut env, vec![
+	], vec![
 		PrimitiveValue::Integer(5),
 		PrimitiveValue::Integer(6),
 		PrimitiveValue::Integer(1),
 		PrimitiveValue::Integer(1),
 		PrimitiveValue::Integer(1),
-	]);
+	], &mut env);
 }
 
 #[test]
 fn chained_complex_assignment() -> TestRes {
-	let mut env = Environment::new(HashMap::from([
+	let mut env = Environment::new_from_primitives(HashMap::from([
 		("x".into(), PrimitiveValue::Integer(5)),
 		("y".into(), PrimitiveValue::Integer(6)),
 		("z".into(), PrimitiveValue::Integer(7)),
-	]), None);
-	ensure_execution_results(r#"
-x;
-y;
-z;
-x = y += z = 2;
-x;
-y;
-z;
-"#, vec![
+	]));
+	ensure_program_statement_results_with_env(r#"
+	x;
+	y;
+	z;
+	x = y += z = 2;
+	x;
+	y;
+	z;
+	"#, vec![
 		identifier_stmt("x"),
 		identifier_stmt("y"),
 		identifier_stmt("z"),
@@ -146,7 +146,7 @@ z;
 		identifier_stmt("x"),
 		identifier_stmt("y"),
 		identifier_stmt("z"),
-	], &mut env, vec![
+	], vec![
 		PrimitiveValue::Integer(5),
 		PrimitiveValue::Integer(6),
 		PrimitiveValue::Integer(7),
@@ -154,25 +154,25 @@ z;
 		PrimitiveValue::Integer(8),
 		PrimitiveValue::Integer(8),
 		PrimitiveValue::Integer(2),
-	]);
+	], &mut env);
 }
 
 #[test]
 fn complex_assignments() -> TestRes {
-	let mut env = Environment::new(HashMap::from([
+	let mut env = Environment::new_from_primitives(HashMap::from([
 		("x".into(), PrimitiveValue::Integer(5)),
 		("y".into(), PrimitiveValue::Integer(6)),
 		("z".into(), PrimitiveValue::Integer(7)),
-	]), None);
-	ensure_execution_results(r#"
-x;
-y;
-z;
-x += y = 1+2*(z=1)+4;
-x;
-y;
-z;
-"#, vec![
+	]));
+	ensure_program_statement_results_with_env(r#"
+	x;
+	y;
+	z;
+	x += y = 1+2*(z=1)+4;
+	x;
+	y;
+	z;
+	"#, vec![
 		identifier_stmt("x"),
 		identifier_stmt("y"),
 		identifier_stmt("z"),
@@ -204,7 +204,7 @@ z;
 		identifier_stmt("x"),
 		identifier_stmt("y"),
 		identifier_stmt("z"),
-	], &mut env, vec![
+	], vec![
 		PrimitiveValue::Integer(5),
 		PrimitiveValue::Integer(6),
 		PrimitiveValue::Integer(7),
@@ -212,5 +212,5 @@ z;
 		PrimitiveValue::Integer(12),
 		PrimitiveValue::Integer(7),
 		PrimitiveValue::Integer(1),
-	]);
+	], &mut env);
 }

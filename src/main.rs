@@ -34,14 +34,19 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 }
 
 fn main() {
-	let mut env = Environment::new_with_parent(None);
+	let mut env = Environment::new();
 	env.parse_and_run_program(r#"
 	let a = "y";
-	let b = "z";
-	a += "12";
-	a += a;
-	a += b;
+	let b = "1";
+	{
+		let a = "z";
+		b = "2";
+		push_res_stack(a);
+		push_res_stack(b);
+	}
 	push_res_stack(a);
+	push_res_stack(b);
+	push_res_stack(c);
 "#.to_string()).unwrap();
-	dbg!(env.res_stack);
+	dbg!(&env.global_scope.borrow().res_stack);
 }

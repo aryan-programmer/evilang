@@ -3,12 +3,9 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use crate::errors::{ErrorT, ResultWithError};
+use crate::utils::cell_ref::rc_cell_from;
 
 pub type RcCellValue = Rc<RefCell<PrimitiveValue>>;
-
-pub fn rc_cell_from(v: PrimitiveValue) -> RcCellValue {
-	return RcCellValue::new(RefCell::new(v));
-}
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum PrimitiveValue {
@@ -72,6 +69,7 @@ impl RefToValue {
 	pub fn from_rc(val: &RcCellValue) -> RefToValue {
 		return RefToValue::LValue(RcCellValue::clone(val));
 	}
+
 	pub fn new_lvalue(val: PrimitiveValue) -> RefToValue {
 		return RefToValue::LValue(rc_cell_from(val));
 	}
