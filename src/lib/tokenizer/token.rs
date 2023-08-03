@@ -16,6 +16,8 @@ pub enum Keyword {
 	New,
 	Super,
 	This,
+	Break,
+	Continue,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

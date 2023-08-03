@@ -31,6 +31,8 @@ pub enum Statement {
 		increment: BoxStatement,
 		body: BoxStatement,
 	},
+	BreakStatement(i64),
+	ContinueStatement(i64),
 	FunctionDeclarationStatement(FunctionDeclaration),
 	ClassDeclarationStatement {
 		name: IdentifierT,

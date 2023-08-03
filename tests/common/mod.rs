@@ -4,10 +4,11 @@
 use std::ops::Deref;
 
 use evilang_lib::ast::expression::Expression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, Identifier};
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, FunctionCall, Identifier};
 use evilang_lib::ast::operator::Operator::Assignment;
 use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::statement::Statement::ExpressionStatement;
+use evilang_lib::ast::structs::CallExpression;
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
@@ -15,21 +16,115 @@ use evilang_lib::parser::parse;
 
 pub type TestRes = ();
 
-pub fn ensure_program_ref(input: &str, expected: &StatementList) -> TestRes {
-	match parse(input.to_string()) {
-		Ok(parsed) => {
-			// println!("{:?}", parsed);
-			assert_eq!(parsed.deref(), expected, "Mismatched parsed AST and expected AST");
-		}
-		Err(error_type) => {
-			panic!("{}", error_type)
+pub struct TestData {
+	input: String,
+	expected: Option<StatementList>,
+	statement_results: Option<Vec<PrimitiveValue>>,
+	stack: Option<Vec<PrimitiveValue>>,
+	parsed: Option<StatementList>,
+}
+
+impl TestData {
+	pub fn new(input: String) -> TestData {
+		Self::new_full(input, None, None, None)
+	}
+
+	pub fn new_full(input: String, expected: Option<StatementList>, statement_results: Option<Vec<PrimitiveValue>>, stack: Option<Vec<PrimitiveValue>>) -> Self {
+		Self { input, expected, statement_results, stack, parsed: None }
+	}
+
+	pub fn new_statements_and_results(input: &str, expected: StatementList, results: Vec<PrimitiveValue>) -> TestData {
+		return TestData::new_full(input.to_string(), Some(expected), Some(results), None);
+	}
+
+	pub fn expect_statements(mut self, expected: StatementList) -> Self {
+		self.expected = Some(expected);
+		return self;
+	}
+
+	pub fn expect_statements_and_results(mut self, expected: StatementList, results: Vec<PrimitiveValue>) -> Self {
+		assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
+		self.expected = Some(expected);
+		self.statement_results = Some(results);
+		return self;
+	}
+
+	pub fn expect_stack(mut self, stack: Vec<PrimitiveValue>) -> Self {
+		self.stack = Some(stack);
+		return self;
+	}
+
+	pub fn parse(&mut self) -> StatementList {
+		if let Some(parsed) = &self.parsed {
+			return parsed.clone();
+		} else {
+			match parse(self.input.clone()) {
+				Ok(parsed) => {
+					// println!("{:?}", parsed);
+					self.parsed = Some(parsed);
+					let Some(parsed_) = &self.parsed else { panic!(); };
+					return parsed_.clone();
+				}
+				Err(error_type) => {
+					panic!("{}", error_type)
+				}
+			}
 		}
 	}
-	return;
+
+	pub fn check_parsing(&mut self) -> TestRes {
+		let parsed = self.parse();
+		let Some(expected) = &self.expected else {
+			return ();
+		};
+		assert_eq!(&parsed, expected, "Mismatched parsed AST and expected AST");
+		return ();
+	}
+
+	pub fn exec_and_check_statement_results(&mut self, env: &mut Environment) -> TestRes {
+		let parsed = self.parse();
+		let Some(results) = &self.statement_results else {
+			env.eval_statements(&parsed).unwrap();
+			return ();
+		};
+		for (stmt, expected_val) in parsed.iter().zip(results.iter()) {
+			if let ExpressionStatement(expr) = stmt {
+				let value = env.eval(expr).unwrap();
+				let borrow = value.borrow();
+				let got_val = borrow.deref();
+				assert_eq!(got_val, expected_val, "Expected values to match");
+			} else {
+				env.eval_statement(stmt).unwrap();
+				assert_eq!(&PrimitiveValue::Null, expected_val, "Expected expected value to be null for not expression statements");
+			}
+		}
+	}
+
+	pub fn check_stack_results_no_exec(&mut self, env: &mut Environment) -> TestRes {
+		let Some(stack) = &self.stack else {
+			return ();
+		};
+		assert_eq!(&env.global_scope.borrow().res_stack, stack, "Expected result stack values to match");
+	}
+
+	pub fn check_with_env(&mut self, env: &mut Environment) -> TestRes {
+		self.check_parsing();
+		self.exec_and_check_statement_results(env);
+		self.check_stack_results_no_exec(env);
+		return ();
+	}
+
+	pub fn check(&mut self) -> TestRes {
+		let mut env = Environment::new();
+		self.check_parsing();
+		self.exec_and_check_statement_results(&mut env);
+		self.check_stack_results_no_exec(&mut env);
+		return ();
+	}
 }
 
 pub fn ensure_program(input: &str, expected: StatementList) -> TestRes {
-	return ensure_program_ref(input, &expected);
+	return TestData::new(input.to_string()).expect_statements(expected).check_parsing();
 }
 
 pub fn ensure_program_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
@@ -47,37 +142,16 @@ pub fn ensure_program_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
 	return;
 }
 
-pub fn ensure_program_statement_results(input: &str, expected: StatementList, results: Vec<PrimitiveValue>) -> TestRes {
-	let mut env = Environment::new();
-	return ensure_program_statement_results_with_env(input, expected, results, &mut env);
-}
-
-pub fn ensure_program_statement_results_with_env(
+pub fn ensure_program_statement_results(
 	input: &str,
 	expected: StatementList,
 	results: Vec<PrimitiveValue>,
-	env: &mut Environment,
 ) -> TestRes {
-	ensure_program_ref(input, &expected);
-	assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
-	for (stmt, expected_val) in expected.iter().zip(results.iter()) {
-		if let ExpressionStatement(expr) = stmt {
-			let value = env.eval(expr).unwrap();
-			let borrow = value.borrow();
-			let got_val = borrow.deref();
-			assert_eq!(got_val, expected_val, "Expected values to match");
-		} else {
-			env.run_statement(stmt).unwrap();
-			assert_eq!(&PrimitiveValue::Null, expected_val, "Expected expected value to be null for not expression statements");
-		}
-	}
-
-	return;
+	return TestData::new(input.to_string()).expect_statements_and_results(expected, results).check();
 }
 
 pub fn ensure_res_stack_matches(input: &str, results: Vec<PrimitiveValue>) -> TestRes {
-	let mut env = Environment::new();
-	return ensure_res_stack_matches_with_env(input, results, &mut env);
+	return TestData::new(input.to_string()).expect_stack(results).check();
 }
 
 pub fn ensure_res_stack_matches_with_env(
@@ -85,7 +159,7 @@ pub fn ensure_res_stack_matches_with_env(
 	results: Vec<PrimitiveValue>,
 	env: &mut Environment,
 ) -> TestRes {
-	env.parse_and_run_program(input.into()).unwrap();
+	env.eval_program_string(input.into()).unwrap();
 	assert_eq!(env.global_scope.borrow().res_stack, results, "Expected result values to match");
 	return;
 }
@@ -104,4 +178,11 @@ pub fn test_expression_and_assignment(input: &str, expr: Expression) -> TestRes 
 
 pub fn identifier_stmt(iden: &str) -> Statement {
 	return Identifier(iden.into()).consume_as_statement();
+}
+
+pub fn push_res_stack_stmt(val: Expression) -> Statement {
+	return ExpressionStatement(FunctionCall(CallExpression {
+		callee: Identifier("push_res_stack".to_string()).into(),
+		arguments: vec![val],
+	}));
 }

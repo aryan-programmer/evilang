@@ -2,6 +2,8 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::ops::Deref;
 use std::rc::Rc;
 
+use delegate::delegate;
+
 use crate::errors::{ErrorT, ResultWithError};
 use crate::utils::cell_ref::rc_cell_from;
 
@@ -15,10 +17,15 @@ pub enum PrimitiveValue {
 	String(String),
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum RefToValue {
-	RValue(PrimitiveValue),
-	LValue(RcCellValue),
+impl PrimitiveValue {
+	pub fn is_truthy(&self) -> bool {
+		return match self {
+			PrimitiveValue::Null => false,
+			PrimitiveValue::Boolean(v) => *v,
+			PrimitiveValue::Integer(i) => *i != 0,
+			PrimitiveValue::String(s) => s.len() != 0,
+		};
+	}
 }
 
 #[derive(Debug)]
@@ -48,6 +55,12 @@ impl<'a> Deref for DerefOfRefToValue<'a> {
 			DerefOfRefToValue::Value(cl) => cl,
 		};
 	}
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum RefToValue {
+	RValue(PrimitiveValue),
+	LValue(RcCellValue),
 }
 
 impl From<PrimitiveValue> for RefToValue {
@@ -94,13 +107,7 @@ impl RefToValue {
 		};
 	}
 
-	pub fn deref_clone(&self) -> PrimitiveValue {
-		return match self {
-			RefToValue::RValue(v) => v.clone(),
-			RefToValue::LValue(v) => v.deref().borrow().deref().clone(),
-		};
-	}
-
+	#[inline]
 	pub fn consume_or_clone(self) -> PrimitiveValue {
 		return match self {
 			RefToValue::RValue(v) => v,
@@ -113,5 +120,16 @@ impl RefToValue {
 			RefToValue::RValue(_) => Err(ErrorT::InvalidMutableBorrowForRValue.into()),
 			RefToValue::LValue(v) => Ok(v.deref().borrow_mut()),
 		};
+	}
+
+	delegate! {
+		to match self {
+			RefToValue::RValue(v) => v,
+			RefToValue::LValue(v) => v.deref().borrow().deref(),
+		} {
+			pub fn is_truthy(&self) -> bool;
+			#[call(clone)]
+			pub fn deref_clone(&self) -> PrimitiveValue;
+		}
 	}
 }

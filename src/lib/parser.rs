@@ -130,8 +130,40 @@ impl Parser {
 			TokenType::Keyword(Keyword::Fn) => self.function_declaration_statement(),
 			TokenType::Keyword(Keyword::Return) => self.return_statement(),
 			TokenType::Keyword(Keyword::Class) => self.class_declaration_statement(),
+			TokenType::Keyword(Keyword::Break) => self.break_statement(),
+			TokenType::Keyword(Keyword::Continue) => self.continue_statement(),
 			_ => self.expression_statement(),
 		};
+	}
+
+	/*
+	break_statement:
+		| 'break' ';'
+		| 'break' integer_literal ';'
+	*/
+	fn break_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Break))?;
+		let num = if self.lookahead_type()? == TokenType::Semicolon {
+			1
+		} else {
+			self.eat(TokenType::Integer)?.data.parse().unwrap()
+		};
+		return Ok(Statement::BreakStatement(num));
+	}
+
+	/*
+	continue_statement:
+		| 'continue' ';'
+		| 'continue' integer_literal ';'
+	*/
+	fn continue_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Continue))?;
+		let num = if self.lookahead_type()? == TokenType::Semicolon {
+			1
+		} else {
+			self.eat(TokenType::Integer)?.data.parse().unwrap()
+		};
+		return Ok(Statement::ContinueStatement(num));
 	}
 
 	/*

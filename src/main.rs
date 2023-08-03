@@ -35,18 +35,17 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 
 fn main() {
 	let mut env = Environment::new();
-	env.parse_and_run_program(r#"
-	let a = "y";
-	let b = "1";
-	{
-		let a = "z";
-		b = "2";
+	env.eval_program_string(r#"
+	let a = 1;
+	while (a <= 10){
 		push_res_stack(a);
-		push_res_stack(b);
+		{
+			if (a % 3 == 0){
+				break;
+			}
+		}
+		a+=1;
 	}
-	push_res_stack(a);
-	push_res_stack(b);
-	push_res_stack(c);
 "#.to_string()).unwrap();
 	dbg!(&env.global_scope.borrow().res_stack);
 }

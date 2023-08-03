@@ -89,6 +89,8 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
 		(starts_with_matcher("super"), Some(TokenType::Keyword(Keyword::Super))),
 		(starts_with_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
+		(starts_with_matcher("break"), Some(TokenType::Keyword(Keyword::Break))),
+		(starts_with_matcher("continue"), Some(TokenType::Keyword(Keyword::Continue))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];
