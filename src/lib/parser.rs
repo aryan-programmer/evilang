@@ -148,6 +148,7 @@ impl Parser {
 		} else {
 			self.eat(TokenType::Integer)?.data.parse().unwrap()
 		};
+		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::BreakStatement(num));
 	}
 
@@ -163,6 +164,7 @@ impl Parser {
 		} else {
 			self.eat(TokenType::Integer)?.data.parse().unwrap()
 		};
+		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::ContinueStatement(num));
 	}
 

@@ -4,11 +4,10 @@
 use std::ops::Deref;
 
 use evilang_lib::ast::expression::Expression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, FunctionCall, Identifier};
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, Identifier};
 use evilang_lib::ast::operator::Operator::Assignment;
 use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::statement::Statement::ExpressionStatement;
-use evilang_lib::ast::structs::CallExpression;
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
@@ -31,10 +30,6 @@ impl TestData {
 
 	pub fn new_full(input: String, expected: Option<StatementList>, statement_results: Option<Vec<PrimitiveValue>>, stack: Option<Vec<PrimitiveValue>>) -> Self {
 		Self { input, expected, statement_results, stack, parsed: None }
-	}
-
-	pub fn new_statements_and_results(input: &str, expected: StatementList, results: Vec<PrimitiveValue>) -> TestData {
-		return TestData::new_full(input.to_string(), Some(expected), Some(results), None);
 	}
 
 	pub fn expect_statements(mut self, expected: StatementList) -> Self {
@@ -181,8 +176,8 @@ pub fn identifier_stmt(iden: &str) -> Statement {
 }
 
 pub fn push_res_stack_stmt(val: Expression) -> Statement {
-	return ExpressionStatement(FunctionCall(CallExpression {
-		callee: Identifier("push_res_stack".to_string()).into(),
-		arguments: vec![val],
-	}));
+	return ExpressionStatement(Expression::function_call(
+		Identifier("push_res_stack".to_string()).into(),
+		vec![val],
+	));
 }
