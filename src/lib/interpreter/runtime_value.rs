@@ -83,7 +83,7 @@ impl RefToValue {
 		return RefToValue::LValue(RcCellValue::clone(val));
 	}
 
-	pub fn new_lvalue(val: PrimitiveValue) -> RefToValue {
+	pub fn new_variable(val: PrimitiveValue) -> RefToValue {
 		return RefToValue::LValue(rc_cell_from(val));
 	}
 

@@ -1,7 +1,8 @@
 use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, UnaryExpression};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, LogicalNot, Minus, Multiplication, Plus};
+use evilang_lib::interpreter::runtime_value::PrimitiveValue;
 
-use crate::common::{test_expression_and_assignment, TestRes};
+use crate::common::{test_expression_and_assignment, TestData, TestRes};
 
 mod common;
 
@@ -70,4 +71,32 @@ fn complex_unary() -> TestRes {
 			argument: BooleanLiteral(true).into(),
 		}.into(),
 	}, );
+}
+
+#[test]
+fn interpretation_basic() -> TestRes {
+	TestData::new(r#"
+	!false;
+	!true;
+	-1;
+	+2;
+	-(-3);
+	+(-4);
+	-(+5);
+	+(+6);
+	10 + -17;
+"#.to_string())
+		.expect_results(vec![
+			// Or
+			PrimitiveValue::Boolean(true),
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Integer(-1),
+			PrimitiveValue::Integer(2),
+			PrimitiveValue::Integer(3),
+			PrimitiveValue::Integer(-4),
+			PrimitiveValue::Integer(-5),
+			PrimitiveValue::Integer(6),
+			PrimitiveValue::Integer(-7),
+		])
+		.check();
 }

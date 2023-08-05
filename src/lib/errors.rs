@@ -35,6 +35,8 @@ pub enum ErrorT {
 	UnimplementedExpressionTypeForInterpreter(Expression),
 	#[error("The interpreter does not support the operator: {0:?} for the values {1:#?} and {2:#?}")]
 	UnimplementedBinaryOperatorForValues(Operator, PrimitiveValue, PrimitiveValue),
+	#[error("The interpreter does not support the unary operator: {0:?} for the value {1:#?}")]
+	UnimplementedUnaryOperatorForValues(Operator, PrimitiveValue),
 	#[error("The following function is not implemented: {0:?}")]
 	UnimplementedFunction(Expression),
 	#[error("The cannot mutably borrow an r-value reference")]

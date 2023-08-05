@@ -36,23 +36,12 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 fn main() {
 	let mut env = Environment::new();
 	let program = r#"
-	let sum = 0;
-	for(let i = 1; i <= 10; i += 1){
-		if(i%3==0){
-			while(true){
-				continue 2;
-			}
-		}
-		if(i==8){
-			do {
-				break 2;
-			} while(true);
-		}
-		sum += i;
-	}
-	push_res_stack(sum);
+	false || push_res_stack(1);
+	false && push_res_stack(2);
+	true || push_res_stack(3);
+	true && push_res_stack(4);
 "#;
-	print_program(program);
+	// print_program(program);
 	env.eval_program_string(program.to_string()).unwrap();
 	dbg!(&env.global_scope.borrow().res_stack);
 }

@@ -33,7 +33,18 @@ impl TestData {
 	}
 
 	pub fn expect_statements(mut self, expected: StatementList) -> Self {
+		if let Some(results) = &self.statement_results {
+			assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
+		}
 		self.expected = Some(expected);
+		return self;
+	}
+
+	pub fn expect_results(mut self, results: Vec<PrimitiveValue>) -> Self {
+		if let Some(expected) = &self.expected {
+			assert_eq!(expected.len(), results.len(), "Expected lengths of expected Statements list and expected results list to match");
+		}
+		self.statement_results = Some(results);
 		return self;
 	}
 

@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use delegate::delegate;
 
-use crate::ast::expression::{Expression, IdentifierT};
+use crate::ast::expression::{BoxExpression, Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::{Statement, StatementList};
 use crate::ast::structs::CallExpression;
@@ -241,17 +241,14 @@ impl Environment {
 			Expression::BooleanLiteral(a) => PrimitiveValue::Boolean(a.clone()).into(),
 			Expression::IntegerLiteral(a) => PrimitiveValue::Integer(a.clone()).into(),
 			Expression::StringLiteral(a) => PrimitiveValue::String(a.clone()).into(),
-			// Expression::UnaryExpression { .. } => {}
-			Expression::BinaryExpression { operator, left, right } => {
-				let left_eval = self.eval(left.deref())?;
-				let right_eval = self.eval(right.deref())?;
-				self.eval_binary_expression(operator, left_eval, right_eval)?
+			Expression::UnaryExpression { operator, argument } => {
+				let arg_eval = self.eval(argument)?;
+				self.execute_unary_operator_expression(operator, arg_eval)?
 			}
-			Expression::AssignmentExpression { operator, left, right } => {
-				let left_eval = self.eval(left.deref())?;
-				let right_eval = self.eval(right.deref())?;
-				self.eval_binary_expression(operator, left_eval, right_eval)?
-			}
+			Expression::BinaryExpression { operator, left, right } =>
+				self.eval_binary_operator_expression(operator, left, right)?,
+			Expression::AssignmentExpression { operator, left, right } =>
+				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::Identifier(name) => self.get_or_put_null(name),
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			expr => {
@@ -260,12 +257,46 @@ impl Environment {
 		});
 	}
 
-	pub fn eval_binary_expression(
-		&mut self,
-		operator: &Operator,
-		mut left: RefToValue,
-		right: RefToValue,
-	) -> ResultWithError<RefToValue> {
+	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: RefToValue) -> ResultWithError<RefToValue> {
+		let prim_borrow = argument.borrow();
+		let prim_ref = prim_borrow.deref();
+		return Ok(match (operator, prim_ref) {
+			(Operator::LogicalNot, PrimitiveValue::Boolean(v)) => PrimitiveValue::Boolean(!*v).into(),
+			(Operator::Plus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(*v).into(),
+			(Operator::Minus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(-*v).into(),
+			(op, prim) => {
+				return Err(ErrorT::UnimplementedUnaryOperatorForValues(op.clone(), prim.clone()).into());
+			}
+		});
+	}
+
+	fn eval_binary_operator_expression(&mut self, operator: &Operator, left: &BoxExpression, right: &BoxExpression) -> ResultWithError<RefToValue> {
+		let left_eval = self.eval(left.deref())?;
+		match operator {
+			Operator::LogicalOr => {
+				return if left_eval.is_truthy() {
+					Ok(left_eval)
+				} else {
+					let right_eval = self.eval(right.deref())?;
+					Ok(right_eval)
+				};
+			}
+			Operator::LogicalAnd => {
+				return if !left_eval.is_truthy() {
+					Ok(left_eval)
+				} else {
+					let right_eval = self.eval(right.deref())?;
+					Ok(right_eval)
+				};
+			}
+			_ => {}
+		};
+
+		let right_eval = self.eval(right.deref())?;
+		self.execute_binary_expression(operator, left_eval, right_eval)
+	}
+
+	pub fn execute_binary_expression(&mut self, operator: &Operator, mut left: RefToValue, right: RefToValue) -> ResultWithError<RefToValue> {
 		if operator.is_assignment() {
 			if *operator == Operator::Assignment {
 				*left.try_borrow_mut()? = right.consume_or_clone();
@@ -305,7 +336,7 @@ impl Environment {
 						PrimitiveValue::String(b)
 					) => *a += b,
 					(op, left_mut_ref, right_value_ref) => {
-						let val_to_assign = self.eval_primitive_operation(
+						let val_to_assign = self.execute_operation_on_primitive(
 							&op.strip_assignment()?,
 							left_mut_ref,
 							right_value_ref,
@@ -319,15 +350,10 @@ impl Environment {
 
 		let lder = left.borrow();
 		let rder = right.borrow();
-		return Ok(self.eval_primitive_operation(operator, lder.deref(), rder.deref())?.into());
+		return Ok(self.execute_operation_on_primitive(operator, lder.deref(), rder.deref())?.into());
 	}
 
-	pub fn eval_primitive_operation(
-		&mut self,
-		operator: &Operator,
-		left: &PrimitiveValue,
-		right: &PrimitiveValue,
-	) -> ResultWithError<PrimitiveValue> {
+	pub fn execute_operation_on_primitive(&mut self, operator: &Operator, left: &PrimitiveValue, right: &PrimitiveValue) -> ResultWithError<PrimitiveValue> {
 		let int_result: Option<PrimitiveValue> = auto_implement_binary_operators!(
 			(operator, left, right),
 			Integer, a, b,
@@ -340,8 +366,8 @@ impl Environment {
 			Operator::GreaterThan, gt => Boolean;
 			Operator::LessThanOrEqualTo, le => Boolean;
 			Operator::GreaterThanOrEqualTo, ge => Boolean;
-			Operator::Equals, eq => Boolean;
-			Operator::NotEquals, ne => Boolean;
+			// Operator::Equals, eq => Boolean;
+			// Operator::NotEquals, ne => Boolean;
 		);
 		if let Some(int_r) = int_result {
 			return Ok(int_r);
@@ -349,6 +375,10 @@ impl Environment {
 		return match (operator, left, right) {
 			(Operator::Plus, PrimitiveValue::String(a), PrimitiveValue::String(b)) =>
 				Ok(PrimitiveValue::String(a.clone() + b)),
+			(Operator::Equals, a, b) =>
+				Ok(PrimitiveValue::Boolean(a == b)),
+			(Operator::NotEquals, a, b) =>
+				Ok(PrimitiveValue::Boolean(a != b)),
 			(op, l, r) => {
 				return Err(ErrorT::UnimplementedBinaryOperatorForValues(op.clone(), l.clone(), r.clone()).into());
 			}

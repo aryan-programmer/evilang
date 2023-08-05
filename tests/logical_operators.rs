@@ -1,7 +1,8 @@
 use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, NullLiteral};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, LessThanOrEqualTo, LogicalAnd, LogicalOr, Multiplication, Plus};
+use evilang_lib::interpreter::runtime_value::PrimitiveValue;
 
-use crate::common::{test_expression_and_assignment, TestRes};
+use crate::common::{test_expression_and_assignment, TestData, TestRes};
 
 mod common;
 
@@ -74,4 +75,59 @@ fn complex_equality() -> TestRes {
 			}.into(),
 		}.into(),
 	});
+}
+
+#[test]
+fn interpretation_basic() -> TestRes {
+	TestData::new(r#"
+	false || false;
+	true || false;
+	false || true;
+	true || true;
+	false && false;
+	true && false;
+	false && true;
+	true && true;
+"#.to_string())
+		.expect_results(vec![
+			// Or
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Boolean(true),
+			PrimitiveValue::Boolean(true),
+			PrimitiveValue::Boolean(true),
+			// And
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Boolean(true),
+		])
+		.check();
+}
+
+#[test]
+fn short_circuiting() -> TestRes {
+	TestData::new(r#"
+	false || push_res_stack(1);
+	true || push_res_stack(2);
+	false && push_res_stack(3);
+	true && push_res_stack(4);
+	false || push_res_stack(5) != null || push_res_stack(6) || true || push_res_stack(7);
+	false || push_res_stack(8) == null || push_res_stack(9);
+"#.to_string())
+		.expect_results(vec![
+			PrimitiveValue::Null, // push_res_stack
+			PrimitiveValue::Boolean(true),
+			PrimitiveValue::Boolean(false),
+			PrimitiveValue::Null, // push_res_stack
+			PrimitiveValue::Boolean(true),
+			PrimitiveValue::Boolean(true),
+		])
+		.expect_stack(vec![
+			PrimitiveValue::Integer(1),
+			PrimitiveValue::Integer(4),
+			PrimitiveValue::Integer(5),
+			PrimitiveValue::Integer(6),
+			PrimitiveValue::Integer(8),
+		])
+		.check()
 }

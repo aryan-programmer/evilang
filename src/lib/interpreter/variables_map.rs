@@ -135,28 +135,6 @@ impl VariableScope {
 			}
 		}
 	}
-
-	/*fn resolve_self(&self, name: &IdentifierT) -> Option<RcCell<Self>> {
-		if self.variables.borrow().contains_key(name) {
-			return self.weak_self.upgrade();
-		}
-		let Some(mut v) = self.parent.as_ref().and_then(|v| v.upgrade()) else {
-			return self.weak_self.upgrade();
-		};
-		loop {
-			let v_borrow = v.borrow();
-			if v_borrow.variables.borrow().contains_key(name) {
-				drop(v_borrow);
-				return Some(v);
-			}
-			if let Some(parent) = v_borrow.parent.as_ref().and_then(|v| v.upgrade()) {
-				drop(v_borrow);
-				v = parent;
-			} else {
-				return self.weak_self.upgrade();
-			}
-		}
-	}*/
 }
 
 pub struct GlobalScope {
