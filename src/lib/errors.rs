@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use backtrace::Backtrace;
 use thiserror::Error;
 
-use crate::ast::expression::Expression;
+use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
 use crate::interpreter::runtime_value::PrimitiveValue;
@@ -39,12 +39,20 @@ pub enum ErrorT {
 	UnimplementedUnaryOperatorForValues(Operator, PrimitiveValue),
 	#[error("The following function is not implemented: {0:?}")]
 	UnimplementedFunction(Expression),
-	#[error("The cannot mutably borrow an r-value reference")]
-	InvalidMutableBorrowForRValue,
+	// #[error("The cannot mutably borrow an r-value reference")]
+	// InvalidMutableBorrowForRValue,
 	#[error("A mutable borrow already exists")]
 	InvalidBorrow,
 	#[error("The cannot strip assignment from operator: {0:?}")]
 	CantStripAssignment(Operator),
+	// #[error("Can't access an undeclared variable: '{0:?}'")]
+	// CantAccessUndeclaredVariable(IdentifierT),
+	#[error("Can't access variable '{0:?}' before the point in time at which it has been declared")]
+	CantAccessHoistedVariable(IdentifierT),
+	#[error("Can't declare variable '{0:?}' since it already exists in this scope")]
+	CantRedeclareVariable(IdentifierT),
+	#[error("Can't set a variable to be hoisted")]
+	CantSetToHoistedValue,
 }
 
 #[derive(Debug, Clone)]

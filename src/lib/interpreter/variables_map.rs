@@ -5,7 +5,8 @@ use std::rc::{Rc, Weak};
 use delegate::delegate;
 
 use crate::ast::expression::IdentifierT;
-use crate::interpreter::runtime_value::{PrimitiveValue, RcCellValue, RefToValue};
+use crate::errors::{ErrorT, ResultWithError};
+use crate::interpreter::runtime_value::{PrimitiveValue, RcCellValue, RcCellValueExt, RefToValue};
 use crate::utils::cell_ref::{rc_cell_from, RcCell};
 
 pub trait IVariablesMap {
@@ -17,11 +18,40 @@ pub trait IVariablesMap {
 	/// * `value`:
 	///
 	/// returns: Option<PrimitiveValue> The previous value stored in the variable
-	fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
-	fn declare(&mut self, name: &IdentifierT, value: RefToValue);
-	fn get(&self, name: &IdentifierT) -> Option<RefToValue>;
-	fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue;
+	fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+	fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
+	fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
+	fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
 	fn contains_key(&self, name: &IdentifierT) -> bool;
+	// fn get_variable(&self, name: &IdentifierT) -> ResultWithError<RefToValue> {
+	// 	let gotten_val = self.get_actual(name);
+	// 	let Some(ref_to_val) = gotten_val else {
+	// 		return Err(ErrorT::CantAccessUndeclaredVariable(name.clone()).into());
+	// 	};
+	// 	return match &ref_to_val {
+	// 		RefToValue::RValue(_) => Err(ErrorT::ExpectedLhsExpression.into()),
+	// 		RefToValue::LValue(v) => if v.is_hoisted() {
+	// 			Err(ErrorT::CantAccessHoistedVariable(name.clone()).into())
+	// 		} else {
+	// 			Ok(ref_to_val)
+	// 		},
+	// 	};
+	// }
+
+	fn get_variable_or_null(&self, name: &IdentifierT) -> ResultWithError<RefToValue> {
+		let gotten_val = self.get_actual(name);
+		let Some(ref_to_val) = gotten_val else {
+			return Ok(RefToValue::RValue(PrimitiveValue::Null));
+		};
+		return match &ref_to_val {
+			RefToValue::RValue(_) => Err(ErrorT::ExpectedLhsExpression.into()),
+			RefToValue::LValue(v) => if v.is_hoisted() {
+				Err(ErrorT::CantAccessHoistedVariable(name.clone()).into())
+			} else {
+				Ok(ref_to_val)
+			},
+		};
+	}
 }
 
 pub struct VariablesMap {
@@ -46,7 +76,7 @@ impl VariablesMap {
 }
 
 impl IVariablesMap for VariablesMap {
-	fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
+	fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
 		return if let Some(v) = self.variables.get(name) {
 			Some(v.replace(value.consume_or_clone()))
 		} else {
@@ -55,26 +85,32 @@ impl IVariablesMap for VariablesMap {
 		};
 	}
 
-	fn declare(&mut self, name: &IdentifierT, value: RefToValue) {
-		self.assign(name, value);
+	fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()> {
+		if let Some(v) = self.variables.get(name) {
+			if !v.is_hoisted() {
+				return Err(ErrorT::CantRedeclareVariable(name.clone()).into());
+			}
+		}
+		if value.is_hoisted() {
+			return Err(ErrorT::CantSetToHoistedValue.into());
+		}
+		self.set_actual(name, value);
+		return Ok(());
 	}
 
-	fn get(&self, name: &IdentifierT) -> Option<RefToValue> {
+	fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()> {
+		if let Some(_v) = self.variables.get(name) {
+			return Err(ErrorT::CantRedeclareVariable(name.clone()).into());
+		}
+		self.set_actual(name, PrimitiveValue::_HoistedVariable.into());
+		return Ok(());
+	}
+
+	fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue> {
 		return if let Some(v) = self.variables.get(name) {
 			Some(RefToValue::from_rc(v))
 		} else {
 			None
-		};
-	}
-
-	fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue {
-		return if let Some(v) = self.variables.get(name) {
-			RefToValue::from_rc(v)
-		} else {
-			let rv = rc_cell_from(PrimitiveValue::Null);
-			let res = RefToValue::from_rc(&rv);
-			self.variables.insert(name.clone(), rv);
-			res
 		};
 	}
 
@@ -91,15 +127,15 @@ pub struct VariableScope {
 impl IVariablesMap for VariableScope {
 	delegate! {
 		to self.resolve_variable_scope(name).borrow_mut() {
-			fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
-			fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue;
+			fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
 		}
 		to self.resolve_variable_scope(name).borrow() {
-			fn get(&self, name: &IdentifierT) -> Option<RefToValue>;
+			fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
 			fn contains_key(&self, name: &IdentifierT) -> bool;
 		}
 		to self.variables.borrow_mut() {
-			fn declare(&mut self, name: &IdentifierT, value: RefToValue);
+			fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
+			fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
 		}
 	}
 }
@@ -157,12 +193,12 @@ impl GlobalScope {
 impl IVariablesMap for GlobalScope {
 	delegate! {
 		to self.scope.borrow_mut() {
-			fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
-			fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue;
-			fn declare(&mut self, name: &IdentifierT, value: RefToValue);
+			fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+			fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
+			fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
 		}
 		to self.scope.borrow() {
-			fn get(&self, name: &IdentifierT) -> Option<RefToValue>;
+			fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
 			fn contains_key(&self, name: &IdentifierT) -> bool;
 		}
 	}

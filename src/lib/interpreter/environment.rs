@@ -7,7 +7,7 @@ use delegate::delegate;
 
 use crate::ast::expression::{BoxExpression, Expression, IdentifierT};
 use crate::ast::operator::Operator;
-use crate::ast::statement::{Statement, StatementList};
+use crate::ast::statement::{BoxStatement, Statement, StatementList};
 use crate::ast::structs::CallExpression;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_value::{DerefOfRefToValue, PrimitiveValue, RefToValue};
@@ -18,7 +18,7 @@ use crate::utils::cell_ref::RcCell;
 macro_rules! auto_implement_binary_operators {
     ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident);*;) => {
 	    match $val {
-	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) => Some(PrimitiveValue::$res_typ($a.$oper($b)).into()),)*
+	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) => Some(PrimitiveValue::$res_typ($a.$oper($b))),)*
 		    _ => None,
 	    }
     };
@@ -56,14 +56,21 @@ macro_rules! handle_unrolling_in_loop {
 	}
 }
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum UnrollingReason {
 	EncounteredBreak(i64),
 	EncounteredContinue(i64),
 }
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum StatementExecution {
 	NormalFlow,
 	Unrolling(UnrollingReason),
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum StatementMetaGeneration {
+	NormalGeneration,
 }
 
 fn try_left_borrow_mut<'a>(left: &'a mut RefToValue, right: &'a RefToValue) -> ResultWithError<(RefMut<'a, PrimitiveValue>, DerefOfRefToValue<'a>)> {
@@ -101,12 +108,12 @@ pub struct Environment {
 impl IVariablesMap for Environment {
 	delegate! {
 		to self.scope.borrow_mut() {
-			fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
-			fn get_or_put_null(&mut self, name: &IdentifierT) -> RefToValue;
-			fn declare(&mut self, name: &IdentifierT, value: RefToValue);
+			fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+			fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
+			fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
 		}
 		to self.scope.borrow() {
-			fn get(&self, name: &IdentifierT) -> Option<RefToValue>;
+			fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
 			fn contains_key(&self, name: &IdentifierT) -> bool;
 		}
 	}
@@ -142,75 +149,94 @@ impl Environment {
 	}
 
 	pub fn eval_program_string(&mut self, input: String) -> ResultWithError<StatementExecution> {
-		self.eval_statements(&parse(input)?)
+		self.setup_and_eval_statements(&parse(input)?)
 	}
 
-	pub fn eval_statements(&mut self, program: &StatementList) -> ResultWithError<StatementExecution> {
-		for statement in program.iter() {
+	pub fn setup_scope_for_statement(&mut self, statement: &Statement) -> ResultWithError<StatementMetaGeneration> {
+		match statement {
+			Statement::VariableDeclarations(decls) => {
+				for decl in decls.iter() {
+					self.hoist_identifier(&decl.identifier)?;
+				}
+			}
+			_ => {}
+		}
+		return Ok(StatementMetaGeneration::NormalGeneration);
+	}
+
+	pub fn setup_scope(&mut self, statements: &StatementList) -> ResultWithError<StatementMetaGeneration> {
+		for statement in statements.iter() {
+			self.setup_scope_for_statement(statement)?;
+		}
+		return Ok(StatementMetaGeneration::NormalGeneration);
+	}
+
+	pub fn setup_and_eval_statements(&mut self, statements: &StatementList) -> ResultWithError<StatementExecution> {
+		self.setup_scope(statements)?;
+		for statement in statements.iter() {
 			handle_unrolling!(self.eval_statement(statement)?);
 		}
 		return Ok(StatementExecution::NormalFlow);
 	}
 
-	pub fn eval_statement(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
-		match statement {
+	pub fn setup_and_eval_statement(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
+		self.setup_scope_for_statement(statement)?;
+		return self.eval_statement(statement);
+	}
+
+	#[allow(non_snake_case)]
+	pub fn eval_statement__creates_scope(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
+		return match statement {
 			Statement::EmptyStatement => {
-				// Empty intentionally
+				Ok(StatementExecution::NormalFlow)
 			}
 			Statement::BlockStatement(statements) => {
-				return Environment::new_with_parent(self).eval_statements(statements);
+				self.eval_block__creates_scope(statements)
+			}
+			Statement::ForLoop { initialization, condition, increment, body } => {
+				self.eval_for_loop__creates_scope(initialization, condition, increment, body)
+			}
+			v => {
+				let mut env = Environment::new_with_parent(self);
+				env.setup_and_eval_statement(v)
+			}
+		};
+	}
+
+	pub fn eval_statement(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
+		return match statement {
+			Statement::EmptyStatement => {
+				Ok(StatementExecution::NormalFlow)
+			}
+			Statement::BlockStatement(statements) => {
+				self.eval_block__creates_scope(statements)
 			}
 			Statement::IfStatement { condition, if_branch, else_branch } => {
-				let condition_res = self.eval(condition)?;
-				if condition_res.is_truthy() {
-					return self.eval_statement(if_branch);
-				} else {
-					if let Some(else_branch_v) = else_branch {
-						return self.eval_statement(else_branch_v);
-					}
-				}
+				self.eval_if_statement(condition, if_branch, else_branch)
 			}
 			Statement::WhileLoop { condition, body } => {
 				while self.eval(condition)?.is_truthy() {
-					let v = self.eval_statement(body)?;
+					let v = self.eval_statement__creates_scope(body)?;
 					handle_unrolling_in_loop!(v);
 				}
+				Ok(StatementExecution::NormalFlow)
 			}
 			Statement::DoWhileLoop { condition, body } => {
 				loop {
-					let v = self.eval_statement(body)?;
+					let v = self.eval_statement__creates_scope(body)?;
 					handle_unrolling_in_loop!(v);
 					if !self.eval(condition)?.is_truthy() {
 						break;
 					}
 				}
+				Ok(StatementExecution::NormalFlow)
 			}
 			Statement::ForLoop { initialization, condition, increment, body } => {
-				let mut env = Environment::new_with_parent(self);
-				let init_eval_res = match &**initialization {
-					Statement::BlockStatement(stmts) => {
-						env.eval_statements(stmts)?
-					}
-					init => env.eval_statement(init)?
-				};
-				handle_unrolling!(init_eval_res);
-				'for_simulator: while env.eval(condition)?.is_truthy() {
-					'for_simulator_innermost: loop {
-						let v = env.eval_statement(body)?;
-						handle_unrolling_in_loop!(v =>
-							break: break 'for_simulator;
-							continue: break 'for_simulator_innermost;
-						);
-						break;
-					}
-					handle_unrolling_in_loop!(env.eval_statement(increment)? =>
-						break: break 'for_simulator;
-						continue: continue 'for_simulator;
-					);
-				}
+				self.eval_for_loop__creates_scope(initialization, condition, increment, body)
 			}
 			Statement::ExpressionStatement(expr) => {
 				self.eval(expr)?;
+				Ok(StatementExecution::NormalFlow)
 			}
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls.iter() {
@@ -219,20 +245,64 @@ impl Environment {
 					} else {
 						PrimitiveValue::Null.into()
 					};
-					self.declare(&decl.identifier, value);
+					self.declare(&decl.identifier, value)?;
 				}
+				Ok(StatementExecution::NormalFlow)
 			}
 			Statement::BreakStatement(v) => {
-				return Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredBreak(*v)));
+				Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredBreak(*v)))
 			}
 			Statement::ContinueStatement(v) => {
-				return Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredContinue(*v)));
+				Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredContinue(*v)))
 			}
 			stmt => {
-				return Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into());
+				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
 			}
+		};
+	}
+
+	#[allow(non_snake_case)]
+	fn eval_block__creates_scope(&mut self, statements: &StatementList) -> ResultWithError<StatementExecution> {
+		Environment::new_with_parent(self).setup_and_eval_statements(statements)
+	}
+
+	#[allow(non_snake_case)]
+	fn eval_for_loop__creates_scope(&mut self, initialization: &BoxStatement, condition: &Expression, increment: &BoxStatement, body: &BoxStatement) -> ResultWithError<StatementExecution> {
+		let mut env = Environment::new_with_parent(self);
+		let init_eval_res = match &**initialization {
+			Statement::BlockStatement(stmts) => {
+				env.setup_and_eval_statements(stmts)?
+			}
+			init => env.setup_and_eval_statement(init)?
+		};
+		handle_unrolling!(init_eval_res);
+		'for_simulator: while env.eval(condition)?.is_truthy() {
+			'for_simulator_innermost: loop {
+				let v = env.eval_statement__creates_scope(body)?;
+				handle_unrolling_in_loop!(v =>
+					break: break 'for_simulator;
+					continue: break 'for_simulator_innermost;
+				);
+				break;
+			}
+			handle_unrolling_in_loop!(env.eval_statement__creates_scope(increment)? =>
+				break: break 'for_simulator;
+				continue: continue 'for_simulator;
+			);
 		}
-		return Ok(StatementExecution::NormalFlow);
+		Ok(StatementExecution::NormalFlow)
+	}
+
+	fn eval_if_statement(&mut self, condition: &Expression, if_branch: &BoxStatement, else_branch: &Option<BoxStatement>) -> ResultWithError<StatementExecution> {
+		return if self.eval(condition)?.is_truthy() {
+			self.eval_statement__creates_scope(if_branch)
+		} else {
+			if let Some(else_branch_v) = else_branch {
+				self.eval_statement__creates_scope(else_branch_v)
+			} else {
+				Ok(StatementExecution::NormalFlow)
+			}
+		};
 	}
 
 	pub fn eval(&mut self, expression: &Expression) -> ResultWithError<RefToValue> {
@@ -249,7 +319,7 @@ impl Environment {
 				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::AssignmentExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
-			Expression::Identifier(name) => self.get_or_put_null(name),
+			Expression::Identifier(name) => self.get_variable_or_null(name)?,
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			expr => {
 				return Err(ErrorT::UnimplementedExpressionTypeForInterpreter(expr.clone()).into());
@@ -299,6 +369,9 @@ impl Environment {
 	pub fn execute_binary_expression(&mut self, operator: &Operator, mut left: RefToValue, right: RefToValue) -> ResultWithError<RefToValue> {
 		if operator.is_assignment() {
 			if *operator == Operator::Assignment {
+				if right.is_hoisted() {
+					return Err(ErrorT::CantSetToHoistedValue.into());
+				}
 				*left.try_borrow_mut()? = right.consume_or_clone();
 			} else {
 				let (mut left_borrow, right_value) = try_left_borrow_mut(&mut left, &right)?;
@@ -341,6 +414,9 @@ impl Environment {
 							left_mut_ref,
 							right_value_ref,
 						)?;
+						if val_to_assign.is_hoisted() {
+							return Err(ErrorT::CantSetToHoistedValue.into());
+						}
 						*left_mut_ref = val_to_assign;
 					}
 				};
@@ -390,7 +466,9 @@ impl Environment {
 			Expression::Identifier(method_name) if method_name == "push_res_stack" => {
 				let mut rvec = Vec::<PrimitiveValue>::new();
 				for expr in call_expr.arguments.iter() {
-					rvec.push(self.eval(expr)?.consume_or_clone());
+					let expr_eval = self.eval(expr)?;
+					// dbg!(&expr_eval);
+					rvec.push(expr_eval.consume_or_clone());
 				}
 				self.global_scope.borrow_mut().res_stack.extend(rvec.iter().map(|v| v.clone()));
 				Ok(PrimitiveValue::Null.into())
@@ -399,5 +477,10 @@ impl Environment {
 				Err(ErrorT::UnimplementedFunction(expr.clone()).into())
 			}
 		};
+	}
+
+	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
+		self.scope.deref().borrow_mut().deref_mut().hoist(iden)?;
+		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 }

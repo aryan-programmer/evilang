@@ -9,8 +9,19 @@ use crate::utils::cell_ref::rc_cell_from;
 
 pub type RcCellValue = Rc<RefCell<PrimitiveValue>>;
 
+pub trait RcCellValueExt {
+	fn is_hoisted(&self) -> bool;
+}
+
+impl RcCellValueExt for RcCellValue {
+	fn is_hoisted(&self) -> bool {
+		return self.deref().borrow().deref().is_hoisted();
+	}
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum PrimitiveValue {
+	_HoistedVariable,
 	Null,
 	Boolean(bool),
 	Integer(i64),
@@ -20,11 +31,15 @@ pub enum PrimitiveValue {
 impl PrimitiveValue {
 	pub fn is_truthy(&self) -> bool {
 		return match self {
-			PrimitiveValue::Null => false,
+			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => false,
 			PrimitiveValue::Boolean(v) => *v,
 			PrimitiveValue::Integer(i) => *i != 0,
 			PrimitiveValue::String(s) => s.len() != 0,
 		};
+	}
+
+	pub fn is_hoisted(&self) -> bool {
+		return self == &PrimitiveValue::_HoistedVariable;
 	}
 }
 
@@ -117,7 +132,7 @@ impl RefToValue {
 
 	pub fn try_borrow_mut(&self) -> ResultWithError<RefMut<PrimitiveValue>> {
 		return match self {
-			RefToValue::RValue(_) => Err(ErrorT::InvalidMutableBorrowForRValue.into()),
+			RefToValue::RValue(_) => Err(ErrorT::ExpectedLhsExpression.into()),
 			RefToValue::LValue(v) => Ok(v.deref().borrow_mut()),
 		};
 	}
@@ -128,6 +143,7 @@ impl RefToValue {
 			RefToValue::LValue(v) => v.deref().borrow().deref(),
 		} {
 			pub fn is_truthy(&self) -> bool;
+			pub fn is_hoisted(&self) -> bool;
 			#[call(clone)]
 			pub fn deref_clone(&self) -> PrimitiveValue;
 		}

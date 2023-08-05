@@ -41,9 +41,9 @@ let p3 = new Point3D(10, 20, 30);
 			name: "Point".into(),
 			super_class: None,
 			methods: [
-				FunctionDeclaration {
-					name: "constructor".into(),
-					parameters: [
+				FunctionDeclaration::new(
+					"constructor".into(),
+					[
 						FunctionParameterDeclaration {
 							identifier: "x".into(),
 						},
@@ -51,7 +51,7 @@ let p3 = new Point3D(10, 20, 30);
 							identifier: "y".into(),
 						},
 					].into(),
-					body: BlockStatement([
+					BlockStatement([
 						AssignmentExpression {
 							operator: Assignment,
 							left: MemberAccess {
@@ -69,11 +69,11 @@ let p3 = new Point3D(10, 20, 30);
 							right: Identifier("y".into()).into(),
 						}.consume_as_statement(),
 					].into()).into(),
-				},
-				FunctionDeclaration {
-					name: "calc".into(),
-					parameters: [].into(),
-					body: BlockStatement([
+				),
+				FunctionDeclaration::new(
+					"calc".into(),
+					[].into(),
+					BlockStatement([
 						ReturnStatement(Some(
 							BinaryExpression {
 								operator: Plus,
@@ -88,16 +88,16 @@ let p3 = new Point3D(10, 20, 30);
 							},
 						)),
 					].into()).into(),
-				},
+				),
 			].into(),
 		},
 		ClassDeclarationStatement {
 			name: "Point3D".into(),
 			super_class: Some(Identifier("Point".into())),
 			methods: [
-				FunctionDeclaration {
-					name: "constructor".into(),
-					parameters: [
+				FunctionDeclaration::new(
+					"constructor".into(),
+					[
 						FunctionParameterDeclaration {
 							identifier: "x".into(),
 						},
@@ -108,7 +108,7 @@ let p3 = new Point3D(10, 20, 30);
 							identifier: "z".into(),
 						},
 					].into(),
-					body: BlockStatement([
+					BlockStatement([
 						Expression::function_call(
 							SuperExpression.into(),
 							[
@@ -125,11 +125,11 @@ let p3 = new Point3D(10, 20, 30);
 							right: Identifier("z".into()).into(),
 						}.consume_as_statement(),
 					].into()).into(),
-				},
-				FunctionDeclaration {
-					name: "calc".into(),
-					parameters: [].into(),
-					body: BlockStatement([
+				),
+				FunctionDeclaration::new(
+					"calc".into(),
+					[].into(),
+					BlockStatement([
 						ReturnStatement(Some(
 							BinaryExpression {
 								operator: Plus,
@@ -147,7 +147,7 @@ let p3 = new Point3D(10, 20, 30);
 							},
 						)),
 					].into()).into(),
-				},
+				),
 			].into(),
 		},
 		VariableDeclarations([

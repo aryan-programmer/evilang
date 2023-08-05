@@ -87,12 +87,24 @@ dependencies = [
  "backtrace",
  "const-str",
  "delegate",
+ "extend",
  "lazy_static",
  "once_cell",
  "regex",
  "static_assertions",
  "thiserror",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "extend"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "311a6d2f1f9d60bff73d2c78a0af97ed27f79672f15c238192a5bbb64db56d00"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.25",
 ]
 
 [[package]]

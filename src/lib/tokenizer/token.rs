@@ -10,6 +10,7 @@ pub enum Keyword {
 	Do,
 	For,
 	Fn,
+	Captures,
 	Return,
 	Class,
 	Extends,

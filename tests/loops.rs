@@ -7,7 +7,7 @@ use evilang_lib::ast::structs::VariableDeclaration;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue;
 use evilang_lib::interpreter::runtime_value::PrimitiveValue::Integer;
 
-use crate::common::{ensure_program, ensure_program_fails, ensure_program_statement_results, identifier_stmt, push_res_stack_stmt, TestData, TestRes};
+use crate::common::{ensure_parsing_fails, ensure_program, ensure_program_statement_results, identifier_stmt, push_res_stack_stmt, TestData, TestRes};
 
 mod common;
 
@@ -78,7 +78,7 @@ fn while_loop() -> TestRes {
 
 #[test]
 fn do_while_loop() -> TestRes {
-	ensure_program_fails(r#"
+	ensure_parsing_fails(r#"
 	let i = 1;
 	do i += 1;
 	while (i <= 10);

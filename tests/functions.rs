@@ -4,15 +4,15 @@ use evilang_lib::ast::statement::Statement;
 use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, IfStatement, ReturnStatement};
 use evilang_lib::ast::structs::FunctionParameterDeclaration;
 
-use crate::common::{ensure_program, ensure_program_fails, TestRes};
+use crate::common::{ensure_parsing_fails, ensure_program, TestRes};
 
 mod common;
 
 #[test]
 fn invalids() -> TestRes {
-	ensure_program_fails("fn func_name(, ){}", None);
-	ensure_program_fails("fn func_name();", None);
-	ensure_program_fails("fn func_name(param1, val2) param1 += val2;", None);
+	ensure_parsing_fails("fn func_name(, ){}", None);
+	ensure_parsing_fails("fn func_name();", None);
+	ensure_parsing_fails("fn func_name(param1, val2) param1 += val2;", None);
 }
 
 #[test]

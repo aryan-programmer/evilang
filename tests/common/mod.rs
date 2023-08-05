@@ -90,7 +90,7 @@ impl TestData {
 	pub fn exec_and_check_statement_results(&mut self, env: &mut Environment) -> TestRes {
 		let parsed = self.parse();
 		let Some(results) = &self.statement_results else {
-			env.eval_statements(&parsed).unwrap();
+			env.setup_and_eval_statements(&parsed).unwrap();
 			return ();
 		};
 		for (stmt, expected_val) in parsed.iter().zip(results.iter()) {
@@ -133,11 +133,26 @@ pub fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 	return TestData::new(input.to_string()).expect_statements(expected).check_parsing();
 }
 
-pub fn ensure_program_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
+pub fn ensure_parsing_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
 	match parse(input.to_string()) {
 		Ok(parsed) => {
 			// println!("{:?}", parsed);
 			panic!("Program {} expected to fail parsed as {:#?}", input, parsed);
+		}
+		Err(error_type) => {
+			if let Some(t) = typ {
+				assert_eq!(t, error_type.typ, "Expected error types to match");
+			}
+		}
+	}
+	return;
+}
+
+pub fn ensure_execution_fails(input: String, typ: Option<ErrorT>) -> TestRes {
+	let mut env = Environment::new();
+	match env.eval_program_string(input.clone()) {
+		Ok(exec_res) => {
+			panic!("Program {} expected to fail resulted in {:#?}", input, exec_res);
 		}
 		Err(error_type) => {
 			if let Some(t) = typ {

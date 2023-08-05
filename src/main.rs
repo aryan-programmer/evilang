@@ -36,10 +36,8 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 fn main() {
 	let mut env = Environment::new();
 	let program = r#"
-	false || push_res_stack(1);
-	false && push_res_stack(2);
-	true || push_res_stack(3);
-	true && push_res_stack(4);
+for({let i = 0;}; i < 1; {i += 1;})let i = 10;
+push_res_stack(i);
 "#;
 	// print_program(program);
 	env.eval_program_string(program.to_string()).unwrap();
