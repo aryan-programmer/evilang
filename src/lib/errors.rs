@@ -39,14 +39,10 @@ pub enum ErrorT {
 	UnimplementedUnaryOperatorForValues(Operator, PrimitiveValue),
 	#[error("The following function is not implemented: {0:?}")]
 	UnimplementedFunction(Expression),
-	// #[error("The cannot mutably borrow an r-value reference")]
-	// InvalidMutableBorrowForRValue,
 	#[error("A mutable borrow already exists")]
 	InvalidBorrow,
 	#[error("The cannot strip assignment from operator: {0:?}")]
 	CantStripAssignment(Operator),
-	// #[error("Can't access an undeclared variable: '{0:?}'")]
-	// CantAccessUndeclaredVariable(IdentifierT),
 	#[error("Can't access variable '{0:?}' before the point in time at which it has been declared")]
 	CantAccessHoistedVariable(IdentifierT),
 	#[error("Can't declare variable '{0:?}' since it already exists in this scope")]

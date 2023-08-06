@@ -54,6 +54,31 @@ pub trait IVariablesMap {
 	}
 }
 
+#[macro_export]
+macro_rules! delegate_ivariables_map {
+	(for $for_type: ty => &$self: ident: $const_delegator: expr, &mut $mut_self: ident: $mut_delegator: expr) => {
+		impl IVariablesMap for $for_type {
+			fn get_actual(&$self, name: &IdentifierT) -> Option<RefToValue> {
+				return $const_delegator.get_actual(name);
+			}
+			fn contains_key(&$self, name: &IdentifierT) -> bool {
+				return $const_delegator.contains_key(name);
+			}
+			fn set_actual(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
+				return $mut_delegator.set_actual(name, value);
+			}
+			fn declare(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()> {
+				return $mut_delegator.declare(name, value);
+			}
+			fn hoist(&mut $mut_self, name: &IdentifierT) -> ResultWithError<()> {
+				return $mut_delegator.hoist(name);
+			}
+		}
+	};
+}
+
+pub use delegate_ivariables_map;
+
 pub struct VariablesMap {
 	variables: HashMap<IdentifierT, RcCellValue>,
 }
@@ -190,16 +215,7 @@ impl GlobalScope {
 	}
 }
 
-impl IVariablesMap for GlobalScope {
-	delegate! {
-		to self.scope.borrow_mut() {
-			fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
-			fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
-			fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
-		}
-		to self.scope.borrow() {
-			fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
-			fn contains_key(&self, name: &IdentifierT) -> bool;
-		}
-	}
-}
+delegate_ivariables_map!(for GlobalScope =>
+	&self: self.scope.borrow(),
+	&mut self: self.scope.borrow_mut()
+);

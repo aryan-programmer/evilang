@@ -13,7 +13,6 @@ pub fn parse(program: String) -> ResultWithError<StatementList> {
 }
 
 pub struct Parser {
-	// stream: TokenStream,
 	peekable_stream: Peekable<TokenStream>,
 }
 
@@ -227,22 +226,6 @@ impl Parser {
 		let function_declaration = FunctionDeclaration::new(name, params, body.into());
 		Ok(function_declaration)
 	}
-
-	// /*
-	// function_capture_clause:
-	// 	| 'captures' '(' function ')'
-	// */
-	// fn function_capture_clause(&mut self) -> ResultWithError<FunctionDeclaration> {
-	//
-	// }
-
-	// /*
-	// function_capture_declaration:
-	// 	| Identifier
-	// */
-	// fn function_capture_declaration(&mut self) -> ResultWithError<FunctionCaptureDeclaration> {
-	// 	return Ok(FunctionCaptureDeclaration::new(self.identifier()?));
-	// }
 
 	/*
 	function_parameter_declaration:

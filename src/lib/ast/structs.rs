@@ -24,38 +24,17 @@ impl FunctionParameterDeclaration {
 	}
 }
 
-// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-// pub struct FunctionCaptureDeclaration {
-// 	pub identifier: IdentifierT,
-// }
-//
-// impl FunctionCaptureDeclaration {
-// 	pub fn new(identifier: IdentifierT) -> Self {
-// 		Self { identifier }
-// 	}
-// }
-
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct FunctionDeclaration {
 	pub name: IdentifierT,
 	pub parameters: Vec<FunctionParameterDeclaration>,
 	pub body: BoxStatement,
-	// pub captures: Vec<FunctionCaptureDeclaration>,
 }
 
 impl FunctionDeclaration {
 	pub fn new(name: IdentifierT, parameters: Vec<FunctionParameterDeclaration>, body: BoxStatement) -> Self {
-		Self { name, parameters, body/*, captures: vec![] */ }
+		Self { name, parameters, body }
 	}
-
-	// pub fn new_closure(
-	// 	name: IdentifierT,
-	// 	parameters: Vec<FunctionParameterDeclaration>,
-	// 	body: BoxStatement,
-	// 	captures: Vec<FunctionCaptureDeclaration>,
-	// ) -> Self {
-	// 	Self { name, parameters, body, captures }
-	// }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
