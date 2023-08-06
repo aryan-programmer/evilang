@@ -50,6 +50,7 @@ pub enum TokenType {
 }
 
 impl TokenType {
+	#[inline(always)]
 	pub fn is_literal(&self) -> bool {
 		return match self {
 			TokenType::String |
@@ -63,6 +64,7 @@ impl TokenType {
 		};
 	}
 
+	#[inline(always)]
 	pub fn is_unary_operator(&self) -> bool {
 		return match self {
 			TokenType::AdditiveOperator |

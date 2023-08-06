@@ -42,6 +42,7 @@ pub enum Statement {
 }
 
 impl Statement {
+	#[inline(always)]
 	pub fn if_statement(
 		condition: Expression,
 		if_branch: BoxStatement,
@@ -50,14 +51,17 @@ impl Statement {
 		return Statement::IfStatement { condition, if_branch, else_branch };
 	}
 
+	#[inline(always)]
 	pub fn while_loop(condition: Expression, body: BoxStatement) -> Statement {
 		return Statement::WhileLoop { condition, body };
 	}
 
+	#[inline(always)]
 	pub fn do_while_loop(condition: Expression, body: BoxStatement) -> Statement {
 		return Statement::DoWhileLoop { condition, body };
 	}
 
+	#[inline(always)]
 	pub fn for_loop(
 		initialization: BoxStatement,
 		condition: Expression,
@@ -72,6 +76,7 @@ impl Statement {
 		};
 	}
 
+	#[inline(always)]
 	pub fn function_declaration(
 		name: IdentifierT,
 		parameters: Vec<FunctionParameterDeclaration>,
@@ -80,6 +85,7 @@ impl Statement {
 		return Statement::FunctionDeclarationStatement(FunctionDeclaration::new(name, parameters, body));
 	}
 
+	#[inline(always)]
 	pub fn class_declaration(
 		name: IdentifierT,
 		super_class: Option<Expression>,
@@ -90,6 +96,7 @@ impl Statement {
 }
 
 impl From<Expression> for Statement {
+	#[inline(always)]
 	fn from(value: Expression) -> Self {
 		return Statement::ExpressionStatement(value);
 	}

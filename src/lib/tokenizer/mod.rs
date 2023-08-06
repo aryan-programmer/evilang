@@ -45,6 +45,7 @@ impl Iterator for TokenStream {
 }
 
 impl TokenStream {
+	#[inline(always)]
 	pub fn new(str: String) -> TokenStream {
 		return TokenStream {
 			str,

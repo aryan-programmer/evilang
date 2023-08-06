@@ -1,7 +1,7 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+
+use gc::{Finalize, Trace};
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
@@ -10,7 +10,7 @@ use crate::interpreter::environment::enums::{StatementExecution, StatementMetaGe
 use crate::interpreter::runtime_value::{PrimitiveValue, RefToValue};
 use crate::interpreter::variables_map::{delegate_ivariables_map, GlobalScope, IVariablesMap, VariableScope, VariablesMap};
 use crate::parser::parse;
-use crate::utils::cell_ref::RcCell;
+use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 mod enums;
 mod expression_evaluation;
@@ -47,9 +47,10 @@ macro_rules! handle_unrolling_in_loop {
 	}
 }
 
+#[derive(Trace, Finalize)]
 pub struct Environment {
-	scope: RcCell<VariableScope>,
-	pub global_scope: Rc<RefCell<GlobalScope>>,
+	scope: GcBox<VariableScope>,
+	pub global_scope: GcBox<GlobalScope>,
 }
 
 delegate_ivariables_map!(for Environment =>
@@ -58,29 +59,28 @@ delegate_ivariables_map!(for Environment =>
 );
 
 impl Environment {
+	#[inline(always)]
 	pub fn new() -> Environment {
 		return Self::new_from_variables(VariablesMap::new());
 	}
 
+	#[inline(always)]
 	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Environment {
 		return Self::new_from_variables(VariablesMap::new_from_primitives(variables));
 	}
 
 	pub fn new_from_variables(variables: VariablesMap) -> Environment {
-		let global_scope = GlobalScope::new_rc_from_variables(variables);
-		let rc = Rc::clone(&(global_scope.borrow_mut().scope));
-		return Environment {
-			scope: rc,
-			global_scope,
-		};
+		let global_scope = GlobalScope::new_gc_from_variables(variables);
+		let scope = gc_cell_clone(&(global_scope.borrow_mut().scope));
+		return Environment { scope, global_scope };
 	}
 
 	pub fn new_with_parent(env: &Environment) -> Environment {
-		let global_scope = Rc::clone(&env.global_scope);
+		let global_scope = gc_cell_clone(&env.global_scope);
 		return Environment {
-			scope: VariableScope::new_rc(
+			scope: VariableScope::new_gc(
 				VariablesMap::new(),
-				Some(Rc::clone(&env.scope)),
+				Some(gc_cell_clone(&env.scope)),
 			),
 			global_scope,
 		};
@@ -243,6 +243,7 @@ impl Environment {
 		};
 	}
 
+	#[inline]
 	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
 		self.scope.deref().borrow_mut().deref_mut().hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);

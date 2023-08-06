@@ -1,6 +1,7 @@
-use std::cell::RefMut;
 use std::ops::{Deref, DerefMut};
 use std::ops::{Add, Div, Mul, Rem, Sub};
+
+use gc::GcCellRefMut;
 
 use crate::ast::expression::{BoxExpression, Expression};
 use crate::ast::operator::Operator;
@@ -19,7 +20,7 @@ macro_rules! auto_implement_binary_operators {
     };
 }
 
-fn try_left_borrow_mut<'a>(left: &'a mut RefToValue, right: &'a RefToValue) -> ResultWithError<(RefMut<'a, PrimitiveValue>, DerefOfRefToValue<'a>)> {
+fn try_left_borrow_mut<'a>(left: &'a mut RefToValue, right: &'a RefToValue) -> ResultWithError<(GcCellRefMut<'a, PrimitiveValue>, DerefOfRefToValue<'a>)> {
 	let RefToValue::LValue(right_lval) = right else {
 		if let RefToValue::RValue(v) = right {
 			return Ok((left.try_borrow_mut()?, DerefOfRefToValue::DerefRValue(v)));

@@ -7,6 +7,7 @@ use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, Var
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
+#[inline(always)]
 pub fn parse(program: String) -> ResultWithError<StatementList> {
 	let mut p = Parser::new(TokenStream::new(program));
 	return p.program();
@@ -17,47 +18,55 @@ pub struct Parser {
 }
 
 macro_rules! binary_expressions {
-    ($base_vis: vis fn $base_fn_name: ident(&mut self) -> $res_type: ty {
-	    wrapper_function: $wrapper: ident;
-	    $sub_vis1: vis $fn_name1: ident: $token_type1: expr;
-	    $($sub_vis: vis $fn_name: ident: $token_type: expr);*;
-    }) => {
-	    $base_vis fn $base_fn_name(&mut self) -> $res_type {
-		    return self.$fn_name1();
-	    }
-	    binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis1, $fn_name1, $token_type1 $(; $sub_vis, $fn_name, $token_type)*;);
-    };
-	(@@sub_parse
-		$res_type: ty, $wrapper: ident,
-	    $sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
-	    $sub_vis2: vis, $fn_name2: ident, $token_type2: expr;
-	    $($sub_vis: vis, $fn_name: ident, $token_type: expr);*;) => {
-		$sub_vis1 fn $fn_name1(&mut self) -> $res_type {
-		    return self.$wrapper(Self::$fn_name2, $token_type1);
-	    }
-	    binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis2, $fn_name2, $token_type2 $(; $sub_vis, $fn_name, $token_type)*;);
+	($base_vis: vis fn $base_fn_name: ident(&mut self) -> $res_type: ty {
+		wrapper_function: $wrapper: ident;
+		$sub_vis1: vis $fn_name1: ident: $token_type1: expr;
+		$($sub_vis: vis $fn_name: ident: $token_type: expr);*;
+	}) => {
+		#[inline(always)]
+		$base_vis fn $base_fn_name(&mut self) -> $res_type {
+			return self.$fn_name1();
+		}
+		binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis1, $fn_name1, $token_type1 $(; $sub_vis, $fn_name, $token_type)*;);
 	};
 	(@@sub_parse
 		$res_type: ty, $wrapper: ident,
-	    $sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
-	    $sub_vis2: vis, $fn_name2: ident, $token_type2: expr;) => {
+		$sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
+		$sub_vis2: vis, $fn_name2: ident, $token_type2: expr;
+		$($sub_vis: vis, $fn_name: ident, $token_type: expr);*;) => {
+		#[inline(always)]
 		$sub_vis1 fn $fn_name1(&mut self) -> $res_type {
-			static_assertions::const_assert!(const_str::equal!(stringify!($token_type2), "None"));
-			static_assertions::const_assert!(const_str::equal!(stringify!($sub_vis2), ""));
-		    return self.$wrapper(Self::$fn_name2, $token_type1);
-	    }
+			return self.$wrapper(Self::$fn_name2, $token_type1);
+		}
+		binary_expressions!(@@sub_parse $res_type, $wrapper, $sub_vis2, $fn_name2, $token_type2 $(; $sub_vis, $fn_name, $token_type)*;);
+	};
+	(@@sub_parse
+		$res_type: ty, $wrapper: ident,
+		$sub_vis1: vis, $fn_name1: ident, $token_type1: expr;
+		$sub_vis2: vis, $fn_name2: ident, $token_type2: expr;) => {
+		#[inline(always)]
+		$sub_vis1 fn $fn_name1(&mut self) -> $res_type {
+			fn __const_assertions_(){
+				static_assertions::const_assert!(const_str::equal!(stringify!($token_type2), "None"));
+				static_assertions::const_assert!(const_str::equal!(stringify!($sub_vis2), ""));
+			}
+			return self.$wrapper(Self::$fn_name2, $token_type1);
+		}
 	}
 }
 
 impl Parser {
+	#[inline(always)]
 	pub fn new(stream: TokenStream) -> Parser {
 		return Parser { peekable_stream: stream.peekable() };
 	}
 
+	#[inline]
 	fn identifier(&mut self) -> ResultWithError<IdentifierT> {
 		return Ok(self.eat(TokenType::Identifier)?.data);
 	}
 
+	#[inline]
 	fn eat_any(&mut self) -> ResultWithError<Token> {
 		return Ok(self.peekable_stream.next().ok_or(ErrorT::EndOfTokenStream)??);
 	}
@@ -78,6 +87,7 @@ impl Parser {
 		};
 	}
 
+	#[inline]
 	fn lookahead_type(&mut self) -> ResultWithError<TokenType> {
 		return Ok(self.lookahead()?.typ);
 	}
@@ -86,6 +96,7 @@ impl Parser {
 	program:
 		| statement_list
 	*/
+	#[inline]
 	pub fn program(&mut self) -> ResultWithError<StatementList> {
 		return self.statement_list(None);
 	}
@@ -170,7 +181,7 @@ impl Parser {
 	/*
 	class_declaration_statement:
 		| 'class' identifier ('extends' identifier)? '{'
-		      function_declarations
+			  function_declarations
 		  '}'
 	*/
 	fn class_declaration_statement(&mut self) -> ResultWithError<Statement> {
@@ -419,6 +430,7 @@ impl Parser {
 	empty_statement:
 		| ';'
 	*/
+	#[inline]
 	fn empty_statement(&mut self) -> ResultWithError<Statement> {
 		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::EmptyStatement);
@@ -428,6 +440,7 @@ impl Parser {
 	expression:
 		| multiplicative_expression
 	*/
+	#[inline]
 	fn expression(&mut self) -> ResultWithError<Expression> {
 		return self.assignment_expression();
 	}
@@ -483,6 +496,7 @@ impl Parser {
 	base_expression:
 		| primary_expression
 	 */
+	#[inline]
 	fn base_expression(&mut self) -> ResultWithError<Expression> {
 		return self.call_or_member_expression();
 	}
@@ -575,10 +589,12 @@ impl Parser {
 		| expression
 		| expression ',' function_call_args
 	*/
+	#[inline]
 	fn function_call_args(&mut self) -> ResultWithError<Vec<Expression>> {
 		return self.delimited_items(Self::expression, TokenType::Comma, TokenType::CloseParen);
 	}
 
+	#[inline]
 	fn check_if_next_token_is_member_access_like(&mut self) -> ResultWithError<bool> {
 		return Ok(match self.lookahead_type()? {
 			TokenType::Dot | TokenType::OpenSquareBracket => true,
@@ -586,6 +602,7 @@ impl Parser {
 		});
 	}
 
+	#[inline]
 	fn check_if_next_token_is_member_access_or_call_like(&mut self) -> ResultWithError<bool> {
 		return Ok(self.check_if_next_token_is_member_access_like()? || match self.lookahead_type()? {
 			TokenType::OpenParen => true,
@@ -626,11 +643,13 @@ impl Parser {
 		return Ok(Expression::new_object_expression(class_val.into(), args));
 	}
 
+	#[inline]
 	fn super_expression(&mut self) -> ResultWithError<Expression> {
 		self.eat(TokenType::Keyword(Keyword::Super))?;
 		return Ok(Expression::SuperExpression);
 	}
 
+	#[inline]
 	fn identifier_expression(&mut self) -> ResultWithError<Expression> {
 		return Ok(Expression::Identifier(self.identifier()?));
 	}
@@ -680,6 +699,7 @@ impl Parser {
 		return Ok(Expression::StringLiteral(rep_v));
 	}
 
+	#[inline]
 	fn integer_literal(&mut self) -> ResultWithError<Expression> {
 		let v = self.eat(TokenType::Integer)?;
 		return Ok(Expression::IntegerLiteral(v.data.parse().unwrap()));

@@ -1,13 +1,14 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::mem::replace;
+use std::ops::DerefMut;
 
 use delegate::delegate;
+use gc::{Finalize, Trace};
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_value::{PrimitiveValue, RcCellValue, RcCellValueExt, RefToValue};
-use crate::utils::cell_ref::{rc_cell_from, RcCell};
+use crate::interpreter::runtime_value::{GcBoxOfPrimitiveValueExt, PrimitiveValue, RefToValue};
+use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub trait IVariablesMap {
 	///
@@ -58,18 +59,23 @@ pub trait IVariablesMap {
 macro_rules! delegate_ivariables_map {
 	(for $for_type: ty => &$self: ident: $const_delegator: expr, &mut $mut_self: ident: $mut_delegator: expr) => {
 		impl IVariablesMap for $for_type {
+			#[inline(always)]
 			fn get_actual(&$self, name: &IdentifierT) -> Option<RefToValue> {
 				return $const_delegator.get_actual(name);
 			}
+			#[inline(always)]
 			fn contains_key(&$self, name: &IdentifierT) -> bool {
 				return $const_delegator.contains_key(name);
 			}
+			#[inline(always)]
 			fn set_actual(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
 				return $mut_delegator.set_actual(name, value);
 			}
+			#[inline(always)]
 			fn declare(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()> {
 				return $mut_delegator.declare(name, value);
 			}
+			#[inline(always)]
 			fn hoist(&mut $mut_self, name: &IdentifierT) -> ResultWithError<()> {
 				return $mut_delegator.hoist(name);
 			}
@@ -79,22 +85,25 @@ macro_rules! delegate_ivariables_map {
 
 pub use delegate_ivariables_map;
 
+#[derive(Trace, Finalize)]
 pub struct VariablesMap {
-	variables: HashMap<IdentifierT, RcCellValue>,
+	variables: HashMap<IdentifierT, GcBox<PrimitiveValue>>,
 }
 
 impl VariablesMap {
+	#[inline(always)]
 	pub fn new() -> Self {
 		Self { variables: HashMap::new() }
 	}
-	pub fn new_direct(variables: HashMap<IdentifierT, RcCellValue>) -> Self {
+	#[inline(always)]
+	pub fn new_direct(variables: HashMap<IdentifierT, GcBox<PrimitiveValue>>) -> Self {
 		Self { variables }
 	}
 	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Self {
 		Self {
 			variables: variables
 				.into_iter()
-				.map(|(iden, val)| (iden, rc_cell_from(val)))
+				.map(|(iden, val)| (iden, gc_box_from(val)))
 				.collect(),
 		}
 	}
@@ -103,9 +112,10 @@ impl VariablesMap {
 impl IVariablesMap for VariablesMap {
 	fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
 		return if let Some(v) = self.variables.get(name) {
-			Some(v.replace(value.consume_or_clone()))
+			let mut res = v.borrow_mut();
+			Some(replace(res.deref_mut(), value.consume_or_clone()))
 		} else {
-			self.variables.insert(name.clone(), rc_cell_from(value.consume_or_clone()));
+			self.variables.insert(name.clone(), gc_box_from(value.consume_or_clone()));
 			None
 		};
 	}
@@ -133,20 +143,22 @@ impl IVariablesMap for VariablesMap {
 
 	fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue> {
 		return if let Some(v) = self.variables.get(name) {
-			Some(RefToValue::from_rc(v))
+			Some(RefToValue::LValue(gc_cell_clone(v)))
 		} else {
 			None
 		};
 	}
 
+	#[inline(always)]
 	fn contains_key(&self, name: &IdentifierT) -> bool {
 		self.variables.contains_key(name)
 	}
 }
 
+#[derive(Trace, Finalize)]
 pub struct VariableScope {
-	variables: RcCell<VariablesMap>,
-	parent: Option<Weak<RefCell<VariableScope>>>,
+	variables: GcBox<VariablesMap>,
+	parent: Option<GcBox<VariableScope>>,
 }
 
 impl IVariablesMap for VariableScope {
@@ -166,47 +178,48 @@ impl IVariablesMap for VariableScope {
 }
 
 impl VariableScope {
-	pub fn new_rc(
+	pub fn new_gc(
 		variables: VariablesMap,
-		parent: Option<Rc<RefCell<VariableScope>>>,
-	) -> RcCell<VariableScope> {
-		rc_cell_from(Self {
-			variables: rc_cell_from(variables),
-			parent: parent.and_then(|v| Some(Rc::downgrade(&v))),
+		parent: Option<GcBox<VariableScope>>,
+	) -> GcBox<VariableScope> {
+		gc_box_from(Self {
+			variables: gc_box_from(variables),
+			parent: parent.and_then(|v| Some(v)),
 		})
 	}
 
-	fn resolve_variable_scope(&self, name: &IdentifierT) -> RcCell<VariablesMap> {
+	fn resolve_variable_scope(&self, name: &IdentifierT) -> GcBox<VariablesMap> {
 		if self.variables.borrow().contains_key(name) {
-			return Rc::clone(&self.variables);
+			return gc_cell_clone(&self.variables);
 		}
-		let Some(mut v) = self.parent.as_ref().and_then(|v| v.upgrade()) else {
-			return Rc::clone(&self.variables);
+		let Some(mut v) = self.parent.as_ref().and_then(|v| Some(gc_cell_clone(v))) else {
+			return gc_cell_clone(&self.variables);
 		};
 		loop {
 			let v_borrow = v.borrow();
 			if v_borrow.variables.borrow().contains_key(name) {
-				return Rc::clone(&v_borrow.variables);
+				return gc_cell_clone(&v_borrow.variables);
 			}
-			if let Some(parent) = v_borrow.parent.as_ref().and_then(|v| v.upgrade()) {
+			if let Some(parent) = v_borrow.parent.as_ref().and_then(|v| Some(gc_cell_clone(v))) {
 				drop(v_borrow);
 				v = parent;
 			} else {
-				return Rc::clone(&self.variables);
+				return gc_cell_clone(&self.variables);
 			}
 		}
 	}
 }
 
+#[derive(Trace, Finalize)]
 pub struct GlobalScope {
-	pub scope: RcCell<VariableScope>,
+	pub scope: GcBox<VariableScope>,
 	pub res_stack: Vec<PrimitiveValue>,
 }
 
 impl GlobalScope {
-	pub fn new_rc_from_variables(variables: VariablesMap) -> RcCell<GlobalScope> {
-		rc_cell_from(GlobalScope {
-			scope: VariableScope::new_rc(
+	pub fn new_gc_from_variables(variables: VariablesMap) -> GcBox<GlobalScope> {
+		gc_box_from(GlobalScope {
+			scope: VariableScope::new_gc(
 				variables,
 				None,
 			),

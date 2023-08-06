@@ -1,25 +1,23 @@
-use std::cell::{Ref, RefCell, RefMut};
 use std::ops::Deref;
-use std::rc::Rc;
 
 use delegate::delegate;
+use gc::{Finalize, GcCellRef, GcCellRefMut, Trace};
 
 use crate::errors::{ErrorT, ResultWithError};
-use crate::utils::cell_ref::rc_cell_from;
+use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
-pub type RcCellValue = Rc<RefCell<PrimitiveValue>>;
-
-pub trait RcCellValueExt {
+pub trait GcBoxOfPrimitiveValueExt {
 	fn is_hoisted(&self) -> bool;
 }
 
-impl RcCellValueExt for RcCellValue {
+impl GcBoxOfPrimitiveValueExt for GcBox<PrimitiveValue> {
+	#[inline(always)]
 	fn is_hoisted(&self) -> bool {
 		return self.deref().borrow().deref().is_hoisted();
 	}
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Trace, Finalize)]
 pub enum PrimitiveValue {
 	_HoistedVariable,
 	Null,
@@ -38,6 +36,7 @@ impl PrimitiveValue {
 		};
 	}
 
+	#[inline(always)]
 	pub fn is_hoisted(&self) -> bool {
 		return self == &PrimitiveValue::_HoistedVariable;
 	}
@@ -46,7 +45,7 @@ impl PrimitiveValue {
 #[derive(Debug)]
 pub enum DerefOfRefToValue<'a> {
 	DerefRValue(&'a PrimitiveValue),
-	DerefLValue(Ref<'a, PrimitiveValue>),
+	DerefLValue(GcCellRef<'a, PrimitiveValue>),
 	Value(PrimitiveValue),
 }
 
@@ -75,33 +74,33 @@ impl<'a> Deref for DerefOfRefToValue<'a> {
 #[derive(Debug, Eq, PartialEq)]
 pub enum RefToValue {
 	RValue(PrimitiveValue),
-	LValue(RcCellValue),
+	LValue(GcBox<PrimitiveValue>),
 }
 
 impl From<PrimitiveValue> for RefToValue {
+	#[inline(always)]
 	fn from(value: PrimitiveValue) -> Self {
 		return RefToValue::RValue(value);
 	}
 }
 
 impl Clone for RefToValue {
+	#[inline(always)]
 	fn clone(&self) -> Self {
 		return match self {
 			RefToValue::RValue(v) => RefToValue::RValue(v.clone()),
-			RefToValue::LValue(v) => RefToValue::LValue(RcCellValue::clone(v)),
+			RefToValue::LValue(v) => RefToValue::LValue(gc_cell_clone(v)),
 		};
 	}
 }
 
 impl RefToValue {
-	pub fn from_rc(val: &RcCellValue) -> RefToValue {
-		return RefToValue::LValue(RcCellValue::clone(val));
-	}
-
+	#[inline(always)]
 	pub fn new_variable(val: PrimitiveValue) -> RefToValue {
-		return RefToValue::LValue(rc_cell_from(val));
+		return RefToValue::LValue(gc_box_from(val));
 	}
 
+	#[inline(always)]
 	pub fn borrow(&self) -> DerefOfRefToValue {
 		return match self {
 			RefToValue::RValue(v) => DerefOfRefToValue::DerefRValue(v),
@@ -122,7 +121,7 @@ impl RefToValue {
 		};
 	}
 
-	#[inline]
+	#[inline(always)]
 	pub fn consume_or_clone(self) -> PrimitiveValue {
 		return match self {
 			RefToValue::RValue(v) => v,
@@ -130,7 +129,8 @@ impl RefToValue {
 		};
 	}
 
-	pub fn try_borrow_mut(&self) -> ResultWithError<RefMut<PrimitiveValue>> {
+	#[inline(always)]
+	pub fn try_borrow_mut(&self) -> ResultWithError<GcCellRefMut<PrimitiveValue>> {
 		return match self {
 			RefToValue::RValue(_) => Err(ErrorT::ExpectedLhsExpression.into()),
 			RefToValue::LValue(v) => Ok(v.deref().borrow_mut()),

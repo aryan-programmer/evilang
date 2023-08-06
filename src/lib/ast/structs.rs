@@ -8,6 +8,7 @@ pub struct VariableDeclaration {
 }
 
 impl VariableDeclaration {
+	#[inline(always)]
 	pub fn new(identifier: IdentifierT, initializer: Option<Expression>) -> Self {
 		Self { identifier, initializer }
 	}
@@ -19,6 +20,7 @@ pub struct FunctionParameterDeclaration {
 }
 
 impl FunctionParameterDeclaration {
+	#[inline(always)]
 	pub fn new(identifier: IdentifierT) -> Self {
 		Self { identifier }
 	}
@@ -32,6 +34,7 @@ pub struct FunctionDeclaration {
 }
 
 impl FunctionDeclaration {
+	#[inline(always)]
 	pub fn new(name: IdentifierT, parameters: Vec<FunctionParameterDeclaration>, body: BoxStatement) -> Self {
 		Self { name, parameters, body }
 	}
@@ -44,6 +47,7 @@ pub struct CallExpression {
 }
 
 impl CallExpression {
+	#[inline(always)]
 	pub fn new(callee: BoxExpression, arguments: Vec<Expression>) -> Self {
 		Self { callee, arguments }
 	}

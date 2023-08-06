@@ -58,6 +58,7 @@ pub struct EvilangError {
 }
 
 impl Display for EvilangError {
+	#[inline(always)]
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		if let Some(trace) = &self.backtrace {
 			write!(f, "{}: {:?}", self.typ, trace)
@@ -68,23 +69,27 @@ impl Display for EvilangError {
 }
 
 impl Error for EvilangError {
+	#[inline(always)]
 	fn source(&self) -> Option<&(dyn Error + 'static)> {
 		return Some(&self.typ);
 	}
 }
 
 impl From<ErrorT> for EvilangError {
+	#[inline(always)]
 	fn from(value: ErrorT) -> Self {
 		return EvilangError::new(value);
 	}
 }
 
 impl EvilangError {
+	#[inline(always)]
 	pub fn new(typ: ErrorT) -> EvilangError {
 		return EvilangError { typ, backtrace: Some(Backtrace::new()) };
 	}
 }
 
+#[inline(always)]
 pub fn ensure(v: bool, err: ErrorT) -> ResultWithError<()> {
 	return if v { Ok(()) } else { Err(err.into()) };
 }
