@@ -1,6 +1,6 @@
 use crate::errors::{ErrorT, EvilangError, ResultWithError};
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Operator {
 	Plus,
 	Minus,

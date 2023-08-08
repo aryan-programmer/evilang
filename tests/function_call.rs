@@ -98,4 +98,3 @@ fn member_complex_assignment() -> TestRes {
 		}.into(),
 	});
 }
-

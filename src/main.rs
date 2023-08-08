@@ -36,10 +36,17 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 fn main() {
 	let mut env = Environment::new();
 	let program = r#"
-for({let i = 0;}; i < 1; {i += 1;})let i = 10;
-push_res_stack(i);
+fn factorial(n) {
+	if (n == 0){
+		return 1;
+	}
+	return n + factorial(n - 1);
+}
+push_res_stack(factorial(29));
 "#;
 	// print_program(program);
-	env.eval_program_string(program.to_string()).unwrap();
+	env.eval_program_string(program.to_string()).map_err(|err| {
+		dbg!(err);
+	}).unwrap();
 	dbg!(&env.global_scope.borrow().res_stack);
 }

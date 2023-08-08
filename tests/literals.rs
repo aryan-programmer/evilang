@@ -1,5 +1,5 @@
 use evilang_lib::ast::expression::Expression;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{ensure_program_statement_results, TestRes};
 

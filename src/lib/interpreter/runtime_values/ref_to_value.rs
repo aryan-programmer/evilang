@@ -1,46 +1,11 @@
 use std::ops::Deref;
 
 use delegate::delegate;
-use gc::{Finalize, GcCellRef, GcCellRefMut, Trace};
+use gc::{GcCellRef, GcCellRefMut};
 
 use crate::errors::{ErrorT, ResultWithError};
+use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
-
-pub trait GcBoxOfPrimitiveValueExt {
-	fn is_hoisted(&self) -> bool;
-}
-
-impl GcBoxOfPrimitiveValueExt for GcBox<PrimitiveValue> {
-	#[inline(always)]
-	fn is_hoisted(&self) -> bool {
-		return self.deref().borrow().deref().is_hoisted();
-	}
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Trace, Finalize)]
-pub enum PrimitiveValue {
-	_HoistedVariable,
-	Null,
-	Boolean(bool),
-	Integer(i64),
-	String(String),
-}
-
-impl PrimitiveValue {
-	pub fn is_truthy(&self) -> bool {
-		return match self {
-			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => false,
-			PrimitiveValue::Boolean(v) => *v,
-			PrimitiveValue::Integer(i) => *i != 0,
-			PrimitiveValue::String(s) => s.len() != 0,
-		};
-	}
-
-	#[inline(always)]
-	pub fn is_hoisted(&self) -> bool {
-		return self == &PrimitiveValue::_HoistedVariable;
-	}
-}
 
 #[derive(Debug)]
 pub enum DerefOfRefToValue<'a> {
@@ -71,7 +36,7 @@ impl<'a> Deref for DerefOfRefToValue<'a> {
 	}
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum RefToValue {
 	RValue(PrimitiveValue),
 	LValue(GcBox<PrimitiveValue>),

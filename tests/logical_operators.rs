@@ -1,6 +1,6 @@
 use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, NullLiteral};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, LessThanOrEqualTo, LogicalAnd, LogicalOr, Multiplication, Plus};
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{test_expression_and_assignment, TestData, TestRes};
 

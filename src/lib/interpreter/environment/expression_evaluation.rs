@@ -8,7 +8,9 @@ use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::environment::Environment;
-use crate::interpreter::runtime_value::{DerefOfRefToValue, PrimitiveValue, RefToValue};
+use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::{DerefOfRefToValue, RefToValue}};
+use crate::interpreter::runtime_values::functions::ifunction::IFunction;
+use crate::interpreter::runtime_values::functions::types::FunctionParameters;
 use crate::interpreter::variables_map::IVariablesMap;
 
 macro_rules! auto_implement_binary_operators {
@@ -52,8 +54,7 @@ impl Environment {
 			Expression::IntegerLiteral(a) => PrimitiveValue::Integer(a.clone()).into(),
 			Expression::StringLiteral(a) => PrimitiveValue::String(a.clone()).into(),
 			Expression::UnaryExpression { operator, argument } => {
-				let arg_eval = self.eval(argument)?;
-				self.execute_unary_operator_expression(operator, arg_eval)?
+				self.execute_unary_operator_expression(operator, argument)?
 			}
 			Expression::BinaryExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
@@ -61,26 +62,37 @@ impl Environment {
 				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::Identifier(name) => self.get_variable_or_null(name)?,
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
+			Expression::FunctionExpression(fdecl) => {
+				let function: RefToValue = PrimitiveValue::new_closure(self, fdecl.clone()).into();
+				self.assign_locally(&fdecl.name, function.clone());
+				function
+			}
 			expr => {
 				return Err(ErrorT::UnimplementedExpressionTypeForInterpreter(expr.clone()).into());
 			}
 		});
 	}
 
-	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: RefToValue) -> ResultWithError<RefToValue> {
-		let prim_borrow = argument.borrow();
+	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
+		let arg_eval = self.eval(argument)?;
+		let prim_borrow = arg_eval.borrow();
 		let prim_ref = prim_borrow.deref();
 		return Ok(match (operator, prim_ref) {
 			(Operator::LogicalNot, PrimitiveValue::Boolean(v)) => PrimitiveValue::Boolean(!*v).into(),
 			(Operator::Plus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(*v).into(),
 			(Operator::Minus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(-*v).into(),
-			(op, prim) => {
-				return Err(ErrorT::UnimplementedUnaryOperatorForValues(op.clone(), prim.clone()).into());
+			(op, _) => {
+				return Err(ErrorT::UnimplementedUnaryOperatorForValues(op.clone(), argument.clone()).into());
 			}
 		});
 	}
 
-	fn eval_binary_operator_expression(&mut self, operator: &Operator, left: &BoxExpression, right: &BoxExpression) -> ResultWithError<RefToValue> {
+	fn eval_binary_operator_expression(
+		&mut self,
+		operator: &Operator,
+		left: &BoxExpression,
+		right: &BoxExpression,
+	) -> ResultWithError<RefToValue> {
 		let left_eval = self.eval(left.deref())?;
 		match operator {
 			Operator::LogicalOr => {
@@ -103,10 +115,17 @@ impl Environment {
 		};
 
 		let right_eval = self.eval(right.deref())?;
-		self.execute_binary_expression(operator, left_eval, right_eval)
+		return self.execute_binary_expression(operator, left_eval, right_eval, left, right);
 	}
 
-	pub fn execute_binary_expression(&mut self, operator: &Operator, mut left: RefToValue, right: RefToValue) -> ResultWithError<RefToValue> {
+	pub fn execute_binary_expression(
+		&mut self,
+		operator: &Operator,
+		mut left: RefToValue,
+		right: RefToValue,
+		left_expr: &Expression,
+		right_expr: &Expression,
+	) -> ResultWithError<RefToValue> {
 		if operator.is_assignment() {
 			if *operator == Operator::Assignment {
 				if right.is_hoisted() {
@@ -153,6 +172,8 @@ impl Environment {
 							&op.strip_assignment()?,
 							left_mut_ref,
 							right_value_ref,
+							left_expr,
+							right_expr,
 						)?;
 						if val_to_assign.is_hoisted() {
 							return Err(ErrorT::CantSetToHoistedValue.into());
@@ -166,10 +187,23 @@ impl Environment {
 
 		let lder = left.borrow();
 		let rder = right.borrow();
-		return Ok(self.execute_operation_on_primitive(operator, lder.deref(), rder.deref())?.into());
+		return Ok(self.execute_operation_on_primitive(
+			operator,
+			lder.deref(),
+			rder.deref(),
+			left_expr,
+			right_expr,
+		)?.into());
 	}
 
-	pub fn execute_operation_on_primitive(&mut self, operator: &Operator, left: &PrimitiveValue, right: &PrimitiveValue) -> ResultWithError<PrimitiveValue> {
+	pub fn execute_operation_on_primitive(
+		&mut self,
+		operator: &Operator,
+		left: &PrimitiveValue,
+		right: &PrimitiveValue,
+		left_expr: &Expression,
+		right_expr: &Expression,
+	) -> ResultWithError<PrimitiveValue> {
 		let int_result: Option<PrimitiveValue> = auto_implement_binary_operators!(
 			(operator, left, right),
 			Integer, a, b,
@@ -193,8 +227,8 @@ impl Environment {
 				Ok(PrimitiveValue::Boolean(a == b)),
 			(Operator::NotEquals, a, b) =>
 				Ok(PrimitiveValue::Boolean(a != b)),
-			(op, l, r) => {
-				return Err(ErrorT::UnimplementedBinaryOperatorForValues(op.clone(), l.clone(), r.clone()).into());
+			(op, _l, _r) => {
+				return Err(ErrorT::UnimplementedBinaryOperatorForValues(op.clone(), left_expr.clone(), right_expr.clone()).into());
 			}
 		};
 	}
@@ -211,7 +245,16 @@ impl Environment {
 				Ok(PrimitiveValue::Null.into())
 			}
 			expr => {
-				Err(ErrorT::UnimplementedFunction(expr.clone()).into())
+				let function = self.eval(expr)?.consume_or_clone();
+				match function {
+					PrimitiveValue::Function(ref gc_fn) => {
+						let args = call_expr.arguments.iter().map(|v| self.eval(v).map(RefToValue::consume_or_clone)).collect::<ResultWithError<FunctionParameters>>()?;
+						Ok(gc_fn.borrow().call(args)?.into())
+					}
+					_ => {
+						Err(ErrorT::NotAFunction(expr.clone()).into())
+					}
+				}
 			}
 		};
 	}

@@ -5,7 +5,7 @@ pub type BoxStatement = Box<Statement>;
 
 pub type StatementList = Vec<Statement>;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Statement {
 	BlockStatement(StatementList),
 	EmptyStatement,

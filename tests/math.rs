@@ -1,7 +1,7 @@
 use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{BinaryExpression, IntegerLiteral};
 use evilang_lib::ast::operator::Operator::{Division, Minus, Modulus, Multiplication, Plus};
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{ensure_program_statement_results, TestRes};
 

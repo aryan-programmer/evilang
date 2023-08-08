@@ -6,50 +6,18 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::environment::enums::{StatementExecution, StatementMetaGeneration, UnrollingReason};
-use crate::interpreter::runtime_value::{PrimitiveValue, RefToValue};
+use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
+use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::RefToValue};
 use crate::interpreter::variables_map::{delegate_ivariables_map, GlobalScope, IVariablesMap, VariableScope, VariablesMap};
 use crate::parser::parse;
 use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
-mod enums;
-mod expression_evaluation;
-
-macro_rules! handle_unrolling {
-	($val: expr) => {
-		if let StatementExecution::Unrolling(imm_exit) = $val {
-			return Ok(StatementExecution::Unrolling(imm_exit));
-		}
-	}
-}
-
-macro_rules! handle_unrolling_in_loop {
-	($val: expr) => {
-		handle_unrolling_in_loop!($val => break: break; continue: continue;)
-	};
-	($val: expr => break: $break_stmt: stmt; continue: $continue_stmt: stmt;) => {
-		if let StatementExecution::Unrolling(imm_exit) = $val {
-			match imm_exit {
-				UnrollingReason::EncounteredBreak(v) => {
-					if v <= 1 {
-						$break_stmt
-					}
-					return Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredBreak(v-1)));
-				},
-				UnrollingReason::EncounteredContinue(v) => {
-					if v <= 1 {
-						$continue_stmt
-					}
-					return Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredContinue(v-1)));
-				}
-			};
-		}
-	}
-}
+pub mod statement_result;
+pub mod expression_evaluation;
 
 #[derive(Trace, Finalize)]
 pub struct Environment {
-	scope: GcBox<VariableScope>,
+	pub scope: GcBox<VariableScope>,
 	pub global_scope: GcBox<GlobalScope>,
 }
 
@@ -59,6 +27,22 @@ delegate_ivariables_map!(for Environment =>
 );
 
 impl Environment {
+	#[inline(always)]
+	pub fn new_full(scope: GcBox<VariableScope>, global_scope: GcBox<GlobalScope>) -> Environment {
+		return Self {
+			scope,
+			global_scope,
+		};
+	}
+
+	#[inline(always)]
+	pub fn new_child_of(scope: GcBox<VariableScope>, global_scope: GcBox<GlobalScope>) -> Environment {
+		return Self {
+			scope: VariableScope::new_gc(VariablesMap::new(), Some(scope)),
+			global_scope,
+		};
+	}
+
 	#[inline(always)]
 	pub fn new() -> Environment {
 		return Self::new_from_variables(VariablesMap::new());
@@ -72,19 +56,20 @@ impl Environment {
 	pub fn new_from_variables(variables: VariablesMap) -> Environment {
 		let global_scope = GlobalScope::new_gc_from_variables(variables);
 		let scope = gc_cell_clone(&(global_scope.borrow_mut().scope));
-		return Environment { scope, global_scope };
+		return Self::new_full(scope, global_scope);
 	}
 
 	pub fn new_with_parent(env: &Environment) -> Environment {
 		let global_scope = gc_cell_clone(&env.global_scope);
-		return Environment {
-			scope: VariableScope::new_gc(
+		return Self::new_full(
+			VariableScope::new_gc(
 				VariablesMap::new(),
 				Some(gc_cell_clone(&env.scope)),
 			),
 			global_scope,
-		};
+		);
 	}
+
 
 	pub fn eval_program_string(&mut self, input: String) -> ResultWithError<StatementExecution> {
 		self.setup_and_eval_statements(&parse(input)?)
@@ -96,6 +81,9 @@ impl Environment {
 				for decl in decls.iter() {
 					self.hoist_identifier(&decl.identifier)?;
 				}
+			}
+			Statement::FunctionDeclarationStatement(fdecl) => {
+				self.declare(&fdecl.name, PrimitiveValue::new_closure(self, fdecl.clone()).into())?;
 			}
 			_ => {}
 		}
@@ -193,6 +181,18 @@ impl Environment {
 			Statement::ContinueStatement(v) => {
 				Ok(StatementExecution::Unrolling(UnrollingReason::EncounteredContinue(*v)))
 			}
+			Statement::FunctionDeclarationStatement(..) => {
+				// Function declaration has already been hoisted
+				Ok(StatementExecution::NormalFlow)
+			}
+			Statement::ReturnStatement(expr_opt) => {
+				let res = if let Some(expr) = expr_opt.as_ref() {
+					self.eval(expr)?.consume_or_clone()
+				} else {
+					PrimitiveValue::Null
+				};
+				Ok(StatementExecution::Unrolling(UnrollingReason::ReturningValue(res)))
+			}
 			stmt => {
 				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
 			}
@@ -247,5 +247,10 @@ impl Environment {
 	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
 		self.scope.deref().borrow_mut().deref_mut().hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
+	}
+
+	#[inline]
+	pub fn assign_locally(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
+		return self.scope.borrow().variables.borrow_mut().assign(name, value);
 	}
 }

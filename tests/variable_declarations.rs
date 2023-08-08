@@ -3,7 +3,7 @@ use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpre
 use evilang_lib::ast::operator::Operator::{Plus, PlusAssignment};
 use evilang_lib::ast::statement::Statement::VariableDeclarations;
 use evilang_lib::ast::structs::VariableDeclaration;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{ensure_program_statement_results, identifier_stmt, TestRes};
 

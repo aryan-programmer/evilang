@@ -74,7 +74,7 @@ impl Parser {
 	fn eat(&mut self, typ: TokenType) -> ResultWithError<Token> {
 		let token = self.peekable_stream.next().ok_or(ErrorT::EndOfTokenStream)??;
 		if token.typ != typ {
-			return Err(ErrorT::InvalidTokenType.into());
+			return Err(ErrorT::InvalidTokenType(token).into());
 		}
 		return Ok(token);
 	}
@@ -520,7 +520,7 @@ impl Parser {
 						self.function_call_args_in_parens()?,
 					);
 				} else {
-					return Err(ErrorT::InvalidTokenType.into());
+					return Err(ErrorT::InvalidTokenType(self.eat_any()?).into());
 				}
 			}
 		}
@@ -539,7 +539,7 @@ impl Parser {
 			let (res2, changed) = self.member_access_part(res)?;
 			res = res2;
 			if !changed {
-				return Err(ErrorT::InvalidTokenType.into());
+				return Err(ErrorT::InvalidTokenType(self.eat_any()?).into());
 			}
 		}
 		return Ok(res);
@@ -628,8 +628,18 @@ impl Parser {
 				Ok(Expression::ThisExpression)
 			}
 			TokenType::Keyword(Keyword::New) => self.new_expression(),
+			TokenType::Keyword(Keyword::Fn) => self.function_expression(),
 			_ => self.identifier_expression(),
 		};
+	}
+
+	/*
+	function_expression:
+		| function_declaration
+	*/
+	#[inline]
+	fn function_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(Expression::FunctionExpression(self.function_declaration()?));
 	}
 
 	/*
@@ -685,7 +695,7 @@ impl Parser {
 			TokenType::Keyword(Keyword::True) => Ok(Expression::BooleanLiteral(true)),
 			TokenType::Keyword(Keyword::False) => Ok(Expression::BooleanLiteral(false)),
 			TokenType::Keyword(Keyword::Null) => Ok(Expression::NullLiteral),
-			_ => Err(ErrorT::InvalidTokenType.into()),
+			_ => Err(ErrorT::InvalidTokenType(self.eat_any()?).into()),
 		};
 		if res.is_ok() {
 			self.eat_any()?;

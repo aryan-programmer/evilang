@@ -4,8 +4,8 @@ use evilang_lib::ast::operator::Operator::{Equals, LessThanOrEqualTo, Modulus, M
 use evilang_lib::ast::statement::Statement;
 use evilang_lib::ast::statement::Statement::{BlockStatement, BreakStatement, ContinueStatement, DoWhileLoop, EmptyStatement, ExpressionStatement, ForLoop, IfStatement, VariableDeclarations, WhileLoop};
 use evilang_lib::ast::structs::VariableDeclaration;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue::Integer;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue::Integer;
 
 use crate::common::{ensure_parsing_fails, ensure_program, ensure_program_statement_results, identifier_stmt, push_res_stack_stmt, TestData, TestRes};
 

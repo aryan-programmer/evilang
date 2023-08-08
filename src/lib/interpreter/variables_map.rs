@@ -7,7 +7,8 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_value::{GcBoxOfPrimitiveValueExt, PrimitiveValue, RefToValue};
+use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue};
+use crate::interpreter::runtime_values::ref_to_value::RefToValue;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub trait IVariablesMap {
@@ -19,7 +20,7 @@ pub trait IVariablesMap {
 	/// * `value`:
 	///
 	/// returns: Option<PrimitiveValue> The previous value stored in the variable
-	fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+	fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
 	fn declare(&mut self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()>;
 	fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
 	fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
@@ -68,8 +69,8 @@ macro_rules! delegate_ivariables_map {
 				return $const_delegator.contains_key(name);
 			}
 			#[inline(always)]
-			fn set_actual(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
-				return $mut_delegator.set_actual(name, value);
+			fn assign(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
+				return $mut_delegator.assign(name, value);
 			}
 			#[inline(always)]
 			fn declare(&mut $mut_self, name: &IdentifierT, value: RefToValue) -> ResultWithError<()> {
@@ -85,7 +86,7 @@ macro_rules! delegate_ivariables_map {
 
 pub use delegate_ivariables_map;
 
-#[derive(Trace, Finalize)]
+#[derive(PartialEq, Trace, Finalize)]
 pub struct VariablesMap {
 	variables: HashMap<IdentifierT, GcBox<PrimitiveValue>>,
 }
@@ -110,7 +111,7 @@ impl VariablesMap {
 }
 
 impl IVariablesMap for VariablesMap {
-	fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
+	fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
 		return if let Some(v) = self.variables.get(name) {
 			let mut res = v.borrow_mut();
 			Some(replace(res.deref_mut(), value.consume_or_clone()))
@@ -129,7 +130,7 @@ impl IVariablesMap for VariablesMap {
 		if value.is_hoisted() {
 			return Err(ErrorT::CantSetToHoistedValue.into());
 		}
-		self.set_actual(name, value);
+		self.assign(name, value);
 		return Ok(());
 	}
 
@@ -137,7 +138,7 @@ impl IVariablesMap for VariablesMap {
 		if let Some(_v) = self.variables.get(name) {
 			return Err(ErrorT::CantRedeclareVariable(name.clone()).into());
 		}
-		self.set_actual(name, PrimitiveValue::_HoistedVariable.into());
+		self.assign(name, PrimitiveValue::_HoistedVariable.into());
 		return Ok(());
 	}
 
@@ -155,16 +156,16 @@ impl IVariablesMap for VariablesMap {
 	}
 }
 
-#[derive(Trace, Finalize)]
+#[derive(PartialEq, Trace, Finalize)]
 pub struct VariableScope {
-	variables: GcBox<VariablesMap>,
+	pub variables: GcBox<VariablesMap>,
 	parent: Option<GcBox<VariableScope>>,
 }
 
 impl IVariablesMap for VariableScope {
 	delegate! {
 		to self.resolve_variable_scope(name).borrow_mut() {
-			fn set_actual(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
+			fn assign(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue>;
 		}
 		to self.resolve_variable_scope(name).borrow() {
 			fn get_actual(&self, name: &IdentifierT) -> Option<RefToValue>;
@@ -210,7 +211,7 @@ impl VariableScope {
 	}
 }
 
-#[derive(Trace, Finalize)]
+#[derive(PartialEq, Trace, Finalize)]
 pub struct GlobalScope {
 	pub scope: GcBox<VariableScope>,
 	pub res_stack: Vec<PrimitiveValue>,

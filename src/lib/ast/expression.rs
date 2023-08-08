@@ -1,18 +1,18 @@
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
-use crate::ast::structs::CallExpression;
+use crate::ast::structs::{CallExpression, FunctionDeclaration};
 
 pub type BoxExpression = Box<Expression>;
 
 pub type IdentifierT = String;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MemberIndexer {
 	PropertyName(IdentifierT),
 	SubscriptExpression(BoxExpression),
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Expression {
 	NullLiteral,
 	BooleanLiteral(bool),
@@ -41,6 +41,7 @@ pub enum Expression {
 	},
 	FunctionCall(CallExpression),
 	NewObjectExpression(CallExpression),
+	FunctionExpression(FunctionDeclaration),
 }
 
 impl Expression {

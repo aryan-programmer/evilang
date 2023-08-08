@@ -7,18 +7,19 @@ use thiserror::Error;
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
-use crate::interpreter::runtime_value::PrimitiveValue;
+use crate::interpreter::environment::statement_result::StatementExecution;
+use crate::tokenizer::Token;
 
 pub type ResultWithError<T, E = EvilangError> = anyhow::Result<T, E>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Error)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum ErrorT {
 	#[error("This error should never happen")]
 	NeverError,
 	#[error("End of Token Stream")]
 	EndOfTokenStream,
-	#[error("Invalid Token Type")]
-	InvalidTokenType,
+	#[error("Invalid Token Type: {0:#?}")]
+	InvalidTokenType(Token),
 	#[error("Token Cannot be Parsed")]
 	TokenCannotBeParsed,
 	#[error("Unknown Operator")]
@@ -34,11 +35,11 @@ pub enum ErrorT {
 	#[error("The interpreter does not support this expression type: {0:#?}")]
 	UnimplementedExpressionTypeForInterpreter(Expression),
 	#[error("The interpreter does not support the operator: {0:?} for the values {1:#?} and {2:#?}")]
-	UnimplementedBinaryOperatorForValues(Operator, PrimitiveValue, PrimitiveValue),
+	UnimplementedBinaryOperatorForValues(Operator, Expression, Expression),
 	#[error("The interpreter does not support the unary operator: {0:?} for the value {1:#?}")]
-	UnimplementedUnaryOperatorForValues(Operator, PrimitiveValue),
-	#[error("The following function is not implemented: {0:?}")]
-	UnimplementedFunction(Expression),
+	UnimplementedUnaryOperatorForValues(Operator, Expression),
+	#[error("The following expression is not a function: {0:?}")]
+	NotAFunction(Expression),
 	#[error("A mutable borrow already exists")]
 	InvalidBorrow,
 	#[error("The cannot strip assignment from operator: {0:?}")]
@@ -49,6 +50,8 @@ pub enum ErrorT {
 	CantRedeclareVariable(IdentifierT),
 	#[error("Can't set a variable to be hoisted")]
 	CantSetToHoistedValue,
+	#[error("Invalid unrolling from function {0:?}: {1:#?}")]
+	InvalidUnrollingOfFunction(IdentifierT, StatementExecution),
 }
 
 #[derive(Debug, Clone)]

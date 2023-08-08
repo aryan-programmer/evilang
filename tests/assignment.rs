@@ -4,7 +4,7 @@ use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
 use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, MinusAssignment, ModulusAssignment, Multiplication, MultiplicationAssignment, Plus, PlusAssignment};
 use evilang_lib::interpreter::environment::Environment;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{identifier_stmt, TestData, TestRes};
 

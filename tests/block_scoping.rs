@@ -1,5 +1,5 @@
 use evilang_lib::errors::ErrorT;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{ensure_execution_fails, ensure_res_stack_matches, TestData, TestRes};
 

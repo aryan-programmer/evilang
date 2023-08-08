@@ -10,7 +10,7 @@ use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::statement::Statement::ExpressionStatement;
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::environment::Environment;
-use evilang_lib::interpreter::runtime_value::PrimitiveValue;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 use evilang_lib::parser::parse;
 
 pub type TestRes = ();
@@ -93,6 +93,7 @@ impl TestData {
 			env.setup_and_eval_statements(&parsed).unwrap();
 			return ();
 		};
+		env.setup_scope(&parsed).unwrap();
 		for (stmt, expected_val) in parsed.iter().zip(results.iter()) {
 			if let ExpressionStatement(expr) = stmt {
 				let value = env.eval(expr).unwrap();

@@ -32,6 +32,19 @@ fn starts_with_matcher(start: &'static str) -> Matcher {
 	});
 }
 
+fn keyword_matcher(start: &'static str) -> Matcher {
+	let start_code_points_len = start.chars().count();
+	return Box::new(move |s: &str| if s.starts_with(start) {
+		if s.chars().nth(start_code_points_len).map_or(false, |v| !v.is_alphanumeric()) {
+			Some(start)
+		} else {
+			None
+		}
+	} else {
+		None
+	});
+}
+
 fn one_of_many<const COUNT: usize>(starters: [&'static str; COUNT]) -> Matcher {
 	return Box::new(move |s: &str| {
 		for starter in starters.iter() {
@@ -73,25 +86,25 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(regex_matcher(INTEGER_REGEX), Some(TokenType::Integer)),
 		(regex_matcher(STRING_REGEX), Some(TokenType::String)),
 		//
-		(starts_with_matcher("let"), Some(TokenType::Keyword(Keyword::Let))),
-		(starts_with_matcher("if"), Some(TokenType::Keyword(Keyword::If))),
-		(starts_with_matcher("else"), Some(TokenType::Keyword(Keyword::Else))),
-		(starts_with_matcher("true"), Some(TokenType::Keyword(Keyword::True))),
-		(starts_with_matcher("false"), Some(TokenType::Keyword(Keyword::False))),
-		(starts_with_matcher("null"), Some(TokenType::Keyword(Keyword::Null))),
-		(starts_with_matcher("while"), Some(TokenType::Keyword(Keyword::While))),
-		(starts_with_matcher("do"), Some(TokenType::Keyword(Keyword::Do))),
-		(starts_with_matcher("for"), Some(TokenType::Keyword(Keyword::For))),
-		(starts_with_matcher("fn"), Some(TokenType::Keyword(Keyword::Fn))),
-		(starts_with_matcher("captures"), Some(TokenType::Keyword(Keyword::Captures))),
-		(starts_with_matcher("return"), Some(TokenType::Keyword(Keyword::Return))),
-		(starts_with_matcher("class"), Some(TokenType::Keyword(Keyword::Class))),
-		(starts_with_matcher("extends"), Some(TokenType::Keyword(Keyword::Extends))),
-		(starts_with_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
-		(starts_with_matcher("super"), Some(TokenType::Keyword(Keyword::Super))),
-		(starts_with_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
-		(starts_with_matcher("break"), Some(TokenType::Keyword(Keyword::Break))),
-		(starts_with_matcher("continue"), Some(TokenType::Keyword(Keyword::Continue))),
+		(keyword_matcher("let"), Some(TokenType::Keyword(Keyword::Let))),
+		(keyword_matcher("if"), Some(TokenType::Keyword(Keyword::If))),
+		(keyword_matcher("else"), Some(TokenType::Keyword(Keyword::Else))),
+		(keyword_matcher("true"), Some(TokenType::Keyword(Keyword::True))),
+		(keyword_matcher("false"), Some(TokenType::Keyword(Keyword::False))),
+		(keyword_matcher("null"), Some(TokenType::Keyword(Keyword::Null))),
+		(keyword_matcher("while"), Some(TokenType::Keyword(Keyword::While))),
+		(keyword_matcher("do"), Some(TokenType::Keyword(Keyword::Do))),
+		(keyword_matcher("for"), Some(TokenType::Keyword(Keyword::For))),
+		(keyword_matcher("fn"), Some(TokenType::Keyword(Keyword::Fn))),
+		(keyword_matcher("captures"), Some(TokenType::Keyword(Keyword::Captures))),
+		(keyword_matcher("return"), Some(TokenType::Keyword(Keyword::Return))),
+		(keyword_matcher("class"), Some(TokenType::Keyword(Keyword::Class))),
+		(keyword_matcher("extends"), Some(TokenType::Keyword(Keyword::Extends))),
+		(keyword_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
+		(keyword_matcher("super"), Some(TokenType::Keyword(Keyword::Super))),
+		(keyword_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
+		(keyword_matcher("break"), Some(TokenType::Keyword(Keyword::Break))),
+		(keyword_matcher("continue"), Some(TokenType::Keyword(Keyword::Continue))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];
