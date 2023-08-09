@@ -6,14 +6,17 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
 use crate::errors::{ErrorT, ResultWithError};
+use crate::interpreter::environment::default_global_scope::get_default_global_scope;
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
 use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::RefToValue};
-use crate::interpreter::variables_map::{delegate_ivariables_map, GlobalScope, IVariablesMap, VariableScope, VariablesMap};
+use crate::interpreter::variables_map::{delegate_ivariables_map, GlobalScope, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator, VariableScope, VariablesMap};
 use crate::parser::parse;
 use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 pub mod statement_result;
 pub mod expression_evaluation;
+pub mod native_functions;
+pub mod default_global_scope;
 
 #[derive(Trace, Finalize)]
 pub struct Environment {
@@ -23,7 +26,7 @@ pub struct Environment {
 
 delegate_ivariables_map!(for Environment =>
 	&self: self.scope.borrow(),
-	&mut self: self.scope.borrow_mut()
+	&self: (mut) self.scope.borrow_mut()
 );
 
 impl Environment {
@@ -45,17 +48,22 @@ impl Environment {
 
 	#[inline(always)]
 	pub fn new() -> Environment {
-		return Self::new_from_variables(VariablesMap::new());
+		let global_scope = get_default_global_scope();
+		let scope = gc_cell_clone(&global_scope.borrow().scope);
+		return Self::new_full(scope, global_scope);
 	}
 
 	#[inline(always)]
 	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Environment {
-		return Self::new_from_variables(VariablesMap::new_from_primitives(variables));
-	}
-
-	pub fn new_from_variables(variables: VariablesMap) -> Environment {
-		let global_scope = GlobalScope::new_gc_from_variables(variables);
-		let scope = gc_cell_clone(&(global_scope.borrow_mut().scope));
+		let global_scope = get_default_global_scope();
+		let scope = gc_cell_clone(&global_scope.borrow().scope);
+		{
+			let scope_borr = scope.borrow();
+			let mut scope_vars_borr = scope_borr.variables.borrow_mut();
+			for (name, value) in variables.into_iter() {
+				scope_vars_borr.deref_mut().assign(&name, value.into());
+			}
+		}
 		return Self::new_full(scope, global_scope);
 	}
 
@@ -245,7 +253,7 @@ impl Environment {
 
 	#[inline]
 	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
-		self.scope.deref().borrow_mut().deref_mut().hoist(iden)?;
+		self.scope.deref().borrow().hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 

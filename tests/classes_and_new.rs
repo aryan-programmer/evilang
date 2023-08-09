@@ -1,5 +1,5 @@
 use evilang_lib::ast::expression::{Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral, MemberAccess}, Expression};
-use evilang_lib::ast::expression::Expression::{SuperExpression, ThisExpression};
+use evilang_lib::ast::expression::Expression::SuperExpression;
 use evilang_lib::ast::expression::MemberIndexer::PropertyName;
 use evilang_lib::ast::operator::Operator::{Assignment, Plus};
 use evilang_lib::ast::statement::Statement::{BlockStatement, ClassDeclarationStatement, ReturnStatement, VariableDeclarations};
@@ -13,23 +13,23 @@ mod common;
 fn classes_and_new() -> TestRes {
 	ensure_program(r#"
 class Point {
-  fn constructor(x, y) {
+  fn constructor(this, x, y) {
     this.x = x;
     this.y = y;
   }
 
-  fn calc() {
+  fn calc(this) {
     return this.x + this.y;
   }
 }
 
 class Point3D extends Point {
-  fn constructor(x, y, z) {
+  fn constructor(this, x, y, z) {
     super(x, y);
     this.z = z;
   }
 
-  fn calc() {
+  fn calc(this) {
     return super.calc() + this.z;
   }
 }
@@ -45,6 +45,9 @@ let p3 = new Point3D(10, 20, 30);
 					"constructor".into(),
 					[
 						FunctionParameterDeclaration {
+							identifier: "this".into(),
+						},
+						FunctionParameterDeclaration {
 							identifier: "x".into(),
 						},
 						FunctionParameterDeclaration {
@@ -55,7 +58,7 @@ let p3 = new Point3D(10, 20, 30);
 						AssignmentExpression {
 							operator: Assignment,
 							left: MemberAccess {
-								object: ThisExpression.into(),
+								object: Identifier("this".into()).into(),
 								member: PropertyName("x".into()),
 							}.into(),
 							right: Identifier("x".into()).into(),
@@ -63,7 +66,7 @@ let p3 = new Point3D(10, 20, 30);
 						AssignmentExpression {
 							operator: Assignment,
 							left: MemberAccess {
-								object: ThisExpression.into(),
+								object: Identifier("this".into()).into(),
 								member: PropertyName("y".into()),
 							}.into(),
 							right: Identifier("y".into()).into(),
@@ -72,17 +75,21 @@ let p3 = new Point3D(10, 20, 30);
 				),
 				FunctionDeclaration::new(
 					"calc".into(),
-					[].into(),
+					[
+						FunctionParameterDeclaration {
+							identifier: "this".into(),
+						},
+					].into(),
 					BlockStatement([
 						ReturnStatement(Some(
 							BinaryExpression {
 								operator: Plus,
 								left: MemberAccess {
-									object: ThisExpression.into(),
+									object: Identifier("this".into()).into(),
 									member: PropertyName("x".into()),
 								}.into(),
 								right: MemberAccess {
-									object: ThisExpression.into(),
+									object: Identifier("this".into()).into(),
 									member: PropertyName("y".into()),
 								}.into(),
 							},
@@ -98,6 +105,9 @@ let p3 = new Point3D(10, 20, 30);
 				FunctionDeclaration::new(
 					"constructor".into(),
 					[
+						FunctionParameterDeclaration {
+							identifier: "this".into(),
+						},
 						FunctionParameterDeclaration {
 							identifier: "x".into(),
 						},
@@ -119,7 +129,7 @@ let p3 = new Point3D(10, 20, 30);
 						AssignmentExpression {
 							operator: Assignment,
 							left: MemberAccess {
-								object: ThisExpression.into(),
+								object: Identifier("this".into()).into(),
 								member: PropertyName("z".into()),
 							}.into(),
 							right: Identifier("z".into()).into(),
@@ -128,7 +138,11 @@ let p3 = new Point3D(10, 20, 30);
 				),
 				FunctionDeclaration::new(
 					"calc".into(),
-					[].into(),
+					[
+						FunctionParameterDeclaration {
+							identifier: "this".into(),
+						},
+					].into(),
 					BlockStatement([
 						ReturnStatement(Some(
 							BinaryExpression {
@@ -141,7 +155,7 @@ let p3 = new Point3D(10, 20, 30);
 									[].into(),
 								).into(),
 								right: MemberAccess {
-									object: ThisExpression.into(),
+									object: Identifier("this".into()).into(),
 									member: PropertyName("z".into()),
 								}.into(),
 							},

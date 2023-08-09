@@ -9,7 +9,7 @@ use crate::interpreter::environment::statement_result::{StatementExecution, Unro
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::variables_map::{GlobalScope, IVariablesMap, VariableScope};
+use crate::interpreter::variables_map::{GlobalScope, IVariablesMapDelegator, VariableScope};
 use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 #[derive(PartialEq, Trace, Finalize)]
@@ -27,7 +27,7 @@ impl Debug for Closure {
 }
 
 impl IFunction for Closure {
-	fn call(&self, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+	fn execute(&self, _env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
 		let mut env = Environment::new_child_of(
 			gc_cell_clone(&self.parent_scope),
 			gc_cell_clone(&self.global_scope),

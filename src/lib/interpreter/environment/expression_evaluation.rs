@@ -11,7 +11,7 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::{DerefOfRefToValue, RefToValue}};
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
-use crate::interpreter::variables_map::IVariablesMap;
+use crate::interpreter::variables_map::IVariablesMapConstMembers;
 
 macro_rules! auto_implement_binary_operators {
     ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident);*;) => {
@@ -235,21 +235,19 @@ impl Environment {
 
 	pub fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
 		return match call_expr.callee.deref() {
-			Expression::Identifier(method_name) if method_name == "push_res_stack" => {
-				let mut rvec = Vec::<PrimitiveValue>::new();
-				for expr in call_expr.arguments.iter() {
-					let expr_eval = self.eval(expr)?;
-					rvec.push(expr_eval.consume_or_clone());
-				}
-				self.global_scope.borrow_mut().res_stack.extend(rvec.iter().map(|v| v.clone()));
-				Ok(PrimitiveValue::Null.into())
-			}
 			expr => {
 				let function = self.eval(expr)?.consume_or_clone();
 				match function {
 					PrimitiveValue::Function(ref gc_fn) => {
-						let args = call_expr.arguments.iter().map(|v| self.eval(v).map(RefToValue::consume_or_clone)).collect::<ResultWithError<FunctionParameters>>()?;
-						Ok(gc_fn.borrow().call(args)?.into())
+						let args = call_expr
+							.arguments
+							.iter()
+							.map(|v| self
+								.eval(v)
+								.map(RefToValue::consume_or_clone)
+							)
+							.collect::<ResultWithError<FunctionParameters>>()?;
+						Ok(gc_fn.borrow().execute(self, args)?.into())
 					}
 					_ => {
 						Err(ErrorT::NotAFunction(expr.clone()).into())

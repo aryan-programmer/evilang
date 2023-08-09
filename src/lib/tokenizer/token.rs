@@ -16,7 +16,7 @@ pub enum Keyword {
 	Extends,
 	New,
 	Super,
-	This,
+	// This,
 	Break,
 	Continue,
 }

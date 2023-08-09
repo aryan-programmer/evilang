@@ -102,7 +102,7 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(keyword_matcher("extends"), Some(TokenType::Keyword(Keyword::Extends))),
 		(keyword_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
 		(keyword_matcher("super"), Some(TokenType::Keyword(Keyword::Super))),
-		(keyword_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
+		// (keyword_matcher("this"), Some(TokenType::Keyword(Keyword::This))),
 		(keyword_matcher("break"), Some(TokenType::Keyword(Keyword::Break))),
 		(keyword_matcher("continue"), Some(TokenType::Keyword(Keyword::Continue))),
 		//

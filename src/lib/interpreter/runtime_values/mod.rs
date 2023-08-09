@@ -6,6 +6,7 @@ use crate::ast::structs::FunctionDeclaration;
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::Function;
+use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub mod ref_to_value;
@@ -33,6 +34,11 @@ pub enum PrimitiveValue {
 }
 
 impl PrimitiveValue {
+	pub fn new_native_function(f: NativeFunction) -> Self {
+		let function_closure = Function::NativeFunction(f);
+		return PrimitiveValue::Function(gc_box_from(function_closure));
+	}
+
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> Self {
 		let closure = Closure::new(
 			decl,

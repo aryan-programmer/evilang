@@ -18,7 +18,7 @@ pub enum Expression {
 	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
-	ThisExpression,
+	// ThisExpression,
 	SuperExpression,
 	UnaryExpression {
 		operator: Operator,
