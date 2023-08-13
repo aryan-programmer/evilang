@@ -15,7 +15,7 @@ pub enum Keyword {
 	Class,
 	Extends,
 	New,
-	Super,
+	// Super,
 	// This,
 	Break,
 	Continue,
@@ -46,6 +46,8 @@ pub enum TokenType {
 	Identifier,
 	Comma,
 	Dot,
+	Arrow,
+	// DoubleColon,
 	Keyword(Keyword),
 }
 

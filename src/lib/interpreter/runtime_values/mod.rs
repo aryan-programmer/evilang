@@ -1,16 +1,25 @@
 use std::ops::Deref;
 
-use gc::{Finalize, Trace};
+use gc::{Finalize, Gc, Trace};
 
-use crate::ast::structs::FunctionDeclaration;
+use crate::ast::expression::Expression;
+use crate::ast::structs::{ClassDeclaration, FunctionDeclaration};
+use crate::errors::{Descriptor, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
+use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::utils::consts::{OBJECT, SUPER};
+use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
+use crate::interpreter::utils::get_object_superclass;
+use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
+use crate::interpreter::variables_containers::VariablesMap;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub mod ref_to_value;
 pub mod functions;
+pub mod objects;
 
 pub trait GcBoxOfPrimitiveValueExt {
 	fn is_hoisted(&self) -> bool;
@@ -23,7 +32,7 @@ impl GcBoxOfPrimitiveValueExt for GcBox<PrimitiveValue> {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Trace, Finalize)]
+#[derive(Debug, Clone, Trace, Finalize)]
 pub enum PrimitiveValue {
 	_HoistedVariable,
 	Null,
@@ -31,12 +40,43 @@ pub enum PrimitiveValue {
 	Integer(i64),
 	String(String),
 	Function(GcBox<Function>),
+	Object(GcBox<RuntimeObject>),
+}
+
+impl PartialEq for PrimitiveValue {
+	#[inline]
+	fn eq(&self, other: &PrimitiveValue) -> bool {
+		match (self, other) {
+			(
+				PrimitiveValue::Boolean(self_0),
+				PrimitiveValue::Boolean(othr_0),
+			) => *self_0 == *othr_0,
+			(
+				PrimitiveValue::Integer(self_0),
+				PrimitiveValue::Integer(othr_0),
+			) => *self_0 == *othr_0,
+			(
+				PrimitiveValue::String(self_0),
+				PrimitiveValue::String(othr_0),
+			) => *self_0 == *othr_0,
+			(
+				PrimitiveValue::Function(self_0),
+				PrimitiveValue::Function(othr_0),
+			) => Gc::ptr_eq(self_0, othr_0),
+			(
+				PrimitiveValue::Object(self_0),
+				PrimitiveValue::Object(othr_0),
+			) => Gc::ptr_eq(self_0, othr_0),
+			(PrimitiveValue::Null, PrimitiveValue::Null) => true,
+			(PrimitiveValue::_HoistedVariable, PrimitiveValue::_HoistedVariable) => true,
+			_ => false,
+		}
+	}
 }
 
 impl PrimitiveValue {
 	pub fn new_native_function(f: NativeFunction) -> Self {
-		let function_closure = Function::NativeFunction(f);
-		return PrimitiveValue::Function(gc_box_from(function_closure));
+		return PrimitiveValue::Function(gc_box_from(Function::NativeFunction(f)));
 	}
 
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> Self {
@@ -49,13 +89,52 @@ impl PrimitiveValue {
 		return PrimitiveValue::Function(gc_box_from(function_closure));
 	}
 
+	pub fn new_class_by_eval(env: &mut Environment, decl: &ClassDeclaration) -> ResultWithError<Self> {
+		let ClassDeclaration {
+			name,
+			super_class,
+			methods
+		} = decl;
+		let super_class_val = if let Some(v) = super_class {
+			env.eval(v)?.consume_or_clone()
+		} else {
+			get_object_superclass(env)?
+		};
+		let super_class: GcBox<RuntimeObject> =
+			if let PrimitiveValue::Object(ref object_class_ref) = super_class_val {
+				gc_cell_clone(object_class_ref)
+			} else {
+				return Err(RuntimeError::ExpectedClassObject(Descriptor::Both {
+					value: super_class_val,
+					expression: super_class.clone().unwrap_or_else(||
+						Expression::Identifier(OBJECT.to_string())
+					),
+				}).into());
+			};
+		let scope = Environment::new_with_parent(env);
+		scope.declare(&SUPER.to_string(), super_class_val.into())?;
+		let sub_class = RuntimeObject::new_gc(
+			VariablesMap::new_direct(methods
+				.clone()
+				.into_iter()
+				.map(|fdecl| {
+					(fdecl.name.clone(), gc_box_from(PrimitiveValue::new_closure(&scope, fdecl)))
+				})
+				.collect()
+			),
+			Some(super_class),
+			name.clone(),
+		);
+		return Ok(PrimitiveValue::Object(sub_class));
+	}
+
 	pub fn is_truthy(&self) -> bool {
 		return match self {
 			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => false,
 			PrimitiveValue::Boolean(v) => *v,
 			PrimitiveValue::Integer(i) => *i != 0,
 			PrimitiveValue::String(s) => s.len() != 0,
-			PrimitiveValue::Function(..) => true,
+			PrimitiveValue::Function(..) | PrimitiveValue::Object(..) => true,
 		};
 	}
 

@@ -5,9 +5,11 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 
+pub type NativeFunctionFn = fn(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue>;
+
 #[derive(Debug, PartialEq)]
 pub struct NativeFunction {
-	pub f: fn(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue>,
+	pub f: NativeFunctionFn,
 }
 
 impl Finalize for NativeFunction {}
@@ -17,7 +19,7 @@ unsafe impl Trace for NativeFunction {
 }
 
 impl NativeFunction {
-	pub fn new(f: fn(&mut Environment, FunctionParameters) -> ResultWithError<FunctionReturnValue>) -> Self {
+	pub fn new(f: NativeFunctionFn) -> Self {
 		Self { f }
 	}
 }

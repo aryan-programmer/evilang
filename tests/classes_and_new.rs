@@ -1,8 +1,8 @@
 use evilang_lib::ast::expression::{Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral, MemberAccess}, Expression};
-use evilang_lib::ast::expression::Expression::SuperExpression;
 use evilang_lib::ast::expression::MemberIndexer::PropertyName;
 use evilang_lib::ast::operator::Operator::{Assignment, Plus};
-use evilang_lib::ast::statement::Statement::{BlockStatement, ClassDeclarationStatement, ReturnStatement, VariableDeclarations};
+use evilang_lib::ast::statement::Statement;
+use evilang_lib::ast::statement::Statement::{BlockStatement, ReturnStatement, VariableDeclarations};
 use evilang_lib::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 
 use crate::common::{ensure_program, TestRes};
@@ -25,22 +25,22 @@ class Point {
 
 class Point3D extends Point {
   fn constructor(this, x, y, z) {
-    super(x, y);
+    super.constructor(this, x, y);
     this.z = z;
   }
 
   fn calc(this) {
-    return super.calc() + this.z;
+    return super.calc(this) + this.z;
   }
 }
 
 let p = new Point(10, 12);
 let p3 = new Point3D(10, 20, 30);
 "#, [
-		ClassDeclarationStatement {
-			name: "Point".into(),
-			super_class: None,
-			methods: [
+		Statement::class_declaration(
+			"Point".into(),
+			None,
+			[
 				FunctionDeclaration::new(
 					"constructor".into(),
 					[
@@ -97,11 +97,11 @@ let p3 = new Point3D(10, 20, 30);
 					].into()).into(),
 				),
 			].into(),
-		},
-		ClassDeclarationStatement {
-			name: "Point3D".into(),
-			super_class: Some(Identifier("Point".into())),
-			methods: [
+		),
+		Statement::class_declaration(
+			"Point3D".into(),
+			Some(Identifier("Point".into())),
+			[
 				FunctionDeclaration::new(
 					"constructor".into(),
 					[
@@ -120,8 +120,12 @@ let p3 = new Point3D(10, 20, 30);
 					].into(),
 					BlockStatement([
 						Expression::function_call(
-							SuperExpression.into(),
+							Expression::member_property_access(
+								Identifier("super".into()).into(),
+								"constructor".into(),
+							).into(),
 							[
+								Identifier("this".into()),
 								Identifier("x".into()),
 								Identifier("y".into()),
 							].into(),
@@ -149,10 +153,12 @@ let p3 = new Point3D(10, 20, 30);
 								operator: Plus,
 								left: Expression::function_call(
 									MemberAccess {
-										object: SuperExpression.into(),
+										object: Identifier("super".into()).into(),
 										member: PropertyName("calc".into()),
 									}.into(),
-									[].into(),
+									[
+										Identifier("this".into())
+									].into(),
 								).into(),
 								right: MemberAccess {
 									object: Identifier("this".into()).into(),
@@ -163,7 +169,7 @@ let p3 = new Point3D(10, 20, 30);
 					].into()).into(),
 				),
 			].into(),
-		},
+		),
 		VariableDeclarations([
 			VariableDeclaration {
 				identifier: "p".into(),

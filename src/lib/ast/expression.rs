@@ -1,6 +1,6 @@
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
-use crate::ast::structs::{CallExpression, FunctionDeclaration};
+use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration};
 
 pub type BoxExpression = Box<Expression>;
 
@@ -10,6 +10,7 @@ pub type IdentifierT = String;
 pub enum MemberIndexer {
 	PropertyName(IdentifierT),
 	SubscriptExpression(BoxExpression),
+	MethodNameArrow(IdentifierT),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -18,8 +19,9 @@ pub enum Expression {
 	BooleanLiteral(bool),
 	IntegerLiteral(i64),
 	StringLiteral(String),
+	ParenthesizedExpression(BoxExpression),
 	// ThisExpression,
-	SuperExpression,
+	// SuperExpression,
 	UnaryExpression {
 		operator: Operator,
 		argument: BoxExpression,
@@ -42,6 +44,7 @@ pub enum Expression {
 	FunctionCall(CallExpression),
 	NewObjectExpression(CallExpression),
 	FunctionExpression(FunctionDeclaration),
+	ClassDeclarationExpression(Box<ClassDeclaration>),
 }
 
 impl Expression {
@@ -58,6 +61,11 @@ impl Expression {
 	#[inline(always)]
 	pub fn assignment_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
 		return Expression::AssignmentExpression { operator, left, right };
+	}
+
+	#[inline(always)]
+	pub fn member_method_access(object: BoxExpression, property_name: IdentifierT) -> Expression {
+		return Expression::MemberAccess { object, member: MemberIndexer::MethodNameArrow(property_name) };
 	}
 
 	#[inline(always)]
@@ -92,5 +100,10 @@ impl Expression {
 	#[inline(always)]
 	pub fn consume_as_statement(self) -> Statement {
 		return Statement::from(self);
+	}
+
+	#[inline(always)]
+	pub fn consume_as_parenthesized(self) -> Expression {
+		return Expression::ParenthesizedExpression(self.into());
 	}
 }

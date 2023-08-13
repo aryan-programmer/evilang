@@ -199,11 +199,11 @@ fn complex_assignments() -> TestRes {
 							right: BoxExpression::from(BinaryExpression {
 								operator: Multiplication,
 								left: BoxExpression::from(IntegerLiteral(2)),
-								right: BoxExpression::from(AssignmentExpression {
+								right: AssignmentExpression {
 									operator: Assignment,
 									left: BoxExpression::from(Identifier("z".to_string())),
 									right: BoxExpression::from(IntegerLiteral(1)),
-								}),
+								}.consume_as_parenthesized().into(),
 							}),
 						}),
 						right: BoxExpression::from(IntegerLiteral(4)),

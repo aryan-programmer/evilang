@@ -1,17 +1,21 @@
-use std::ops::{Deref, DerefMut};
 use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::Deref;
 
 use gc::GcCellRefMut;
 
-use crate::ast::expression::{BoxExpression, Expression};
+use crate::ast::expression::{BoxExpression, Expression, MemberIndexer};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
-use crate::errors::{ErrorT, ResultWithError};
+use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
-use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::{DerefOfRefToValue, RefToValue}};
+use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue, ref_to_value::{DerefOfRefToValue, RefToValue}};
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
-use crate::interpreter::variables_map::IVariablesMapConstMembers;
+use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::utils::consts::CONSTRUCTOR;
+use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
+use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 macro_rules! auto_implement_binary_operators {
     ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident);*;) => {
@@ -22,30 +26,6 @@ macro_rules! auto_implement_binary_operators {
     };
 }
 
-fn try_left_borrow_mut<'a>(left: &'a mut RefToValue, right: &'a RefToValue) -> ResultWithError<(GcCellRefMut<'a, PrimitiveValue>, DerefOfRefToValue<'a>)> {
-	let RefToValue::LValue(right_lval) = right else {
-		if let RefToValue::RValue(v) = right {
-			return Ok((left.try_borrow_mut()?, DerefOfRefToValue::DerefRValue(v)));
-		}
-		return Err(ErrorT::NeverError.into());
-	};
-	{
-		let left_mut = left.try_borrow_mut()?;
-		if let Ok(borrow) = right_lval.deref().try_borrow() {
-			return Ok((left_mut, DerefOfRefToValue::DerefLValue(borrow)));
-		}
-	}
-	let right_val = DerefOfRefToValue::Value(
-		if let Ok(borrow) = right_lval.deref().try_borrow() {
-			borrow.clone()
-		} else {
-			return Err(ErrorT::InvalidBorrow.into());
-		}
-	);
-	let left_mut = left.try_borrow_mut()?;
-	return Ok((left_mut, right_val));
-}
-
 impl Environment {
 	pub fn eval(&mut self, expression: &Expression) -> ResultWithError<RefToValue> {
 		return Ok(match expression {
@@ -53,24 +33,75 @@ impl Environment {
 			Expression::BooleanLiteral(a) => PrimitiveValue::Boolean(a.clone()).into(),
 			Expression::IntegerLiteral(a) => PrimitiveValue::Integer(a.clone()).into(),
 			Expression::StringLiteral(a) => PrimitiveValue::String(a.clone()).into(),
-			Expression::UnaryExpression { operator, argument } => {
-				self.execute_unary_operator_expression(operator, argument)?
-			}
+			Expression::UnaryExpression { operator, argument } =>
+				self.execute_unary_operator_expression(operator, argument)?,
 			Expression::BinaryExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::AssignmentExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
-			Expression::Identifier(name) => self.get_variable_or_null(name)?,
+			Expression::Identifier(name) => {
+				let var = self.get_actual(name).or_else(|| {
+					self.assign_locally(name, PrimitiveValue::Null.into());
+					self.get_actual(name)
+				}).ok_or_else(|| EvilangError::new(ErrorT::NeverError("When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into())))?;
+				if var.is_hoisted() {
+					return Err(ErrorT::CantAccessHoistedVariable(name.clone()).into());
+				}
+				RefToValue::LValue(var)
+			}
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			Expression::FunctionExpression(fdecl) => {
-				let function: RefToValue = PrimitiveValue::new_closure(self, fdecl.clone()).into();
+				let function = PrimitiveValue::new_closure(self, fdecl.clone());
 				self.assign_locally(&fdecl.name, function.clone());
-				function
+				function.into()
 			}
+			Expression::ClassDeclarationExpression(cdecl) => {
+				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
+				self.assign_locally(&cdecl.name, class.clone());
+				class.into()
+			}
+			Expression::ParenthesizedExpression(expr) => self.eval(expr)?,
+			Expression::MemberAccess { object, member } => {
+				let name = match member {
+					MemberIndexer::PropertyName(name) => name.clone(),
+					MemberIndexer::SubscriptExpression(expr) => {
+						let subscript = self.eval(expr)?;
+						let subs_borr = subscript.borrow();
+						match subs_borr.deref() {
+							PrimitiveValue::String(str) => str.clone(),
+							val => {
+								return Err(RuntimeError::ExpectedValidSubscript(Descriptor::Both {
+									value: val.clone(),
+									expression: (**expr).clone(),
+								}).into());
+							}
+						}
+					}
+					MemberIndexer::MethodNameArrow(_) => {
+						return Err(ErrorT::InvalidMethodArrowAccess(expression.clone()).into());
+					}
+				};
+				let object_val = self.eval_expr_expect_object(object)?;
+				RefToValue::new_object_property_ref(object_val, name)
+			}
+			Expression::NewObjectExpression(call_expr) => self.eval_new_object_expression(call_expr)?,
 			expr => {
 				return Err(ErrorT::UnimplementedExpressionTypeForInterpreter(expr.clone()).into());
 			}
 		});
+	}
+
+	fn eval_expr_expect_object(&mut self, object: &Expression) -> ResultWithError<GcBox<RuntimeObject>> {
+		let object_eval = self.eval(object)?;
+		let obj_eval_borr = object_eval.borrow();
+		return if let PrimitiveValue::Object(object_class_ref) = obj_eval_borr.deref() {
+			Ok(gc_cell_clone(object_class_ref))
+		} else {
+			Err(RuntimeError::ExpectedClassObject(Descriptor::Both {
+				value: obj_eval_borr.deref().clone(),
+				expression: object.clone(),
+			}).into())
+		};
 	}
 
 	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
@@ -131,56 +162,19 @@ impl Environment {
 				if right.is_hoisted() {
 					return Err(ErrorT::CantSetToHoistedValue.into());
 				}
-				*left.try_borrow_mut()? = right.consume_or_clone();
+				left.set(right.consume_or_clone())?;
 			} else {
-				let (mut left_borrow, right_value) = try_left_borrow_mut(&mut left, &right)?;
-				match (operator, left_borrow.deref_mut(), right_value.deref()) {
-					// region ...Integer Assignment Operators
-					(
-						Operator::PlusAssignment,
-						PrimitiveValue::Integer(a),
-						PrimitiveValue::Integer(b),
-					) => *a += b,
-					(
-						Operator::MinusAssignment,
-						PrimitiveValue::Integer(a),
-						PrimitiveValue::Integer(b),
-					) => *a -= b,
-					(
-						Operator::MultiplicationAssignment,
-						PrimitiveValue::Integer(a),
-						PrimitiveValue::Integer(b),
-					) => *a *= b,
-					(
-						Operator::DivisionAssignment,
-						PrimitiveValue::Integer(a),
-						PrimitiveValue::Integer(b),
-					) => *a /= b,
-					(
-						Operator::ModulusAssignment,
-						PrimitiveValue::Integer(a),
-						PrimitiveValue::Integer(b),
-					) => *a %= b,
-					// endregion Integer Assignment Operators
-					(
-						Operator::PlusAssignment,
-						PrimitiveValue::String(a),
-						PrimitiveValue::String(b)
-					) => *a += b,
-					(op, left_mut_ref, right_value_ref) => {
-						let val_to_assign = self.execute_operation_on_primitive(
-							&op.strip_assignment()?,
-							left_mut_ref,
-							right_value_ref,
-							left_expr,
-							right_expr,
-						)?;
-						if val_to_assign.is_hoisted() {
-							return Err(ErrorT::CantSetToHoistedValue.into());
-						}
-						*left_mut_ref = val_to_assign;
-					}
-				};
+				let val_to_assign = self.execute_operation_on_primitive(
+					&operator.strip_assignment()?,
+					left.borrow().deref(),
+					right.borrow().deref(),
+					left_expr,
+					right_expr,
+				)?;
+				if val_to_assign.is_hoisted() {
+					return Err(ErrorT::CantSetToHoistedValue.into());
+				}
+				left.set(val_to_assign)?;
 			}
 			return Ok(left);
 		}
@@ -233,26 +227,52 @@ impl Environment {
 		};
 	}
 
+	pub fn eval_new_object_expression(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
+		let class = self.eval_expr_expect_object(&call_expr.callee)?;
+		let obj = RuntimeObject::allocate_instance(class);
+		let res = RuntimeObject::call_method_on_object_with_args(
+			gc_cell_clone(&obj),
+			self,
+			&CONSTRUCTOR.to_string(),
+			call_expr,
+		)?;
+		return Ok(match res {
+			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => PrimitiveValue::Object(obj),
+			rv => rv
+		}.into());
+	}
+
+	//noinspection RsLift
 	pub fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
-		return match call_expr.callee.deref() {
+		match call_expr.callee.deref() {
+			Expression::MemberAccess {
+				object,
+				member: MemberIndexer::MethodNameArrow(method_name)
+			} => {
+				return Ok(RuntimeObject::call_method_on_object_with_args(
+					self.eval_expr_expect_object(&object)?,
+					self,
+					method_name,
+					call_expr,
+				)?.into());
+			}
 			expr => {
 				let function = self.eval(expr)?.consume_or_clone();
-				match function {
-					PrimitiveValue::Function(ref gc_fn) => {
-						let args = call_expr
-							.arguments
-							.iter()
-							.map(|v| self
-								.eval(v)
-								.map(RefToValue::consume_or_clone)
-							)
-							.collect::<ResultWithError<FunctionParameters>>()?;
-						Ok(gc_fn.borrow().execute(self, args)?.into())
-					}
-					_ => {
-						Err(ErrorT::NotAFunction(expr.clone()).into())
-					}
-				}
+				let PrimitiveValue::Function(ref gc_fn) = function else {
+					return Err(RuntimeError::ExpectedFunction(Descriptor::Both {
+						value: function,
+						expression: expr.clone(),
+					}).into());
+				};
+				let args = call_expr
+					.arguments
+					.iter()
+					.map(|v| self
+						.eval(v)
+						.map(RefToValue::consume_or_clone)
+					)
+					.collect::<ResultWithError<FunctionParameters>>()?;
+				return Ok(gc_fn.borrow().execute(self, args)?.into());
 			}
 		};
 	}

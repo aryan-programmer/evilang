@@ -62,7 +62,7 @@ fn complex_unary() -> TestRes {
 							operator: Plus,
 							argument: IntegerLiteral(15).into(),
 						}.into(),
-					}.into(),
+					}.consume_as_parenthesized().into(),
 				}.into(),
 			}.into(),
 		}.into(),

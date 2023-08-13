@@ -58,7 +58,7 @@ fn member_complex_assignment() -> TestRes {
 							member: PropertyName("right".to_string()),
 						}.into(),
 						right: IntegerLiteral(1).into(),
-					}.into(),
+					}.consume_as_parenthesized().into(),
 				}.into(),
 			}.into(),
 			right: IntegerLiteral(4).into(),

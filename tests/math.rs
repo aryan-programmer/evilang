@@ -109,11 +109,11 @@ fn subtraction_division_and_modulus() -> TestRes {
 fn parenthesis() -> TestRes {
 	ensure_program_statement_results("(2+3)*4;", vec![BinaryExpression {
 		operator: Multiplication,
-		left: BoxExpression::from(BinaryExpression {
+		left: BinaryExpression {
 			operator: Plus,
 			left: BoxExpression::from(IntegerLiteral(2)),
 			right: BoxExpression::from(IntegerLiteral(3)),
-		}),
+		}.consume_as_parenthesized().into(),
 		right: BoxExpression::from(IntegerLiteral(4)),
 	}.consume_as_statement()], vec![PrimitiveValue::Integer(20)]);
 }

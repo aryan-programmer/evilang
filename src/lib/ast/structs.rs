@@ -41,6 +41,20 @@ impl FunctionDeclaration {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ClassDeclaration {
+	pub name: IdentifierT,
+	pub super_class: Option<Expression>,
+	pub methods: Vec<FunctionDeclaration>,
+}
+
+impl ClassDeclaration {
+	#[inline(always)]
+	pub fn new(name: IdentifierT, super_class: Option<Expression>, methods: Vec<FunctionDeclaration>) -> Self {
+		Self { name, super_class, methods }
+	}
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CallExpression {
 	pub callee: BoxExpression,
 	pub arguments: Vec<Expression>,

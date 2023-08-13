@@ -36,14 +36,24 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 fn main() {
 	let mut env = Environment::new();
 	let program = r#"
-fn factorial(n) {
-	if (n == 0){
-		return 1;
-	}
-	return n + factorial(n - 1);
+class SuperClass {
+
 }
-push_res_stack(factorial(29));
+SuperClass.x = 12;
+class Point extends SuperClass {
+}
+Point.x = 13;
+push_res_stack(SuperClass.x, Point.x);
 "#;
+
+	/*
+let v2 = allocate_object(Object, "Child");
+push_res_stack(Object);
+push_res_stack(allocate_object());
+push_res_stack(v2);
+push_res_stack(allocate_object(v2));
+*/
+
 	// print_program(program);
 	env.eval_program_string(program.to_string()).map_err(|err| {
 		dbg!(err);

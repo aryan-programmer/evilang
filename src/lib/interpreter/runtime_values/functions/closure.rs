@@ -9,7 +9,7 @@ use crate::interpreter::environment::statement_result::{StatementExecution, Unro
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::variables_map::{GlobalScope, IVariablesMapDelegator, VariableScope};
+use crate::interpreter::variables_containers::{GlobalScope, map::IVariablesMapDelegator, VariableScope};
 use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 #[derive(PartialEq, Trace, Finalize)]

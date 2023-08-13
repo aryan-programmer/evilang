@@ -3,7 +3,7 @@ use std::iter::Peekable;
 use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
 use crate::ast::expression::IdentifierT;
 use crate::ast::statement::BoxStatement;
-use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
+use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
 
@@ -180,11 +180,20 @@ impl Parser {
 
 	/*
 	class_declaration_statement:
+		| class_declaration
+	*/
+	#[inline]
+	fn class_declaration_statement(&mut self) -> ResultWithError<Statement> {
+		return Ok(Statement::ClassDeclarationStatement(self.class_declaration()?));
+	}
+
+	/*
+	class_declaration:
 		| 'class' identifier ('extends' identifier)? '{'
 			  function_declarations
 		  '}'
 	*/
-	fn class_declaration_statement(&mut self) -> ResultWithError<Statement> {
+	fn class_declaration(&mut self) -> ResultWithError<ClassDeclaration> {
 		self.eat(TokenType::Keyword(Keyword::Class))?;
 		let name = self.identifier()?;
 		let super_class = if self.lookahead_type()? == TokenType::Keyword(Keyword::Extends) {
@@ -194,7 +203,7 @@ impl Parser {
 		self.eat(TokenType::OpenBlock)?;
 		let methods = self.un_delimited_items(Self::function_declaration, TokenType::CloseBlock)?;
 		self.eat(TokenType::CloseBlock)?;
-		return Ok(Statement::class_declaration(name, super_class, methods));
+		return Ok(ClassDeclaration::new(name, super_class, methods));
 	}
 
 	/*
@@ -215,6 +224,7 @@ impl Parser {
 	function_declaration_statement:
 		| function_declaration
 	*/
+	#[inline]
 	fn function_declaration_statement(&mut self) -> ResultWithError<Statement> {
 		return Ok(Statement::FunctionDeclarationStatement(self.function_declaration()?));
 	}
@@ -550,26 +560,9 @@ impl Parser {
 		| primary_expression
 		| super_expression
 	*/
+	#[inline(always)]
 	fn primary_or_super_expression(&mut self) -> ResultWithError<Expression> {
-		return Ok(match self.lookahead_type()? {
-			TokenType::Keyword(Keyword::Super) => self.super_expression()?,
-			_ => self.primary_expression()?
-		});
-	}
-
-	fn member_access_part(&mut self, res: Expression) -> ResultWithError<(Expression, bool)> {
-		if self.lookahead_type()? == TokenType::Dot {
-			self.eat(TokenType::Dot)?;
-			let property_name = self.identifier()?;
-			return Ok((Expression::member_property_access(res.into(), property_name), true));
-		} else if self.lookahead_type()? == TokenType::OpenSquareBracket {
-			self.eat(TokenType::OpenSquareBracket)?;
-			let expr = self.expression()?.into();
-			self.eat(TokenType::CloseSquareBracket)?;
-
-			return Ok((Expression::member_subscript(res.into(), expr), true));
-		}
-		return Ok((res, false));
+		return self.primary_expression();
 	}
 
 	/*
@@ -594,22 +587,6 @@ impl Parser {
 		return self.delimited_items(Self::expression, TokenType::Comma, TokenType::CloseParen);
 	}
 
-	#[inline]
-	fn check_if_next_token_is_member_access_like(&mut self) -> ResultWithError<bool> {
-		return Ok(match self.lookahead_type()? {
-			TokenType::Dot | TokenType::OpenSquareBracket => true,
-			_ => false
-		});
-	}
-
-	#[inline]
-	fn check_if_next_token_is_member_access_or_call_like(&mut self) -> ResultWithError<bool> {
-		return Ok(self.check_if_next_token_is_member_access_like()? || match self.lookahead_type()? {
-			TokenType::OpenParen => true,
-			_ => false
-		});
-	}
-
 	/*
 	primary_expression:
 		| literal
@@ -629,6 +606,7 @@ impl Parser {
 			// }
 			TokenType::Keyword(Keyword::New) => self.new_expression(),
 			TokenType::Keyword(Keyword::Fn) => self.function_expression(),
+			TokenType::Keyword(Keyword::Class) => self.class_declaration_expression(),
 			_ => self.identifier_expression(),
 		};
 	}
@@ -643,6 +621,15 @@ impl Parser {
 	}
 
 	/*
+	class_declaration_expression:
+		| class_declaration
+	*/
+	#[inline]
+	fn class_declaration_expression(&mut self) -> ResultWithError<Expression> {
+		return Ok(Expression::ClassDeclarationExpression(self.class_declaration()?.into()));
+	}
+
+	/*
 	new_expression:
 		| 'new' member_expression '(' function_call_arguments ')'
 	*/
@@ -653,11 +640,11 @@ impl Parser {
 		return Ok(Expression::new_object_expression(class_val.into(), args));
 	}
 
-	#[inline]
-	fn super_expression(&mut self) -> ResultWithError<Expression> {
-		self.eat(TokenType::Keyword(Keyword::Super))?;
-		return Ok(Expression::SuperExpression);
-	}
+	// #[inline]
+	// fn super_expression(&mut self) -> ResultWithError<Expression> {
+	// 	self.eat(TokenType::Keyword(Keyword::Super))?;
+	// 	return Ok(Expression::SuperExpression);
+	// }
 
 	#[inline]
 	fn identifier_expression(&mut self) -> ResultWithError<Expression> {
@@ -670,9 +657,9 @@ impl Parser {
 	*/
 	fn parenthesized_expression(&mut self) -> ResultWithError<Expression> {
 		self.eat(TokenType::OpenParen)?;
-		let res = self.expression();
+		let res = self.expression()?;
 		self.eat(TokenType::CloseParen)?;
-		return res;
+		return Ok(Expression::ParenthesizedExpression(res.into()));
 	}
 
 	/*
@@ -775,6 +762,41 @@ impl Parser {
 			res.push(item(self)?);
 		}
 		return Ok(res);
+	}
+
+	#[inline]
+	fn check_if_next_token_is_member_access_like(&mut self) -> ResultWithError<bool> {
+		return Ok(match self.lookahead_type()? {
+			TokenType::Dot | TokenType::OpenSquareBracket | TokenType::Arrow => true,
+			_ => false
+		});
+	}
+
+	#[inline]
+	fn check_if_next_token_is_member_access_or_call_like(&mut self) -> ResultWithError<bool> {
+		return Ok(self.check_if_next_token_is_member_access_like()? || match self.lookahead_type()? {
+			TokenType::OpenParen => true,
+			_ => false
+		});
+	}
+
+	fn member_access_part(&mut self, res: Expression) -> ResultWithError<(Expression, bool)> {
+		if self.lookahead_type()? == TokenType::Dot {
+			self.eat(TokenType::Dot)?;
+			let property_name = self.identifier()?;
+			return Ok((Expression::member_property_access(res.into(), property_name), true));
+		} else if self.lookahead_type()? == TokenType::Arrow {
+			self.eat(TokenType::Arrow)?;
+			let property_name = self.identifier()?;
+			return Ok((Expression::member_method_access(res.into(), property_name), true));
+		} else if self.lookahead_type()? == TokenType::OpenSquareBracket {
+			self.eat(TokenType::OpenSquareBracket)?;
+			let expr = self.expression()?.into();
+			self.eat(TokenType::CloseSquareBracket)?;
+
+			return Ok((Expression::member_subscript(res.into(), expr), true));
+		}
+		return Ok((res, false));
 	}
 	// endregion
 }

@@ -8,14 +8,66 @@ use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
 use crate::interpreter::environment::statement_result::StatementExecution;
+use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::tokenizer::Token;
 
 pub type ResultWithError<T, E = EvilangError> = anyhow::Result<T, E>;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Descriptor {
+	None,
+	Name(IdentifierT),
+	Value(PrimitiveValue),
+	Expression(Expression),
+	Both { value: PrimitiveValue, expression: Expression },
+}
+
+impl From<&str> for Descriptor {
+	fn from(value: &str) -> Self {
+		Descriptor::Name(value.to_string())
+	}
+}
+
+impl From<IdentifierT> for Descriptor {
+	fn from(value: IdentifierT) -> Self {
+		Descriptor::Name(value)
+	}
+}
+
+impl From<PrimitiveValue> for Descriptor {
+	fn from(value: PrimitiveValue) -> Self {
+		Descriptor::Value(value)
+	}
+}
+
+impl From<Expression> for Descriptor {
+	fn from(value: Expression) -> Self {
+		Descriptor::Expression(value)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Error)]
+pub enum RuntimeError {
+	#[error("{0}")]
+	GenericError(String),
+	#[error("Expected {0:#?} to be a function")]
+	ExpectedFunction(Descriptor),
+	#[error("Expected {0:#?} to be a class object")]
+	ExpectedClassObject(Descriptor),
+	#[error("Expected {0:#?} to be an object")]
+	ExpectedObject(Descriptor),
+	#[error("Invalid number of arguments {got:?} expected {expected:?} to be function {func:#?}")]
+	InvalidNumberArgumentsToFunction { got: usize, expected: Option<String>, func: Descriptor },
+	#[error("Expected {0:#?} to be a valid subscript expression")]
+	ExpectedValidSubscript(Descriptor),
+}
+
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ErrorT {
-	#[error("This error should never happen")]
-	NeverError,
+	#[error("This error should never happen: {0}")]
+	NeverError(String),
+	#[error(transparent)]
+	UnexpectedRuntimeError(#[from] RuntimeError),
 	#[error("End of Token Stream")]
 	EndOfTokenStream,
 	#[error("Invalid Token Type: {0:#?}")]
@@ -38,8 +90,6 @@ pub enum ErrorT {
 	UnimplementedBinaryOperatorForValues(Operator, Expression, Expression),
 	#[error("The interpreter does not support the unary operator: {0:?} for the value {1:#?}")]
 	UnimplementedUnaryOperatorForValues(Operator, Expression),
-	#[error("The following expression is not a function: {0:?}")]
-	NotAFunction(Expression),
 	#[error("A mutable borrow already exists")]
 	InvalidBorrow,
 	#[error("The cannot strip assignment from operator: {0:?}")]
@@ -52,6 +102,8 @@ pub enum ErrorT {
 	CantSetToHoistedValue,
 	#[error("Invalid unrolling from function {0:?}: {1:#?}")]
 	InvalidUnrollingOfFunction(IdentifierT, StatementExecution),
+	#[error("Member functions accessed by the arrow notation mus be immediately called: {0:#?}")]
+	InvalidMethodArrowAccess(Expression),
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +134,13 @@ impl From<ErrorT> for EvilangError {
 	#[inline(always)]
 	fn from(value: ErrorT) -> Self {
 		return EvilangError::new(value);
+	}
+}
+
+impl From<RuntimeError> for EvilangError {
+	#[inline(always)]
+	fn from(value: RuntimeError) -> Self {
+		return EvilangError::new(ErrorT::UnexpectedRuntimeError(value));
 	}
 }
 

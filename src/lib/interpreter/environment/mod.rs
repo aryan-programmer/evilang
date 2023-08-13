@@ -5,13 +5,18 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
-use crate::errors::{ErrorT, ResultWithError};
+use crate::ast::structs::ClassDeclaration;
+use crate::errors::{Descriptor, ErrorT, ResultWithError, RuntimeError};
 use crate::interpreter::environment::default_global_scope::get_default_global_scope;
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
 use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::RefToValue};
-use crate::interpreter::variables_map::{delegate_ivariables_map, GlobalScope, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator, VariableScope, VariablesMap};
+use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::utils::consts::{OBJECT, SUPER};
+use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
+use crate::interpreter::utils::get_object_superclass;
+use crate::interpreter::variables_containers::{GlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
 use crate::parser::parse;
-use crate::utils::cell_ref::{gc_cell_clone, GcBox};
+use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub mod statement_result;
 pub mod expression_evaluation;
@@ -61,7 +66,7 @@ impl Environment {
 			let scope_borr = scope.borrow();
 			let mut scope_vars_borr = scope_borr.variables.borrow_mut();
 			for (name, value) in variables.into_iter() {
-				scope_vars_borr.deref_mut().assign(&name, value.into());
+				scope_vars_borr.deref_mut().assign(&name, value);
 			}
 		}
 		return Self::new_full(scope, global_scope);
@@ -78,7 +83,6 @@ impl Environment {
 		);
 	}
 
-
 	pub fn eval_program_string(&mut self, input: String) -> ResultWithError<StatementExecution> {
 		self.setup_and_eval_statements(&parse(input)?)
 	}
@@ -89,10 +93,20 @@ impl Environment {
 				for decl in decls.iter() {
 					self.hoist_identifier(&decl.identifier)?;
 				}
-			}
+			},
 			Statement::FunctionDeclarationStatement(fdecl) => {
-				self.declare(&fdecl.name, PrimitiveValue::new_closure(self, fdecl.clone()).into())?;
-			}
+				self.declare(
+					&fdecl.name,
+					PrimitiveValue::new_closure(self, fdecl.clone()).into()
+				)?;
+			},
+			Statement::ClassDeclarationStatement(cdecl) => {
+				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
+				self.declare(
+					&cdecl.name,
+					class.into()
+				)?;
+			},
 			_ => {}
 		}
 		return Ok(StatementMetaGeneration::NormalGeneration);
@@ -175,9 +189,9 @@ impl Environment {
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls.iter() {
 					let value = if let Some(expr) = &decl.initializer {
-						self.eval(expr)?
+						self.eval(expr)?.consume_or_clone()
 					} else {
-						PrimitiveValue::Null.into()
+						PrimitiveValue::Null
 					};
 					self.declare(&decl.identifier, value)?;
 				}
@@ -201,6 +215,10 @@ impl Environment {
 				};
 				Ok(StatementExecution::Unrolling(UnrollingReason::ReturningValue(res)))
 			}
+			Statement::ClassDeclarationStatement(decl) => {
+				// Class declaration has already been hoisted
+				Ok(StatementExecution::NormalFlow)
+			},
 			stmt => {
 				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
 			}
@@ -255,10 +273,5 @@ impl Environment {
 	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
 		self.scope.deref().borrow().hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
-	}
-
-	#[inline]
-	pub fn assign_locally(&mut self, name: &IdentifierT, value: RefToValue) -> Option<PrimitiveValue> {
-		return self.scope.borrow().variables.borrow_mut().assign(name, value);
 	}
 }

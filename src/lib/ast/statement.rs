@@ -1,5 +1,5 @@
 use crate::ast::expression::{Expression, IdentifierT};
-use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
+use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 
 pub type BoxStatement = Box<Statement>;
 
@@ -34,11 +34,7 @@ pub enum Statement {
 	BreakStatement(i64),
 	ContinueStatement(i64),
 	FunctionDeclarationStatement(FunctionDeclaration),
-	ClassDeclarationStatement {
-		name: IdentifierT,
-		super_class: Option<Expression>,
-		methods: Vec<FunctionDeclaration>,
-	},
+	ClassDeclarationStatement(ClassDeclaration),
 }
 
 impl Statement {
@@ -91,7 +87,7 @@ impl Statement {
 		super_class: Option<Expression>,
 		methods: Vec<FunctionDeclaration>,
 	) -> Statement {
-		return Statement::ClassDeclarationStatement { name, super_class, methods };
+		return Statement::ClassDeclarationStatement(ClassDeclaration::new(name, super_class, methods));
 	}
 }
 
