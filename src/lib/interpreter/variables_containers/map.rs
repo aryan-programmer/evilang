@@ -7,7 +7,6 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue};
-use crate::interpreter::runtime_values::ref_to_value::RefToValue;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub trait IVariablesMapConstMembers {

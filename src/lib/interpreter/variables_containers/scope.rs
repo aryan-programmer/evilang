@@ -4,7 +4,6 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::runtime_values::ref_to_value::RefToValue;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
 use crate::interpreter::variables_containers::map::IVariablesMap;
 use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
@@ -19,7 +18,7 @@ pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace 
 			return self_vars;
 		}
 		let mut parent_opt = self.get_parent();
-		while let Some(mut parent) = parent_opt {
+		while let Some(parent) = parent_opt {
 			let v_borrow = parent.borrow();
 			let v_vars = v_borrow.get_variables();
 			if v_vars.borrow().contains_key(name) {

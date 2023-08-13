@@ -1,9 +1,9 @@
 use crate::interpreter::environment::native_functions::get_native_functions_list;
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::consts::OBJECT;
 use crate::interpreter::variables_containers::{GlobalScope, VariablesMap};
 use crate::utils::cell_ref::{gc_box_from, GcBox};
-use crate::interpreter::utils::consts::{OBJECT};
 
 pub fn get_object_class() -> GcBox<RuntimeObject> {
 	return RuntimeObject::new_gc(VariablesMap::new(), None, OBJECT.into());

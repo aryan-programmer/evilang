@@ -13,7 +13,6 @@ use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, I
 use crate::utils::cell_ref::{gc_box_from, GcBox};
 
 pub mod deref_of_ref_to_value;
-pub mod ref_to_object_property;
 
 #[derive(Debug, PartialEq)]
 pub enum RefToValue {
@@ -89,15 +88,7 @@ impl RefToValue {
 			RefToValue::ObjectProperty { snapshot: None, .. } => DerefOfRefToValue::Value(PrimitiveValue::Null),
 		};
 	}
-
-	// #[inline(always)]
-	// pub fn try_borrow_mut(&self) -> ResultWithError<GcCellRefMut<PrimitiveValue>> {
-	// 	return match self {
-	// 		RefToValue::RValue(_) => Err(ErrorT::ExpectedLhsExpression.into()),
-	// 		RefToValue::LValue(v) => Ok(v.deref().borrow_mut()),
-	// 	};
-	// }
-
+	
 	delegate! {
 		to match self {
 			RefToValue::RValue(v) => v,

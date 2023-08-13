@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
 use crate::ast::expression::IdentifierT;
-use crate::errors::{EvilangError, ResultWithError, RuntimeError};
-use crate::interpreter::utils::consts::{OBJECT, INSTANCE_OF_};
+use crate::errors::{ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::native_function::{NativeFunction, NativeFunctionFn};
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::consts::INSTANCE_OF_;
 use crate::interpreter::utils::get_object_superclass;
-use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
 use crate::utils::cell_ref::gc_cell_clone;
 
 pub fn push_res_stack(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {

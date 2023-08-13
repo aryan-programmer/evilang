@@ -600,10 +600,6 @@ impl Parser {
 		}
 		return match token_type {
 			TokenType::OpenParen => self.parenthesized_expression(),
-			// TokenType::Keyword(Keyword::This) => {
-			// 	self.eat(TokenType::Keyword(Keyword::This))?;
-			// 	Ok(Expression::ThisExpression)
-			// }
 			TokenType::Keyword(Keyword::New) => self.new_expression(),
 			TokenType::Keyword(Keyword::Fn) => self.function_expression(),
 			TokenType::Keyword(Keyword::Class) => self.class_declaration_expression(),

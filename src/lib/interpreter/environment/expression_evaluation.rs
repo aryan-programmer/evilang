@@ -1,14 +1,12 @@
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::ops::Deref;
 
-use gc::GcCellRefMut;
-
 use crate::ast::expression::{BoxExpression, Expression, MemberIndexer};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
-use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue, ref_to_value::{DerefOfRefToValue, RefToValue}};
+use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue, ref_to_value::RefToValue};
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
@@ -85,9 +83,11 @@ impl Environment {
 				RefToValue::new_object_property_ref(object_val, name)
 			}
 			Expression::NewObjectExpression(call_expr) => self.eval_new_object_expression(call_expr)?,
+			/*
 			expr => {
 				return Err(ErrorT::UnimplementedExpressionTypeForInterpreter(expr.clone()).into());
 			}
+			*/
 		});
 	}
 

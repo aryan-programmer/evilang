@@ -37,7 +37,6 @@ fn main() {
 	let mut env = Environment::new();
 	let program = r#"
 class SuperClass {
-
 }
 SuperClass.x = 12;
 class Point extends SuperClass {

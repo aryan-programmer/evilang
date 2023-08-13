@@ -1,5 +1,7 @@
 use std::ops::Deref;
+
 use gc::{Finalize, Trace};
+
 use crate::ast::expression::IdentifierT;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ResultWithError, RuntimeError};
@@ -7,8 +9,7 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::runtime_values::ref_to_value::{RefToValue};
-
+use crate::interpreter::runtime_values::ref_to_value::RefToValue;
 use crate::interpreter::utils::consts::INSTANCE_OF_;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
@@ -51,7 +52,7 @@ impl RuntimeObject {
 		);
 	}
 
-	pub fn call_method_on_object_with_args(this: GcBox<RuntimeObject>, env: &mut Environment, method_name: &IdentifierT, call_expr: &CallExpression)->ResultWithError<FunctionReturnValue> {
+	pub fn call_method_on_object_with_args(this: GcBox<RuntimeObject>, env: &mut Environment, method_name: &IdentifierT, call_expr: &CallExpression) -> ResultWithError<FunctionReturnValue> {
 		let Some(method_prop_box) = this.borrow().get_actual(method_name) else {
 			return Err(RuntimeError::ExpectedFunction(Descriptor::Expression((*call_expr.callee).clone())).into());
 		};

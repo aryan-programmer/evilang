@@ -20,8 +20,6 @@ pub enum Expression {
 	IntegerLiteral(i64),
 	StringLiteral(String),
 	ParenthesizedExpression(BoxExpression),
-	// ThisExpression,
-	// SuperExpression,
 	UnaryExpression {
 		operator: Operator,
 		argument: BoxExpression,

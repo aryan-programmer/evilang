@@ -1,5 +1,3 @@
-use std::ops::DerefMut;
-
 use gc::{Finalize, Trace};
 
 pub use map::VariablesMap;
@@ -7,8 +5,7 @@ pub use scope::VariableScope;
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
-use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue};
-use crate::interpreter::runtime_values::ref_to_value::RefToValue;
+use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::variables_containers::map::{delegate_ivariables_map, IVariablesMapConstMembers, IVariablesMapDelegator};
 use crate::utils::cell_ref::{gc_box_from, GcBox};
 

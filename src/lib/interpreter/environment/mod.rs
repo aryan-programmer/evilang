@@ -5,18 +5,14 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
-use crate::ast::structs::ClassDeclaration;
-use crate::errors::{Descriptor, ErrorT, ResultWithError, RuntimeError};
+use crate::errors::ResultWithError;
 use crate::interpreter::environment::default_global_scope::get_default_global_scope;
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
-use crate::interpreter::runtime_values::{PrimitiveValue, ref_to_value::RefToValue};
-use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
-use crate::interpreter::utils::consts::{OBJECT, SUPER};
+use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
-use crate::interpreter::utils::get_object_superclass;
 use crate::interpreter::variables_containers::{GlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
 use crate::parser::parse;
-use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 pub mod statement_result;
 pub mod expression_evaluation;
@@ -93,20 +89,20 @@ impl Environment {
 				for decl in decls.iter() {
 					self.hoist_identifier(&decl.identifier)?;
 				}
-			},
+			}
 			Statement::FunctionDeclarationStatement(fdecl) => {
 				self.declare(
 					&fdecl.name,
-					PrimitiveValue::new_closure(self, fdecl.clone()).into()
+					PrimitiveValue::new_closure(self, fdecl.clone()).into(),
 				)?;
-			},
+			}
 			Statement::ClassDeclarationStatement(cdecl) => {
 				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
 				self.declare(
 					&cdecl.name,
-					class.into()
+					class.into(),
 				)?;
-			},
+			}
 			_ => {}
 		}
 		return Ok(StatementMetaGeneration::NormalGeneration);
@@ -215,13 +211,13 @@ impl Environment {
 				};
 				Ok(StatementExecution::Unrolling(UnrollingReason::ReturningValue(res)))
 			}
-			Statement::ClassDeclarationStatement(decl) => {
+			Statement::ClassDeclarationStatement(..) => {
 				// Class declaration has already been hoisted
 				Ok(StatementExecution::NormalFlow)
-			},
-			stmt => {
-				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
 			}
+			/*stmt => {
+				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
+			}*/
 		};
 	}
 
