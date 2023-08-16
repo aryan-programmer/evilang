@@ -1,4 +1,4 @@
-use evilang_lib::interpreter::runtime_values::PrimitiveValue::Integer;
+use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{ensure_res_stack_matches, TestRes};
 
@@ -13,8 +13,8 @@ fn square(n){
 push_res_stack(square(2));
 push_res_stack(square(3));
 "#, vec![
-		Integer(4),
-		Integer(9),
+		PrimitiveValue::integer(4),
+		PrimitiveValue::integer(9),
 	]);
 }
 
@@ -28,8 +28,8 @@ fn calc(x, y){
 push_res_stack(calc(2, 5));
 push_res_stack(calc(7, 3));
 "#, vec![
-		Integer(40),
-		Integer(51),
+		PrimitiveValue::integer(40),
+		PrimitiveValue::integer(51),
 	]);
 }
 
@@ -44,7 +44,7 @@ fn factorial(n) {
 }
 push_res_stack(factorial(20));
 "#, vec![
-		Integer(2432902008176640000),
+		PrimitiveValue::integer(2432902008176640000),
 	]);
 }
 
@@ -66,9 +66,9 @@ push_res_stack(func(35));
 value = -100;
 push_res_stack(func(30));
 "#, vec![
-		Integer(160),
-		Integer(165),
-		Integer(-40),
+		PrimitiveValue::integer(160),
+		PrimitiveValue::integer(165),
+		PrimitiveValue::integer(-40),
 	]);
 }
 
@@ -102,9 +102,9 @@ push_res_stack(getX());
 setX(-13);
 push_res_stack(getX());
 "#, vec![
-		Integer(10),
-		Integer(42),
-		Integer(-13),
+		PrimitiveValue::integer(10),
+		PrimitiveValue::integer(42),
+		PrimitiveValue::integer(-13),
 	]);
 }
 
@@ -138,9 +138,9 @@ push_res_stack(getX());
 setX(-13);
 push_res_stack(getX());
 "#, vec![
-		Integer(10),
-		Integer(42),
-		Integer(-13),
+		PrimitiveValue::integer(10),
+		PrimitiveValue::integer(42),
+		PrimitiveValue::integer(-13),
 	]);
 }
 
@@ -157,8 +157,8 @@ let trigger = eventTrigger(10, fn pusher(v){push_res_stack(v);});
 trigger(3, 7);
 trigger(7, 9);
 "#, vec![
-		Integer(30),
-		Integer(42),
+		PrimitiveValue::integer(30),
+		PrimitiveValue::integer(42),
 	]);
 }
 
@@ -172,8 +172,8 @@ push_res_stack(fn square(n){
 	return n * n;
 }(-12)));
 "#, vec![
-		Integer(100),
-		Integer(144),
+		PrimitiveValue::integer(100),
+		PrimitiveValue::integer(144),
 	]);
 }
 
@@ -192,9 +192,9 @@ push_res_stack(square_fn(3));
 push_res_stack(double(4));
 push_res_stack(double_fn(5));
 "#, vec![
-		Integer(4),
-		Integer(9),
-		Integer(8),
-		Integer(10),
+		PrimitiveValue::integer(4),
+		PrimitiveValue::integer(9),
+		PrimitiveValue::integer(8),
+		PrimitiveValue::integer(10),
 	]);
 }

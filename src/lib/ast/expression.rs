@@ -1,24 +1,28 @@
+use num_traits::{Num};
+
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
 use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration};
+use crate::errors::ResultWithError;
+use crate::math::number::NumberT;
 
 pub type BoxExpression = Box<Expression>;
 
 pub type IdentifierT = String;
 pub type DottedIdentifiers = Vec<IdentifierT>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MemberIndexer {
 	PropertyName(IdentifierT),
 	SubscriptExpression(BoxExpression),
 	MethodNameArrow(IdentifierT),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
 	NullLiteral,
 	BooleanLiteral(bool),
-	IntegerLiteral(i64),
+	NumericLiteral(NumberT),
 	StringLiteral(String),
 	ParenthesizedExpression(BoxExpression),
 	UnaryExpression {
@@ -48,6 +52,18 @@ pub enum Expression {
 }
 
 impl Expression {
+	pub fn numeric_literal(v: &str) -> ResultWithError<Expression> {
+		return Ok(Expression::NumericLiteral(NumberT::from_str_radix(v, 10)?));
+	}
+
+	pub fn integer_literal(v: i64) -> Expression {
+		return Expression::NumericLiteral(NumberT::Integer(v as i128));
+	}
+
+	pub fn float_literal(v: f64) -> Expression {
+		return Expression::NumericLiteral(NumberT::Float(v));
+	}
+
 	#[inline(always)]
 	pub fn binary_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
 		return Expression::BinaryExpression { operator, left, right };

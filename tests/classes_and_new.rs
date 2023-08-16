@@ -1,4 +1,4 @@
-use evilang_lib::ast::expression::{Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral, MemberAccess}, Expression};
+use evilang_lib::ast::expression::{Expression::{AssignmentExpression, BinaryExpression, Identifier, MemberAccess}, Expression};
 use evilang_lib::ast::expression::MemberIndexer::PropertyName;
 use evilang_lib::ast::operator::Operator::{Assignment, Plus};
 use evilang_lib::ast::statement::Statement;
@@ -185,8 +185,8 @@ push_res_stack(p3->calc());
 					initializer: Some(Expression::new_object_expression(
 						Identifier("Point".into()).into(),
 						[
-							IntegerLiteral(10),
-							IntegerLiteral(12),
+							Expression::integer_literal(10),
+							Expression::integer_literal(12),
 						].into(),
 					)),
 				},
@@ -197,9 +197,9 @@ push_res_stack(p3->calc());
 					initializer: Some(Expression::new_object_expression(
 						Identifier("Point3D".into()).into(),
 						[
-							IntegerLiteral(10),
-							IntegerLiteral(20),
-							IntegerLiteral(30),
+							Expression::integer_literal(10),
+							Expression::integer_literal(20),
+							Expression::integer_literal(30),
 						].into(),
 					)),
 				},
@@ -221,8 +221,8 @@ push_res_stack(p3->calc());
 		].into())
 		// endregion expect_statements
 		.expect_stack([
-			PrimitiveValue::Integer(22),
-			PrimitiveValue::Integer(60),
+			PrimitiveValue::integer(22),
+			PrimitiveValue::integer(60),
 		].into());
 }
 
@@ -265,12 +265,12 @@ push_res_stack(Point.x);
 push_res_stack(p.x);
 "#.to_string())
 		.expect_stack([
-			PrimitiveValue::Integer(22),
-			PrimitiveValue::Integer(43),
-			PrimitiveValue::Integer(42),
-			PrimitiveValue::Integer(-2),
-			PrimitiveValue::Integer(-1),
-			PrimitiveValue::Integer(31),
+			PrimitiveValue::integer(22),
+			PrimitiveValue::integer(43),
+			PrimitiveValue::integer(42),
+			PrimitiveValue::integer(-2),
+			PrimitiveValue::integer(-1),
+			PrimitiveValue::integer(31),
 		].into());
 }
 
@@ -302,12 +302,12 @@ p->push();
 push_res_stack(p.push == pusher);
 "#.to_string())
 		.expect_stack([
-			PrimitiveValue::Integer(10),
-			PrimitiveValue::Integer(12),
-			PrimitiveValue::Integer(22),
-			PrimitiveValue::Integer(10),
-			PrimitiveValue::Integer(12),
-			PrimitiveValue::Integer(22),
+			PrimitiveValue::integer(10),
+			PrimitiveValue::integer(12),
+			PrimitiveValue::integer(22),
+			PrimitiveValue::integer(10),
+			PrimitiveValue::integer(12),
+			PrimitiveValue::integer(22),
 			PrimitiveValue::Boolean(true),
 		].into());
 }

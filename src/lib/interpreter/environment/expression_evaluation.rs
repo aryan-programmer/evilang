@@ -16,13 +16,28 @@ use crate::interpreter::utils::consts::CONSTRUCTOR;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
 
+macro_rules! by_ref {
+    ($b:ident) => {($b)};
+}
+
+macro_rules! by_clone {
+    ($b:ident) => {($b.clone())};
+}
+
 macro_rules! auto_implement_binary_operators {
-    ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident);*;) => {
+    ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident ($by_what: tt));*;) => {
 	    match $val {
-	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) => Some(PrimitiveValue::$res_typ($a.$oper($b))),)*
+	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) =>
+	            Some(PrimitiveValue::$res_typ($a.$oper($by_what!($b)))),)*
 		    _ => None,
 	    }
     };
+	(by_ref $b:ident) => {
+		($b)
+	};
+	(by_copy $b:ident) => {
+		($b.clone())
+	};
 }
 
 impl Environment {
@@ -30,7 +45,7 @@ impl Environment {
 		return Ok(match expression {
 			Expression::NullLiteral => PrimitiveValue::Null.into(),
 			Expression::BooleanLiteral(a) => PrimitiveValue::Boolean(a.clone()).into(),
-			Expression::IntegerLiteral(a) => PrimitiveValue::Integer(a.clone()).into(),
+			Expression::NumericLiteral(a) => PrimitiveValue::Number(a.clone()).into(),
 			Expression::StringLiteral(a) => PrimitiveValue::String(a.clone()).into(),
 			Expression::UnaryExpression { operator, argument } =>
 				self.execute_unary_operator_expression(operator, argument)?,
@@ -148,8 +163,8 @@ impl Environment {
 		let prim_ref = prim_borrow.deref();
 		return Ok(match (operator, prim_ref) {
 			(Operator::LogicalNot, PrimitiveValue::Boolean(v)) => PrimitiveValue::Boolean(!*v).into(),
-			(Operator::Plus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(*v).into(),
-			(Operator::Minus, PrimitiveValue::Integer(v)) => PrimitiveValue::Integer(-*v).into(),
+			(Operator::Plus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(v.clone()).into(),
+			(Operator::Minus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(-v.clone()).into(),
 			(op, _) => {
 				return Err(ErrorT::UnimplementedUnaryOperatorForValues(op.clone(), argument.clone()).into());
 			}
@@ -238,16 +253,16 @@ impl Environment {
 	) -> ResultWithError<PrimitiveValue> {
 		let int_result: Option<PrimitiveValue> = auto_implement_binary_operators!(
 			(operator, left, right),
-			Integer, a, b,
-			Operator::Plus, add => Integer;
-			Operator::Minus, sub => Integer;
-			Operator::Multiplication, mul => Integer;
-			Operator::Division, div => Integer;
-			Operator::Modulus, rem => Integer;
-			Operator::LessThan, lt => Boolean;
-			Operator::GreaterThan, gt => Boolean;
-			Operator::LessThanOrEqualTo, le => Boolean;
-			Operator::GreaterThanOrEqualTo, ge => Boolean;
+			Number, a, b,
+			Operator::Plus, add => Number (by_clone);
+			Operator::Minus, sub => Number (by_clone);
+			Operator::Multiplication, mul => Number (by_clone);
+			Operator::Division, div => Number (by_clone);
+			Operator::Modulus, rem => Number (by_clone);
+			Operator::LessThan, lt => Boolean (by_ref);
+			Operator::GreaterThan, gt => Boolean (by_ref);
+			Operator::LessThanOrEqualTo, le => Boolean (by_ref);
+			Operator::GreaterThanOrEqualTo, ge => Boolean (by_ref);
 		);
 		if let Some(int_r) = int_result {
 			return Ok(int_r);

@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use gc::{Finalize, Gc, Trace};
+use num_traits::Zero;
 
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration};
 use crate::errors::ResultWithError;
@@ -12,9 +13,9 @@ use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::utils::{expect_object, get_object_superclass};
 use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 use crate::interpreter::utils::consts::SUPER;
-use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::VariablesMap;
+use crate::math::number::NumberT;
 
 pub mod ref_to_value;
 pub mod functions;
@@ -36,7 +37,7 @@ pub enum PrimitiveValue {
 	_HoistedVariable,
 	Null,
 	Boolean(bool),
-	Integer(i64),
+	Number(#[unsafe_ignore_trace] NumberT),
 	String(String),
 	Function(GcBox<Function>),
 	Object(GcBox<RuntimeObject>),
@@ -51,8 +52,8 @@ impl PartialEq for PrimitiveValue {
 				PrimitiveValue::Boolean(othr_0),
 			) => *self_0 == *othr_0,
 			(
-				PrimitiveValue::Integer(self_0),
-				PrimitiveValue::Integer(othr_0),
+				PrimitiveValue::Number(self_0),
+				PrimitiveValue::Number(othr_0),
 			) => *self_0 == *othr_0,
 			(
 				PrimitiveValue::String(self_0),
@@ -74,6 +75,14 @@ impl PartialEq for PrimitiveValue {
 }
 
 impl PrimitiveValue {
+	pub fn float(v: f64) -> Self {
+		PrimitiveValue::Number(NumberT::Float(v))
+	}
+
+	pub fn integer(v: i64) -> Self {
+		PrimitiveValue::Number(NumberT::Integer(v as i128))
+	}
+
 	pub fn new_native_function(f: NativeFunction) -> Self {
 		return PrimitiveValue::Function(gc_box_from(Function::NativeFunction(f)));
 	}
@@ -119,7 +128,7 @@ impl PrimitiveValue {
 		return match self {
 			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => false,
 			PrimitiveValue::Boolean(v) => *v,
-			PrimitiveValue::Integer(i) => *i != 0,
+			PrimitiveValue::Number(i) => !i.is_zero(),
 			PrimitiveValue::String(s) => s.len() != 0,
 			PrimitiveValue::Function(..) | PrimitiveValue::Object(..) => true,
 		};

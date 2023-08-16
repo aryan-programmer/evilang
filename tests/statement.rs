@@ -10,7 +10,7 @@ fn multiple_expressions() -> TestRes {
 42;
 "More stuff";"#, vec![
 		Expression::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()).consume_as_statement(),
-		Expression::IntegerLiteral(42).consume_as_statement(),
+		Expression::integer_literal(42).consume_as_statement(),
 		Expression::StringLiteral("More stuff".parse().unwrap()).consume_as_statement(),
 	]);
 }
@@ -24,7 +24,7 @@ fn block_expression() -> TestRes {
 "More stuff";"#, vec![
 		Statement::BlockStatement(vec![
 			Expression::StringLiteral("This is a string and this is a double quote: \"".parse().unwrap()).consume_as_statement(),
-			Expression::IntegerLiteral(42).consume_as_statement(),
+			Expression::integer_literal(42).consume_as_statement(),
 		]),
 		Expression::StringLiteral("More stuff".parse().unwrap()).consume_as_statement(),
 	]);
@@ -33,7 +33,7 @@ fn block_expression() -> TestRes {
 #[test]
 fn empty_expression() -> TestRes {
 	ensure_program(r#"42;;"data";"#, vec![
-		Expression::IntegerLiteral(42).consume_as_statement(),
+		Expression::integer_literal(42).consume_as_statement(),
 		Statement::EmptyStatement,
 		Expression::StringLiteral("data".to_string()).consume_as_statement(),
 	]);

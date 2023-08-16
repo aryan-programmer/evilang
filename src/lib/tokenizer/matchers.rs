@@ -3,11 +3,11 @@ use regex::Regex;
 use crate::tokenizer::{Keyword, TokenType};
 
 //language=regexp
-const NUMBER_REGEX: &str = r"^(0x[0-9a-f]+|0b[01]+|((?!0)|[-+]|(?=0+\.))(\d*\.)?\d+(e\d+)?)";
+const NUMBER_REGEX: &str = r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?";
 //language=regexp
 const WHITESPACE_REGEX: &str = r"^[\s\r\n]+";
 //language=regexp
-const INTEGER_REGEX: &str = r"^\d+";
+// const INTEGER_REGEX: &str = r"^\d+";
 //language=regexp
 const STRING_REGEX: &str = r#"^("[^"\\]*(?:\\.[^"\\]*)*")"#;
 //language=regexp
@@ -84,7 +84,8 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(one_of_many(["<=", ">="]), Some(TokenType::RelationalOperator)),
 		(one_of_many(["<", ">"]), Some(TokenType::RelationalOperator)),
 		//
-		(regex_matcher(INTEGER_REGEX), Some(TokenType::Integer)),
+		(regex_matcher(NUMBER_REGEX), Some(TokenType::Number)),
+		// (regex_matcher(INTEGER_REGEX), Some(TokenType::Integer)),
 		(regex_matcher(STRING_REGEX), Some(TokenType::String)),
 		//
 		(keyword_matcher("let"), Some(TokenType::Keyword(Keyword::Let))),

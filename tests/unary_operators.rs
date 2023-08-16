@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, UnaryExpression};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, UnaryExpression};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, LogicalNot, Minus, Multiplication, Plus};
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
@@ -55,12 +56,12 @@ fn complex_unary() -> TestRes {
 							}.into(),
 							right: UnaryExpression {
 								operator: Minus,
-								argument: IntegerLiteral(13).into(),
+								argument: Expression::integer_literal(13).into(),
 							}.into(),
 						}.into(),
 						right: UnaryExpression {
 							operator: Plus,
-							argument: IntegerLiteral(15).into(),
+							argument: Expression::integer_literal(15).into(),
 						}.into(),
 					}.consume_as_parenthesized().into(),
 				}.into(),
@@ -90,13 +91,13 @@ fn interpretation_basic() -> TestRes {
 			// Or
 			PrimitiveValue::Boolean(true),
 			PrimitiveValue::Boolean(false),
-			PrimitiveValue::Integer(-1),
-			PrimitiveValue::Integer(2),
-			PrimitiveValue::Integer(3),
-			PrimitiveValue::Integer(-4),
-			PrimitiveValue::Integer(-5),
-			PrimitiveValue::Integer(6),
-			PrimitiveValue::Integer(-7),
+			PrimitiveValue::integer(-1),
+			PrimitiveValue::integer(2),
+			PrimitiveValue::integer(3),
+			PrimitiveValue::integer(-4),
+			PrimitiveValue::integer(-5),
+			PrimitiveValue::integer(6),
+			PrimitiveValue::integer(-7),
 		])
 		.check();
 }

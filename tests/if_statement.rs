@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier};
 use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, GreaterThan, GreaterThanOrEqualTo, LessThan, LessThanOrEqualTo, MinusAssignment, ModulusAssignment, MultiplicationAssignment};
 use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, IfStatement};
 
@@ -17,14 +18,14 @@ fn if_branch() -> TestRes {
 			condition: BinaryExpression {
 				operator: GreaterThanOrEqualTo,
 				left: Identifier("x".parse().unwrap()).into(),
-				right: IntegerLiteral(32).into(),
+				right: Expression::integer_literal(32).into(),
 			},
 			if_branch: BlockStatement([
 				ExpressionStatement(
 					AssignmentExpression {
 						operator: MinusAssignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
-						right: IntegerLiteral(1).into(),
+						right: Expression::integer_literal(1).into(),
 					},
 				)
 			].into()).into(),
@@ -46,14 +47,14 @@ fn if_else_branch() -> TestRes {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
-				right: IntegerLiteral(12).into(),
+				right: Expression::integer_literal(12).into(),
 			},
 			if_branch: BlockStatement([
 				ExpressionStatement(
 					AssignmentExpression {
 						operator: Assignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
-						right: IntegerLiteral(1).into(),
+						right: Expression::integer_literal(1).into(),
 					},
 				)
 			].into()).into(),
@@ -62,7 +63,7 @@ fn if_else_branch() -> TestRes {
 					AssignmentExpression {
 						operator: MultiplicationAssignment,
 						left: Identifier("ot1_h".parse().unwrap()).into(),
-						right: IntegerLiteral(4).into(),
+						right: Expression::integer_literal(4).into(),
 					},
 				),
 			].into()).into()),
@@ -81,26 +82,26 @@ fn if_if_else_branch() -> TestRes {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
-				right: IntegerLiteral(12).into(),
+				right: Expression::integer_literal(12).into(),
 			},
 			if_branch: IfStatement {
 				condition: BinaryExpression {
 					operator: LessThanOrEqualTo,
 					left: Identifier("y".parse().unwrap()).into(),
-					right: IntegerLiteral(13).into(),
+					right: Expression::integer_literal(13).into(),
 				},
 				if_branch: ExpressionStatement(
 					AssignmentExpression {
 						operator: Assignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
-						right: IntegerLiteral(1).into(),
+						right: Expression::integer_literal(1).into(),
 					},
 				).into(),
 				else_branch: Some(ExpressionStatement(
 					AssignmentExpression {
 						operator: MultiplicationAssignment,
 						left: Identifier("ot1_h".parse().unwrap()).into(),
-						right: IntegerLiteral(4).into(),
+						right: Expression::integer_literal(4).into(),
 					},
 				).into()),
 			}.into(),
@@ -125,14 +126,14 @@ fn if_elseif_else_ladder() -> TestRes {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
-				right: IntegerLiteral(12).into(),
+				right: Expression::integer_literal(12).into(),
 			},
 			if_branch: BlockStatement([
 				ExpressionStatement(
 					AssignmentExpression {
 						operator: Assignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
-						right: IntegerLiteral(1).into(),
+						right: Expression::integer_literal(1).into(),
 					},
 				)
 			].into()).into(),
@@ -140,14 +141,14 @@ fn if_elseif_else_ladder() -> TestRes {
 				condition: BinaryExpression {
 					operator: GreaterThan,
 					left: Identifier("Zyx".parse().unwrap()).into(),
-					right: IntegerLiteral(12).into(),
+					right: Expression::integer_literal(12).into(),
 				},
 				if_branch: BlockStatement([
 					ExpressionStatement(
 						AssignmentExpression {
 							operator: DivisionAssignment,
 							left: Identifier("stuff".parse().unwrap()).into(),
-							right: IntegerLiteral(12).into(),
+							right: Expression::integer_literal(12).into(),
 						},
 					)
 				].into()).into(),
@@ -156,14 +157,14 @@ fn if_elseif_else_ladder() -> TestRes {
 						AssignmentExpression {
 							operator: MultiplicationAssignment,
 							left: Identifier("val23".parse().unwrap()).into(),
-							right: IntegerLiteral(4).into(),
+							right: Expression::integer_literal(4).into(),
 						},
 					),
 					ExpressionStatement(
 						AssignmentExpression {
 							operator: ModulusAssignment,
 							left: Identifier("$data".parse().unwrap()).into(),
-							right: IntegerLiteral(13).into(),
+							right: Expression::integer_literal(13).into(),
 						},
 					),
 				].into()).into()),

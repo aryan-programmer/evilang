@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier};
 use evilang_lib::ast::operator::Operator::{MultiplicationAssignment, NotEquals, PlusAssignment};
 use evilang_lib::ast::statement::Statement;
 use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, IfStatement, ReturnStatement};
@@ -90,7 +91,7 @@ fn function_with_params_and_return() -> TestRes {
 				condition: BinaryExpression {
 					operator: NotEquals,
 					left: Identifier("param1".to_string()).into(),
-					right: IntegerLiteral(0).into(),
+					right: Expression::integer_literal(0).into(),
 				},
 				if_branch: BlockStatement(vec![
 					ReturnStatement(

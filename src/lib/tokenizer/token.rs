@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Keyword {
 	Let,
 	If,
@@ -22,12 +22,11 @@ pub enum Keyword {
 	As,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TokenType {
 	_EOFDummy,
 
-	//	Number,
-	Integer,
+	Number,
 	String,
 	Semicolon,
 	OpenBlock,
@@ -56,7 +55,7 @@ impl TokenType {
 	pub fn is_literal(&self) -> bool {
 		return match self {
 			TokenType::String |
-			TokenType::Integer |
+			TokenType::Number |
 			TokenType::Keyword(
 				Keyword::True |
 				Keyword::False |

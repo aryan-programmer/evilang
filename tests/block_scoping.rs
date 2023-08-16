@@ -43,34 +43,34 @@ fn lost_variables() -> TestRes {
 let i = -100;
 for(let i = 0; i < 1; i += 1)let i = -1;
 push_res_stack(i);
-"#, vec![PrimitiveValue::Integer(-100)]);
+"#, vec![PrimitiveValue::integer(-100)]);
 	ensure_res_stack_matches(r#"
 let i = -100;
 let x = -200;
 for({let i = 0;}; i < 1; {let x = 1; i += x;})let i = -1;
 push_res_stack(i);
 push_res_stack(x);
-"#, vec![PrimitiveValue::Integer(-100), PrimitiveValue::Integer(-200)]);
+"#, vec![PrimitiveValue::integer(-100), PrimitiveValue::integer(-200)]);
 	ensure_res_stack_matches(r#"
 let x = -200;
 for(let i = 0; i < 1; i += 1)let x = 10;
 push_res_stack(x);
-"#, vec![PrimitiveValue::Integer(-200)]);
+"#, vec![PrimitiveValue::integer(-200)]);
 	ensure_res_stack_matches(r#"
 let x = -200;
 while(false)let x = 10;
 push_res_stack(x);
-"#, vec![PrimitiveValue::Integer(-200)]);
+"#, vec![PrimitiveValue::integer(-200)]);
 	ensure_res_stack_matches(r#"
 let x = -200;
 if(true)let x = 10;
 push_res_stack(x);
-"#, vec![PrimitiveValue::Integer(-200)]);
+"#, vec![PrimitiveValue::integer(-200)]);
 	ensure_res_stack_matches(r#"
 let x = -200;
 if(false);else let x = 10;
 push_res_stack(x);
-"#, vec![PrimitiveValue::Integer(-200)]);
+"#, vec![PrimitiveValue::integer(-200)]);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn block_basic_test() -> TestRes {
 	let y = 20;
 	push_res_stack(x*y+30);
 }
-"#, vec![PrimitiveValue::Integer(230)])
+"#, vec![PrimitiveValue::integer(230)])
 }
 
 #[test]

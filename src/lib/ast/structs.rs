@@ -1,7 +1,7 @@
 use crate::ast::expression::{BoxExpression, Expression, IdentifierT};
 use crate::ast::statement::BoxStatement;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VariableDeclaration {
 	pub identifier: IdentifierT,
 	pub initializer: Option<Expression>,
@@ -14,7 +14,7 @@ impl VariableDeclaration {
 	}
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionParameterDeclaration {
 	pub identifier: IdentifierT,
 }
@@ -26,7 +26,7 @@ impl FunctionParameterDeclaration {
 	}
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDeclaration {
 	pub name: IdentifierT,
 	pub parameters: Vec<FunctionParameterDeclaration>,
@@ -40,7 +40,7 @@ impl FunctionDeclaration {
 	}
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClassDeclaration {
 	pub name: IdentifierT,
 	pub super_class: Option<Expression>,
@@ -54,7 +54,7 @@ impl ClassDeclaration {
 	}
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CallExpression {
 	pub callee: BoxExpression,
 	pub arguments: Vec<Expression>,

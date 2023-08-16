@@ -5,7 +5,7 @@ pub use crate::tokenizer::token::{Keyword, TokenType};
 mod matchers;
 mod token;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	pub typ: TokenType,
 	pub data: String,

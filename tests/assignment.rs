@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use evilang_lib::ast::expression::BoxExpression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
+use evilang_lib::ast::expression::{BoxExpression, Expression};
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier};
 use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, MinusAssignment, ModulusAssignment, Multiplication, MultiplicationAssignment, Plus, PlusAssignment};
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::environment::resolver::DefaultResolver;
@@ -15,7 +15,7 @@ mod common;
 fn simple_assignment() -> TestRes {
 	let mut env = Environment::new_from_primitives(
 		HashMap::from([
-			("x".into(), PrimitiveValue::Integer(-1))
+			("x".into(), PrimitiveValue::integer(-1))
 		]),
 		DefaultResolver::new_box());
 	TestData::new("x;x = 1;x;".to_string()).expect_statements_and_results(vec![
@@ -23,13 +23,13 @@ fn simple_assignment() -> TestRes {
 		AssignmentExpression {
 			operator: Assignment,
 			left: BoxExpression::from(Identifier("x".to_string())),
-			right: BoxExpression::from(IntegerLiteral(1)),
+			right: BoxExpression::from(Expression::integer_literal(1)),
 		}.consume_as_statement(),
 		identifier_stmt("x"),
 	], vec![
-		PrimitiveValue::Integer(-1),
-		PrimitiveValue::Integer(1),
-		PrimitiveValue::Integer(1),
+		PrimitiveValue::integer(-1),
+		PrimitiveValue::integer(1),
+		PrimitiveValue::integer(1),
 	]).check_with_env(&mut env);
 }
 
@@ -37,7 +37,7 @@ fn simple_assignment() -> TestRes {
 fn complex_assignment() -> TestRes {
 	let mut env = Environment::new_from_primitives(
 		HashMap::from([
-			("x".into(), PrimitiveValue::Integer(12))
+			("x".into(), PrimitiveValue::integer(12))
 		]),
 		DefaultResolver::new_box());
 	{
@@ -51,34 +51,34 @@ fn complex_assignment() -> TestRes {
 			AssignmentExpression {
 				operator: PlusAssignment,
 				left: BoxExpression::from(Identifier("x".to_string())),
-				right: BoxExpression::from(IntegerLiteral(1)),
+				right: BoxExpression::from(Expression::integer_literal(1)),
 			}.consume_as_statement(),
 			AssignmentExpression {
 				operator: MinusAssignment,
 				left: BoxExpression::from(Identifier("x".to_string())),
-				right: BoxExpression::from(IntegerLiteral(1)),
+				right: BoxExpression::from(Expression::integer_literal(1)),
 			}.consume_as_statement(),
 			AssignmentExpression {
 				operator: MultiplicationAssignment,
 				left: BoxExpression::from(Identifier("x".to_string())),
-				right: BoxExpression::from(IntegerLiteral(10)),
+				right: BoxExpression::from(Expression::integer_literal(10)),
 			}.consume_as_statement(),
 			AssignmentExpression {
 				operator: DivisionAssignment,
 				left: BoxExpression::from(Identifier("x".to_string())),
-				right: BoxExpression::from(IntegerLiteral(12)),
+				right: BoxExpression::from(Expression::integer_literal(12)),
 			}.consume_as_statement(),
 			AssignmentExpression {
 				operator: ModulusAssignment,
 				left: BoxExpression::from(Identifier("x".to_string())),
-				right: BoxExpression::from(IntegerLiteral(3)),
+				right: BoxExpression::from(Expression::integer_literal(3)),
 			}.consume_as_statement(),
 		], vec![
-			PrimitiveValue::Integer(13),
-			PrimitiveValue::Integer(12),
-			PrimitiveValue::Integer(120),
-			PrimitiveValue::Integer(10),
-			PrimitiveValue::Integer(1),
+			PrimitiveValue::integer(13),
+			PrimitiveValue::integer(12),
+			PrimitiveValue::integer(120),
+			PrimitiveValue::integer(10),
+			PrimitiveValue::integer(1),
 		])
 	}.check_with_env(&mut env)
 }
@@ -87,8 +87,8 @@ fn complex_assignment() -> TestRes {
 fn chained_assignment() -> TestRes {
 	let mut env = Environment::new_from_primitives(
 		HashMap::from([
-			("x".into(), PrimitiveValue::Integer(5)),
-			("y".into(), PrimitiveValue::Integer(6)),
+			("x".into(), PrimitiveValue::integer(5)),
+			("y".into(), PrimitiveValue::integer(6)),
 		]),
 		DefaultResolver::new_box());
 	let mut test = {
@@ -107,17 +107,17 @@ fn chained_assignment() -> TestRes {
 				right: BoxExpression::from(AssignmentExpression {
 					operator: Assignment,
 					left: BoxExpression::from(Identifier("y".to_string())),
-					right: BoxExpression::from(IntegerLiteral(1)),
+					right: BoxExpression::from(Expression::integer_literal(1)),
 				}),
 			}.consume_as_statement(),
 			identifier_stmt("x"),
 			identifier_stmt("y"),
 		], vec![
-			PrimitiveValue::Integer(5),
-			PrimitiveValue::Integer(6),
-			PrimitiveValue::Integer(1),
-			PrimitiveValue::Integer(1),
-			PrimitiveValue::Integer(1),
+			PrimitiveValue::integer(5),
+			PrimitiveValue::integer(6),
+			PrimitiveValue::integer(1),
+			PrimitiveValue::integer(1),
+			PrimitiveValue::integer(1),
 		])
 	};
 	return test.check_with_env(&mut env);
@@ -127,9 +127,9 @@ fn chained_assignment() -> TestRes {
 fn chained_complex_assignment() -> TestRes {
 	let mut env = Environment::new_from_primitives(
 		HashMap::from([
-			("x".into(), PrimitiveValue::Integer(5)),
-			("y".into(), PrimitiveValue::Integer(6)),
-			("z".into(), PrimitiveValue::Integer(7)),
+			("x".into(), PrimitiveValue::integer(5)),
+			("y".into(), PrimitiveValue::integer(6)),
+			("z".into(), PrimitiveValue::integer(7)),
 		]),
 		DefaultResolver::new_box());
 	let mut test = {
@@ -154,7 +154,7 @@ fn chained_complex_assignment() -> TestRes {
 					right: BoxExpression::from(AssignmentExpression {
 						operator: Assignment,
 						left: BoxExpression::from(Identifier("z".to_string())),
-						right: BoxExpression::from(IntegerLiteral(2)),
+						right: BoxExpression::from(Expression::integer_literal(2)),
 					}),
 				}),
 			}.consume_as_statement(),
@@ -162,13 +162,13 @@ fn chained_complex_assignment() -> TestRes {
 			identifier_stmt("y"),
 			identifier_stmt("z"),
 		], vec![
-			PrimitiveValue::Integer(5),
-			PrimitiveValue::Integer(6),
-			PrimitiveValue::Integer(7),
-			PrimitiveValue::Integer(8),
-			PrimitiveValue::Integer(8),
-			PrimitiveValue::Integer(8),
-			PrimitiveValue::Integer(2),
+			PrimitiveValue::integer(5),
+			PrimitiveValue::integer(6),
+			PrimitiveValue::integer(7),
+			PrimitiveValue::integer(8),
+			PrimitiveValue::integer(8),
+			PrimitiveValue::integer(8),
+			PrimitiveValue::integer(2),
 		])
 	};
 	return test.check_with_env(&mut env);
@@ -178,9 +178,9 @@ fn chained_complex_assignment() -> TestRes {
 fn complex_assignments() -> TestRes {
 	let mut env = Environment::new_from_primitives(
 		HashMap::from([
-			("x".into(), PrimitiveValue::Integer(5)),
-			("y".into(), PrimitiveValue::Integer(6)),
-			("z".into(), PrimitiveValue::Integer(7)),
+			("x".into(), PrimitiveValue::integer(5)),
+			("y".into(), PrimitiveValue::integer(6)),
+			("z".into(), PrimitiveValue::integer(7)),
 		]),
 		DefaultResolver::new_box());
 	let mut test = {
@@ -206,18 +206,18 @@ fn complex_assignments() -> TestRes {
 						operator: Plus,
 						left: BoxExpression::from(BinaryExpression {
 							operator: Plus,
-							left: BoxExpression::from(IntegerLiteral(1)),
+							left: BoxExpression::from(Expression::integer_literal(1)),
 							right: BoxExpression::from(BinaryExpression {
 								operator: Multiplication,
-								left: BoxExpression::from(IntegerLiteral(2)),
+								left: BoxExpression::from(Expression::integer_literal(2)),
 								right: AssignmentExpression {
 									operator: Assignment,
 									left: BoxExpression::from(Identifier("z".to_string())),
-									right: BoxExpression::from(IntegerLiteral(1)),
+									right: BoxExpression::from(Expression::integer_literal(1)),
 								}.consume_as_parenthesized().into(),
 							}),
 						}),
-						right: BoxExpression::from(IntegerLiteral(4)),
+						right: BoxExpression::from(Expression::integer_literal(4)),
 					}),
 				}),
 			}.consume_as_statement(),
@@ -225,13 +225,13 @@ fn complex_assignments() -> TestRes {
 			identifier_stmt("y"),
 			identifier_stmt("z"),
 		], vec![
-			PrimitiveValue::Integer(5),
-			PrimitiveValue::Integer(6),
-			PrimitiveValue::Integer(7),
-			PrimitiveValue::Integer(12),
-			PrimitiveValue::Integer(12),
-			PrimitiveValue::Integer(7),
-			PrimitiveValue::Integer(1),
+			PrimitiveValue::integer(5),
+			PrimitiveValue::integer(6),
+			PrimitiveValue::integer(7),
+			PrimitiveValue::integer(12),
+			PrimitiveValue::integer(12),
+			PrimitiveValue::integer(7),
+			PrimitiveValue::integer(1),
 		])
 	};
 	return test.check_with_env(&mut env);

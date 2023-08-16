@@ -7,7 +7,7 @@ use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
 use crate::errors::{Descriptor, ErrorT, ResultWithError, RuntimeError};
 use crate::interpreter::environment::default_global_scope::get_default_global_scope;
-use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver, IResolver};
+use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver};
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::runtime_values::PrimitiveValue;
@@ -261,9 +261,9 @@ impl Environment {
 				let file_path = file.clone();
 				self.import_file(obj, file_path)
 			}
-			stmt => {
+			/*stmt => {
 				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
-			}
+			}*/
 		};
 	}
 

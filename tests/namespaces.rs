@@ -1,7 +1,6 @@
 use evilang_lib::interpreter::environment::Environment;
 use evilang_lib::interpreter::environment::resolver::DefaultResolver;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
-use evilang_lib::interpreter::runtime_values::PrimitiveValue::Integer;
 
 use crate::common::{TestData, TestRes};
 
@@ -21,9 +20,9 @@ push_res_stack(Math.square(3));
 push_res_stack(Math.INT32_MAX);
 "#.to_string())
 		.expect_stack(vec![
-			Integer(4),
-			Integer(9),
-			Integer(2147483647),
+			PrimitiveValue::integer(4),
+			PrimitiveValue::integer(9),
+			PrimitiveValue::integer(2147483647),
 		])
 		.check()
 }

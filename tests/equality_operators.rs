@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, NullLiteral};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, NullLiteral};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, Multiplication, NotEquals, Plus};
 
 use crate::common::{test_expression_and_assignment, TestRes};
@@ -36,9 +37,9 @@ fn complex_equality() -> TestRes {
 					left: Identifier("x".to_string()).into(),
 					right: Identifier("y".to_string()).into(),
 				}.into(),
-				right: IntegerLiteral(13).into(),
+				right: Expression::integer_literal(13).into(),
 			}.into(),
-			right: IntegerLiteral(15).into(),
+			right: Expression::integer_literal(15).into(),
 		}.into(),
 		right: BooleanLiteral(true).into(),
 	}, );

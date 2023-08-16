@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, DottedIdentifiers, Identifier, IntegerLiteral, MemberAccess, StringLiteral};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, DottedIdentifiers, Identifier, MemberAccess, StringLiteral};
 use evilang_lib::ast::expression::MemberIndexer::{PropertyName, SubscriptExpression};
 use evilang_lib::ast::operator::Operator::{Assignment, ModulusAssignment, Multiplication, Plus};
 
@@ -44,7 +45,7 @@ fn member_complex_assignment() -> TestRes {
 			operator: Plus,
 			left: BinaryExpression {
 				operator: Plus,
-				left: IntegerLiteral(1).into(),
+				left: Expression::integer_literal(1).into(),
 				right: BinaryExpression {
 					operator: Multiplication,
 					left: DottedIdentifiers([
@@ -57,11 +58,11 @@ fn member_complex_assignment() -> TestRes {
 							"$".to_string(),
 							"right".to_string(),
 						].into()).into(),
-						right: IntegerLiteral(1).into(),
+						right: Expression::integer_literal(1).into(),
 					}.consume_as_parenthesized().into(),
 				}.into(),
 			}.into(),
-			right: IntegerLiteral(4).into(),
+			right: Expression::integer_literal(4).into(),
 		}.into(),
 	});
 }

@@ -9,8 +9,8 @@ mod common;
 fn integer_literal() -> TestRes {
 	return ensure_program_statement_results(
 		"42;",
-		vec![Expression::IntegerLiteral(42).consume_as_statement()],
-		vec![PrimitiveValue::Integer(42)],
+		vec![Expression::integer_literal(42).consume_as_statement()],
+		vec![PrimitiveValue::integer(42)],
 	);
 }
 

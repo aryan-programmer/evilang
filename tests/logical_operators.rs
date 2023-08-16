@@ -1,4 +1,5 @@
-use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, IntegerLiteral, NullLiteral};
+use evilang_lib::ast::expression::Expression;
+use evilang_lib::ast::expression::Expression::{BinaryExpression, BooleanLiteral, Identifier, NullLiteral};
 use evilang_lib::ast::operator::Operator::{Equals, GreaterThan, LessThanOrEqualTo, LogicalAnd, LogicalOr, Multiplication, Plus};
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
@@ -18,7 +19,7 @@ fn logical_and() -> TestRes {
 		right: BinaryExpression {
 			operator: GreaterThan,
 			left: Identifier("value".to_string()).into(),
-			right: IntegerLiteral(15).into(),
+			right: Expression::integer_literal(15).into(),
 		}.into(),
 	});
 }
@@ -35,7 +36,7 @@ fn logical_or() -> TestRes {
 		right: BinaryExpression {
 			operator: LessThanOrEqualTo,
 			left: Identifier("_".to_string()).into(),
-			right: IntegerLiteral(1).into(),
+			right: Expression::integer_literal(1).into(),
 		}.into(),
 	});
 }
@@ -55,9 +56,9 @@ fn complex_equality() -> TestRes {
 						left: Identifier("x".to_string()).into(),
 						right: Identifier("y".to_string()).into(),
 					}.into(),
-					right: IntegerLiteral(13).into(),
+					right: Expression::integer_literal(13).into(),
 				}.into(),
-				right: IntegerLiteral(15).into(),
+				right: Expression::integer_literal(15).into(),
 			}.into(),
 			right: BooleanLiteral(true).into(),
 		}.into(),
@@ -70,7 +71,7 @@ fn complex_equality() -> TestRes {
 				right: BinaryExpression {
 					operator: Plus,
 					left: NullLiteral.into(),
-					right: IntegerLiteral(10).into(),
+					right: Expression::integer_literal(10).into(),
 				}.into(),
 			}.into(),
 		}.into(),
@@ -123,11 +124,11 @@ fn short_circuiting() -> TestRes {
 			PrimitiveValue::Boolean(true),
 		])
 		.expect_stack(vec![
-			PrimitiveValue::Integer(1),
-			PrimitiveValue::Integer(4),
-			PrimitiveValue::Integer(5),
-			PrimitiveValue::Integer(6),
-			PrimitiveValue::Integer(8),
+			PrimitiveValue::integer(1),
+			PrimitiveValue::integer(4),
+			PrimitiveValue::integer(5),
+			PrimitiveValue::integer(6),
+			PrimitiveValue::integer(8),
 		])
 		.check()
 }

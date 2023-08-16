@@ -1,5 +1,5 @@
-use evilang_lib::ast::expression::BoxExpression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
+use evilang_lib::ast::expression::{BoxExpression, Expression};
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier};
 use evilang_lib::ast::operator::Operator::{Plus, PlusAssignment};
 use evilang_lib::ast::statement::Statement::VariableDeclarations;
 use evilang_lib::ast::structs::VariableDeclaration;
@@ -16,13 +16,13 @@ fn basic_declaration() -> TestRes {
 			identifier: "x".parse().unwrap(),
 			initializer: Some(BinaryExpression {
 				operator: Plus,
-				left: BoxExpression::from(IntegerLiteral(1)),
-				right: BoxExpression::from(IntegerLiteral(2)),
+				left: BoxExpression::from(Expression::integer_literal(1)),
+				right: BoxExpression::from(Expression::integer_literal(2)),
 			}),
 		},
 	])), identifier_stmt("x")], vec![
 		PrimitiveValue::Null,
-		PrimitiveValue::Integer(3),
+		PrimitiveValue::integer(3),
 	]);
 }
 
@@ -39,8 +39,8 @@ baz;
 				identifier: "$foo".parse().unwrap(),
 				initializer: Some(BinaryExpression {
 					operator: Plus,
-					left: BoxExpression::from(IntegerLiteral(1)),
-					right: BoxExpression::from(IntegerLiteral(2)),
+					left: BoxExpression::from(Expression::integer_literal(1)),
+					right: BoxExpression::from(Expression::integer_literal(2)),
 				}),
 			},
 			VariableDeclaration {
@@ -52,7 +52,7 @@ baz;
 				initializer: Some(AssignmentExpression {
 					operator: PlusAssignment,
 					left: BoxExpression::from(Identifier("$foo".parse().unwrap())),
-					right: BoxExpression::from(IntegerLiteral(4)),
+					right: BoxExpression::from(Expression::integer_literal(4)),
 				}),
 			},
 		])),
@@ -61,8 +61,8 @@ baz;
 		identifier_stmt("baz"),
 	], vec![
 		PrimitiveValue::Null,
-		PrimitiveValue::Integer(7),
+		PrimitiveValue::integer(7),
 		PrimitiveValue::Null,
-		PrimitiveValue::Integer(7),
+		PrimitiveValue::integer(7),
 	]);
 }

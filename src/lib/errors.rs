@@ -85,6 +85,8 @@ pub enum ErrorT {
 	InvalidTokenType(Token),
 	#[error("Token Cannot be Parsed")]
 	TokenCannotBeParsed,
+	#[error("Invalid numeric literal: {0}")]
+	InvalidNumericLiteral(String),
 	#[error("Unknown Operator")]
 	UnknownOperator,
 	#[error("Expected a left hand side expression")]

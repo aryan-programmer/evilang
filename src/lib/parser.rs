@@ -175,7 +175,7 @@ impl Parser {
 		let num = if self.lookahead_type()? == TokenType::Semicolon {
 			1
 		} else {
-			self.eat(TokenType::Integer)?.data.parse().unwrap()
+			self.eat(TokenType::Number)?.data.parse().unwrap()
 		};
 		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::BreakStatement(num));
@@ -191,7 +191,7 @@ impl Parser {
 		let num = if self.lookahead_type()? == TokenType::Semicolon {
 			1
 		} else {
-			self.eat(TokenType::Integer)?.data.parse().unwrap()
+			self.eat(TokenType::Number)?.data.parse().unwrap()
 		};
 		self.eat(TokenType::Semicolon)?;
 		return Ok(Statement::ContinueStatement(num));
@@ -692,14 +692,14 @@ impl Parser {
 
 	/*
 	literal:
-		| integer_literal
+		| numeric_literal
 		| string_literal
 		| 'true'
 		| 'false'
 	*/
 	fn literal(&mut self) -> ResultWithError<Expression> {
 		return match self.lookahead_type()? {
-			TokenType::Integer => self.integer_literal(),
+			TokenType::Number => self.numeric_literal(),
 			TokenType::String => self.string_literal(),
 			_ => self.singular_literal(),
 		};
@@ -724,10 +724,9 @@ impl Parser {
 		return Ok(Expression::StringLiteral(rep_v));
 	}
 
-	#[inline]
-	fn integer_literal(&mut self) -> ResultWithError<Expression> {
-		let v = self.eat(TokenType::Integer)?;
-		return Ok(Expression::IntegerLiteral(v.data.parse().unwrap()));
+	fn numeric_literal(&mut self) -> ResultWithError<Expression> {
+		let v = self.eat(TokenType::Number)?;
+		return Ok(Expression::numeric_literal(v.data.as_str())?);
 	}
 
 	// region ...Utilities

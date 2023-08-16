@@ -20,12 +20,6 @@ pub struct ResolveResult {
 
 pub type BoxIResolver = Box<dyn IResolver>;
 
-// impl PartialEq for BoxIResolver {
-// 	fn eq(&self, other: &BoxIResolver) -> bool {
-// 		self.equals_resolver(other.deref())
-// 	}
-// }
-
 pub trait IResolver: IResolverExtras + Trace + Finalize {
 	fn resolve(&self, env: Option<&Environment>, file_name: String) -> ResultWithError<ResolveResult>;
 }

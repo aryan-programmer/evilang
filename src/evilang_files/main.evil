@@ -1,5 +1,1 @@
-import "./sub/sub_file_1.evil" as sub_f1;
-import "./sub/sub_2/sub_2_file_1.evil" as sub2_f1;
-
-push_res_stack(sub_f1.value);
-push_res_stack(sub2_f1.main_adj.main_adj_val);
+push_res_stack(10/12);
