@@ -10,12 +10,12 @@ use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::runtime_values::ref_to_value::RefToValue;
+use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 use crate::interpreter::utils::consts::INSTANCE_OF_;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
 use crate::interpreter::variables_containers::scope::IGenericVariablesScope;
 use crate::interpreter::variables_containers::VariablesMap;
-use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 #[derive(Debug, PartialEq, Trace, Finalize)]
 pub struct RuntimeObject {

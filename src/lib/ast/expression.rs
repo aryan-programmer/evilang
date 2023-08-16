@@ -5,6 +5,7 @@ use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration}
 pub type BoxExpression = Box<Expression>;
 
 pub type IdentifierT = String;
+pub type DottedIdentifiers = Vec<IdentifierT>;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MemberIndexer {
@@ -34,6 +35,7 @@ pub enum Expression {
 		left: BoxExpression,
 		right: BoxExpression,
 	},
+	DottedIdentifiers(DottedIdentifiers),
 	Identifier(IdentifierT),
 	MemberAccess {
 		object: BoxExpression,
@@ -91,6 +93,7 @@ impl Expression {
 		return match self {
 			Expression::Identifier(_) => true,
 			Expression::MemberAccess { .. } => true,
+			Expression::DottedIdentifiers(_) => true,
 			_ => false,
 		};
 	}

@@ -7,7 +7,7 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue};
-use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub trait IVariablesMapConstMembers {
 	fn get_actual(&self, name: &IdentifierT) -> Option<GcBox<PrimitiveValue>>;

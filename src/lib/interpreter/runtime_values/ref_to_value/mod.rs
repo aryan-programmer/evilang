@@ -8,9 +8,9 @@ use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::runtime_values::PrimitiveValue;
 pub use crate::interpreter::runtime_values::ref_to_value::deref_of_ref_to_value::DerefOfRefToValue;
+use crate::interpreter::utils::cell_ref::{gc_box_from, GcBox};
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
-use crate::utils::cell_ref::{gc_box_from, GcBox};
 
 pub mod deref_of_ref_to_value;
 
@@ -88,7 +88,7 @@ impl RefToValue {
 			RefToValue::ObjectProperty { snapshot: None, .. } => DerefOfRefToValue::Value(PrimitiveValue::Null),
 		};
 	}
-	
+
 	delegate! {
 		to match self {
 			RefToValue::RValue(v) => v,

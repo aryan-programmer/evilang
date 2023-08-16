@@ -4,6 +4,7 @@ use evilang_lib::ast::expression::BoxExpression;
 use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral};
 use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, MinusAssignment, ModulusAssignment, Multiplication, MultiplicationAssignment, Plus, PlusAssignment};
 use evilang_lib::interpreter::environment::Environment;
+use evilang_lib::interpreter::environment::resolver::DefaultResolver;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
 use crate::common::{identifier_stmt, TestData, TestRes};
@@ -12,9 +13,11 @@ mod common;
 
 #[test]
 fn simple_assignment() -> TestRes {
-	let mut env = Environment::new_from_primitives(HashMap::from([
-		("x".into(), PrimitiveValue::Integer(-1))
-	]));
+	let mut env = Environment::new_from_primitives(
+		HashMap::from([
+			("x".into(), PrimitiveValue::Integer(-1))
+		]),
+		DefaultResolver::new_box());
 	TestData::new("x;x = 1;x;".to_string()).expect_statements_and_results(vec![
 		identifier_stmt("x"),
 		AssignmentExpression {
@@ -32,9 +35,11 @@ fn simple_assignment() -> TestRes {
 
 #[test]
 fn complex_assignment() -> TestRes {
-	let mut env = Environment::new_from_primitives(HashMap::from([
-		("x".into(), PrimitiveValue::Integer(12))
-	]));
+	let mut env = Environment::new_from_primitives(
+		HashMap::from([
+			("x".into(), PrimitiveValue::Integer(12))
+		]),
+		DefaultResolver::new_box());
 	{
 		TestData::new(r#"
 	x += 1;
@@ -80,10 +85,12 @@ fn complex_assignment() -> TestRes {
 
 #[test]
 fn chained_assignment() -> TestRes {
-	let mut env = Environment::new_from_primitives(HashMap::from([
-		("x".into(), PrimitiveValue::Integer(5)),
-		("y".into(), PrimitiveValue::Integer(6)),
-	]));
+	let mut env = Environment::new_from_primitives(
+		HashMap::from([
+			("x".into(), PrimitiveValue::Integer(5)),
+			("y".into(), PrimitiveValue::Integer(6)),
+		]),
+		DefaultResolver::new_box());
 	let mut test = {
 		TestData::new(r#"
 	x;
@@ -118,11 +125,13 @@ fn chained_assignment() -> TestRes {
 
 #[test]
 fn chained_complex_assignment() -> TestRes {
-	let mut env = Environment::new_from_primitives(HashMap::from([
-		("x".into(), PrimitiveValue::Integer(5)),
-		("y".into(), PrimitiveValue::Integer(6)),
-		("z".into(), PrimitiveValue::Integer(7)),
-	]));
+	let mut env = Environment::new_from_primitives(
+		HashMap::from([
+			("x".into(), PrimitiveValue::Integer(5)),
+			("y".into(), PrimitiveValue::Integer(6)),
+			("z".into(), PrimitiveValue::Integer(7)),
+		]),
+		DefaultResolver::new_box());
 	let mut test = {
 		TestData::new(r#"
 	x;
@@ -167,11 +176,13 @@ fn chained_complex_assignment() -> TestRes {
 
 #[test]
 fn complex_assignments() -> TestRes {
-	let mut env = Environment::new_from_primitives(HashMap::from([
-		("x".into(), PrimitiveValue::Integer(5)),
-		("y".into(), PrimitiveValue::Integer(6)),
-		("z".into(), PrimitiveValue::Integer(7)),
-	]));
+	let mut env = Environment::new_from_primitives(
+		HashMap::from([
+			("x".into(), PrimitiveValue::Integer(5)),
+			("y".into(), PrimitiveValue::Integer(6)),
+			("z".into(), PrimitiveValue::Integer(7)),
+		]),
+		DefaultResolver::new_box());
 	let mut test = {
 		TestData::new(r#"
 	x;

@@ -104,6 +104,9 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(keyword_matcher("new"), Some(TokenType::Keyword(Keyword::New))),
 		(keyword_matcher("break"), Some(TokenType::Keyword(Keyword::Break))),
 		(keyword_matcher("continue"), Some(TokenType::Keyword(Keyword::Continue))),
+		(keyword_matcher("namespace"), Some(TokenType::Keyword(Keyword::Namespace))),
+		(keyword_matcher("import"), Some(TokenType::Keyword(Keyword::Import))),
+		(keyword_matcher("as"), Some(TokenType::Keyword(Keyword::As))),
 		//
 		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
 	];

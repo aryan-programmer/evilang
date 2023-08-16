@@ -1,4 +1,4 @@
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral, MemberAccess, StringLiteral};
+use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, DottedIdentifiers, Identifier, IntegerLiteral, MemberAccess, StringLiteral};
 use evilang_lib::ast::expression::MemberIndexer::{PropertyName, SubscriptExpression};
 use evilang_lib::ast::operator::Operator::{Assignment, ModulusAssignment, Multiplication, Plus};
 
@@ -10,10 +10,10 @@ mod common;
 fn member_access() -> TestRes {
 	test_expression_and_assignment(r#"a.b["c"].d;"#, MemberAccess {
 		object: MemberAccess {
-			object: MemberAccess {
-				object: Identifier("a".to_string()).into(),
-				member: PropertyName("b".to_string()),
-			}.into(),
+			object: DottedIdentifiers([
+				"a".to_string(),
+				"b".to_string(),
+			].into()).into(),
 			member: SubscriptExpression(StringLiteral("c".to_string()).into()),
 		}.into(),
 		member: PropertyName("d".to_string()),
@@ -26,10 +26,10 @@ fn member_complex_assignment() -> TestRes {
 		operator: ModulusAssignment,
 		left: MemberAccess {
 			object: MemberAccess {
-				object: MemberAccess {
-					object: Identifier("a".to_string()).into(),
-					member: PropertyName("b".to_string()),
-				}.into(),
+				object: DottedIdentifiers([
+					"a".to_string(),
+					"b".to_string(),
+				].into()).into(),
 				member: SubscriptExpression(
 					BinaryExpression {
 						operator: Plus,
@@ -47,16 +47,16 @@ fn member_complex_assignment() -> TestRes {
 				left: IntegerLiteral(1).into(),
 				right: BinaryExpression {
 					operator: Multiplication,
-					left: MemberAccess {
-						object: Identifier("$".to_string()).into(),
-						member: PropertyName("left".to_string()),
-					}.into(),
+					left: DottedIdentifiers([
+						"$".to_string(),
+						"left".to_string(),
+					].into()).into(),
 					right: AssignmentExpression {
 						operator: Assignment,
-						left: MemberAccess {
-							object: Identifier("$".to_string()).into(),
-							member: PropertyName("right".to_string()),
-						}.into(),
+						left: DottedIdentifiers([
+							"$".to_string(),
+							"right".to_string(),
+						].into()).into(),
 						right: IntegerLiteral(1).into(),
 					}.consume_as_parenthesized().into(),
 				}.into(),

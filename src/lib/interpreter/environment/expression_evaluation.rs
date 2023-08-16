@@ -1,7 +1,7 @@
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::ops::Deref;
 
-use crate::ast::expression::{BoxExpression, Expression, MemberIndexer};
+use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, IdentifierT, MemberIndexer};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
@@ -10,10 +10,11 @@ use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValu
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::utils::{expect_object, expect_object_or_set_object_if_null};
+use crate::interpreter::utils::cell_ref::{gc_cell_clone, GcBox};
 use crate::interpreter::utils::consts::CONSTRUCTOR;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
-use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 macro_rules! auto_implement_binary_operators {
     ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident);*;) => {
@@ -37,16 +38,7 @@ impl Environment {
 				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::AssignmentExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
-			Expression::Identifier(name) => {
-				let var = self.get_actual(name).or_else(|| {
-					self.assign_locally(name, PrimitiveValue::Null.into());
-					self.get_actual(name)
-				}).ok_or_else(|| EvilangError::new(ErrorT::NeverError("When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into())))?;
-				if var.is_hoisted() {
-					return Err(ErrorT::CantAccessHoistedVariable(name.clone()).into());
-				}
-				RefToValue::LValue(var)
-			}
+			Expression::Identifier(name) => self.get_identifier(name)?,
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			Expression::FunctionExpression(fdecl) => {
 				let function = PrimitiveValue::new_closure(self, fdecl.clone());
@@ -82,6 +74,7 @@ impl Environment {
 				let object_val = self.eval_expr_expect_object(object)?;
 				RefToValue::new_object_property_ref(object_val, name)
 			}
+			Expression::DottedIdentifiers(idens) => self.get_dotted_identifiers(expression, idens)?,
 			Expression::NewObjectExpression(call_expr) => self.eval_new_object_expression(call_expr)?,
 			/*
 			expr => {
@@ -91,17 +84,62 @@ impl Environment {
 		});
 	}
 
-	fn eval_expr_expect_object(&mut self, object: &Expression) -> ResultWithError<GcBox<RuntimeObject>> {
-		let object_eval = self.eval(object)?;
-		let obj_eval_borr = object_eval.borrow();
-		return if let PrimitiveValue::Object(object_class_ref) = obj_eval_borr.deref() {
-			Ok(gc_cell_clone(object_class_ref))
-		} else {
-			Err(RuntimeError::ExpectedClassObject(Descriptor::Both {
-				value: obj_eval_borr.deref().clone(),
-				expression: object.clone(),
-			}).into())
+	pub fn get_namespace_object(&mut self, idens: &DottedIdentifiers) -> ResultWithError<GcBox<RuntimeObject>> {
+		let mut iter = idens.iter();
+		let Some(obj_expr) = iter.next() else {
+			return Err(RuntimeError::ExpectedNamespaceObject(Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))).into());
 		};
+		let f = || Some(Expression::DottedIdentifiers(idens.clone()));
+		let mut res_ref = self.get_identifier(obj_expr)?;
+		let mut res_ref_name = obj_expr;
+		while let Some(next_name) = iter.next() {
+			let obj = expect_object_or_set_object_if_null(
+				self,
+				res_ref,
+				res_ref_name,
+				f,
+			)?;
+			res_ref = RefToValue::new_object_property_ref(
+				obj,
+				next_name.clone(),
+			);
+			res_ref_name = next_name;
+		};
+		let ret_obj = expect_object_or_set_object_if_null(
+			self,
+			res_ref,
+			res_ref_name,
+			f,
+		)?;
+		Ok(ret_obj)
+	}
+
+	fn get_dotted_identifiers(&mut self, expression: &Expression, idens: &DottedIdentifiers) -> ResultWithError<RefToValue> {
+		let mut iter = idens.iter();
+		let Some(obj_expr) = iter.next()else {
+			return Ok(PrimitiveValue::Null.into());
+		};
+		let mut res = self.get_identifier(obj_expr)?;
+		while let Some(next_name) = iter.next() {
+			let obj = expect_object(res, Some(expression))?;
+			res = RefToValue::new_object_property_ref(obj, next_name.clone());
+		};
+		Ok(res)
+	}
+
+	fn get_identifier(&mut self, name: &IdentifierT) -> ResultWithError<RefToValue> {
+		let var = self.get_actual(name).or_else(|| {
+			self.assign_locally(name, PrimitiveValue::Null.into());
+			self.get_actual(name)
+		}).ok_or_else(|| EvilangError::new(ErrorT::NeverError("When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into())))?;
+		if var.is_hoisted() {
+			return Err(ErrorT::CantAccessHoistedVariable(name.clone()).into());
+		}
+		Ok(RefToValue::LValue(var))
+	}
+
+	fn eval_expr_expect_object(&mut self, expr: &Expression) -> ResultWithError<GcBox<RuntimeObject>> {
+		return expect_object(self.eval(expr)?, Some(expr));
 	}
 
 	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
@@ -149,7 +187,7 @@ impl Environment {
 		return self.execute_binary_expression(operator, left_eval, right_eval, left, right);
 	}
 
-	pub fn execute_binary_expression(
+	fn execute_binary_expression(
 		&mut self,
 		operator: &Operator,
 		mut left: RefToValue,
@@ -190,7 +228,7 @@ impl Environment {
 		)?.into());
 	}
 
-	pub fn execute_operation_on_primitive(
+	fn execute_operation_on_primitive(
 		&mut self,
 		operator: &Operator,
 		left: &PrimitiveValue,
@@ -227,7 +265,7 @@ impl Environment {
 		};
 	}
 
-	pub fn eval_new_object_expression(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
+	fn eval_new_object_expression(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
 		let class = self.eval_expr_expect_object(&call_expr.callee)?;
 		let obj = RuntimeObject::allocate_instance(class);
 		let res = RuntimeObject::call_method_on_object_with_args(
@@ -243,7 +281,7 @@ impl Environment {
 	}
 
 	//noinspection RsLift
-	pub fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
+	fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
 		match call_expr.callee.deref() {
 			Expression::MemberAccess {
 				object,

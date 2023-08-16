@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::io;
 
 use backtrace::Backtrace;
 use thiserror::Error;
@@ -23,24 +24,28 @@ pub enum Descriptor {
 }
 
 impl From<&str> for Descriptor {
+	#[inline(always)]
 	fn from(value: &str) -> Self {
 		Descriptor::Name(value.to_string())
 	}
 }
 
 impl From<IdentifierT> for Descriptor {
+	#[inline(always)]
 	fn from(value: IdentifierT) -> Self {
 		Descriptor::Name(value)
 	}
 }
 
 impl From<PrimitiveValue> for Descriptor {
+	#[inline(always)]
 	fn from(value: PrimitiveValue) -> Self {
 		Descriptor::Value(value)
 	}
 }
 
 impl From<Expression> for Descriptor {
+	#[inline(always)]
 	fn from(value: Expression) -> Self {
 		Descriptor::Expression(value)
 	}
@@ -54,12 +59,18 @@ pub enum RuntimeError {
 	ExpectedFunction(Descriptor),
 	#[error("Expected {0:#?} to be a class object")]
 	ExpectedClassObject(Descriptor),
+	#[error("Expected {0:#?} to be a namespace object")]
+	ExpectedNamespaceObject(Descriptor),
 	#[error("Expected {0:#?} to be an object")]
 	ExpectedObject(Descriptor),
 	#[error("Invalid number of arguments {got:?} expected {expected:?} to be function {func:#?}")]
 	InvalidNumberArgumentsToFunction { got: usize, expected: Option<String>, func: Descriptor },
 	#[error("Expected {0:#?} to be a valid subscript expression")]
 	ExpectedValidSubscript(Descriptor),
+	#[error("Expected {0:#?} to be a valid file name expression")]
+	ExpectedValidFileName(Descriptor),
+	#[error("{0}")]
+	IOError(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Error)]
@@ -110,6 +121,13 @@ pub enum ErrorT {
 pub struct EvilangError {
 	pub typ: ErrorT,
 	pub backtrace: Option<Backtrace>,
+}
+
+impl From<io::Error> for EvilangError {
+	#[inline(always)]
+	fn from(value: io::Error) -> Self {
+		return EvilangError::new(RuntimeError::IOError(format!("{0}", value)).into());
+	}
 }
 
 impl Display for EvilangError {

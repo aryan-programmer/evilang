@@ -9,15 +9,19 @@ use crate::interpreter::environment::statement_result::{StatementExecution, Unro
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::variables_containers::{GlobalScope, map::IVariablesMapDelegator, VariableScope};
-use crate::utils::cell_ref::{gc_cell_clone, GcBox};
+use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 
-#[derive(PartialEq, Trace, Finalize)]
+#[derive(Trace, Finalize)]
 pub struct Closure {
 	#[unsafe_ignore_trace]
 	pub code: FunctionDeclaration,
-	pub parent_scope: GcBox<VariableScope>,
-	pub global_scope: GcBox<GlobalScope>,
+	pub environment: Environment,
+}
+
+impl PartialEq for Closure {
+	fn eq(&self, other: &Self) -> bool {
+		false
+	}
 }
 
 impl Debug for Closure {
@@ -28,10 +32,7 @@ impl Debug for Closure {
 
 impl IFunction for Closure {
 	fn execute(&self, _env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
-		let mut env = Environment::new_child_of(
-			gc_cell_clone(&self.parent_scope),
-			gc_cell_clone(&self.global_scope),
-		);
+		let mut env = Environment::new_with_parent(&self.environment);
 		for (FunctionParameterDeclaration { identifier: param_name }, param_value) in self.code.parameters.iter().zip(params.into_iter()) {
 			env.declare(param_name, param_value.into())?;
 		}
@@ -48,7 +49,7 @@ impl IFunction for Closure {
 }
 
 impl Closure {
-	pub fn new(code: FunctionDeclaration, parent_scope: GcBox<VariableScope>, global_scope: GcBox<GlobalScope>) -> Self {
-		Self { code, parent_scope, global_scope }
+	pub fn new(code: FunctionDeclaration, environment: Environment) -> Self {
+		Self { code, environment }
 	}
 }

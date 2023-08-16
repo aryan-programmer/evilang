@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 
 use crate::ast::{expression::{BoxExpression, Expression}, operator::Operator, statement::{Statement, StatementList}};
-use crate::ast::expression::IdentifierT;
+use crate::ast::expression::{DottedIdentifiers, IdentifierT};
 use crate::ast::statement::BoxStatement;
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
@@ -119,14 +119,7 @@ impl Parser {
 
 	/*
 	statement:
-		| block_statement
-		| expression_statement
-		| empty_statement
-		| variable_declarations_statement
-		| if_statement
-		| while_loop
-		| do_while_loop
-		| for_loop
+		| ...
 	*/
 	fn statement(&mut self) -> ResultWithError<Statement> {
 		return match self.lookahead_type()? {
@@ -142,8 +135,34 @@ impl Parser {
 			TokenType::Keyword(Keyword::Class) => self.class_declaration_statement(),
 			TokenType::Keyword(Keyword::Break) => self.break_statement(),
 			TokenType::Keyword(Keyword::Continue) => self.continue_statement(),
+			TokenType::Keyword(Keyword::Namespace) => self.namespace_statement(),
+			TokenType::Keyword(Keyword::Import) => self.import_statement(),
 			_ => self.expression_statement(),
 		};
+	}
+
+	/*
+	import_statement:
+		| 'import' expression(file_name) 'as' expression(namespace_object) ';'
+	*/
+	fn import_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Import))?;
+		let file_name = self.expression()?;
+		self.eat(TokenType::Keyword(Keyword::As))?;
+		let as_object = self.dotted_identifiers()?;
+		self.eat(TokenType::Semicolon)?;
+		return Ok(Statement::import_statement(file_name, as_object));
+	}
+
+	/*
+	namespace_statement:
+		| 'namespace' expression surrounded_statement_list
+	*/
+	fn namespace_statement(&mut self) -> ResultWithError<Statement> {
+		self.eat(TokenType::Keyword(Keyword::Namespace))?;
+		let module = self.dotted_identifiers()?;
+		let body = self.surrounded_statement_list()?;
+		return Ok(Statement::namespace_statement(module, body.into()));
 	}
 
 	/*
@@ -414,16 +433,25 @@ impl Parser {
 
 	/*
 	block_statement:
-		| '{' statement_list '}'
+		| surrounded_statement_list
 	*/
 	fn block_statement(&mut self) -> ResultWithError<Statement> {
+		return Ok(Statement::BlockStatement(self.surrounded_statement_list()?));
+	}
+
+	/*
+	surrounded_statement_list:
+		| '{' statement_list '}'
+	*/
+	#[inline(always)]
+	fn surrounded_statement_list(&mut self) -> ResultWithError<StatementList> {
 		if self.lookahead_type()? == TokenType::CloseBlock {
-			return Ok(Statement::BlockStatement(vec![]));
+			return Ok(vec![]);
 		}
 		self.eat(TokenType::OpenBlock)?;
 		let res = self.statement_list(Some(TokenType::CloseBlock))?;
 		self.eat(TokenType::CloseBlock)?;
-		return Ok(Statement::BlockStatement(res));
+		return Ok(res);
 	}
 
 	/*
@@ -540,8 +568,8 @@ impl Parser {
 	/*
 	member_expression:
 		| primary_expression
+		| member_expression . Identifier
 		| member_expression '[' expression ']'
-		| member_expression '(' call_arguments ')'
 	*/
 	fn member_expression(&mut self) -> ResultWithError<Expression> {
 		let mut res = self.primary_or_super_expression()?;
@@ -603,7 +631,7 @@ impl Parser {
 			TokenType::Keyword(Keyword::New) => self.new_expression(),
 			TokenType::Keyword(Keyword::Fn) => self.function_expression(),
 			TokenType::Keyword(Keyword::Class) => self.class_declaration_expression(),
-			_ => self.identifier_expression(),
+			_ => self.dotted_identifier_expression(),
 		};
 	}
 
@@ -642,9 +670,13 @@ impl Parser {
 	// 	return Ok(Expression::SuperExpression);
 	// }
 
-	#[inline]
-	fn identifier_expression(&mut self) -> ResultWithError<Expression> {
-		return Ok(Expression::Identifier(self.identifier()?));
+	fn dotted_identifier_expression(&mut self) -> ResultWithError<Expression> {
+		let mut res = self.dotted_identifiers()?;
+		return if res.len() == 1 {
+			Ok(Expression::Identifier(res.pop().unwrap()))
+		} else {
+			Ok(Expression::DottedIdentifiers(res))
+		};
 	}
 
 	/*
@@ -793,6 +825,11 @@ impl Parser {
 			return Ok((Expression::member_subscript(res.into(), expr), true));
 		}
 		return Ok((res, false));
+	}
+
+	#[inline]
+	fn dotted_identifiers(&mut self) -> ResultWithError<DottedIdentifiers> {
+		return self.delimited_items(Self::identifier, TokenType::Dot, TokenType::_EOFDummy);
 	}
 	// endregion
 }

@@ -17,6 +17,9 @@ pub enum Keyword {
 	New,
 	Break,
 	Continue,
+	Namespace,
+	Import,
+	As,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

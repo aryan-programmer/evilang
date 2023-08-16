@@ -5,9 +5,10 @@ pub use scope::VariableScope;
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
+use crate::interpreter::environment::resolver::BoxIResolver;
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::cell_ref::{gc_box_from, GcBox};
 use crate::interpreter::variables_containers::map::{delegate_ivariables_map, IVariablesMapConstMembers, IVariablesMapDelegator};
-use crate::utils::cell_ref::{gc_box_from, GcBox};
 
 pub mod map;
 pub mod scope;
@@ -16,16 +17,18 @@ pub mod scope;
 pub struct GlobalScope {
 	pub scope: GcBox<VariableScope>,
 	pub res_stack: Vec<PrimitiveValue>,
+	pub resolver: BoxIResolver,
 }
 
 impl GlobalScope {
-	pub fn new_gc_from_variables(variables: VariablesMap) -> GcBox<GlobalScope> {
+	pub fn new_gc_from_variables(variables: VariablesMap, resolver: BoxIResolver) -> GcBox<GlobalScope> {
 		gc_box_from(GlobalScope {
-			scope: VariableScope::new_gc(
+			scope: VariableScope::new_gc_from_map(
 				variables,
 				None,
 			),
 			res_stack: Vec::new(),
+			resolver,
 		})
 	}
 }

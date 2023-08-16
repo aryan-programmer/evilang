@@ -4,9 +4,9 @@ use gc::{Finalize, Trace};
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
 use crate::interpreter::variables_containers::map::IVariablesMap;
-use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace + Finalize {
 	fn get_variables(&self) -> GcBox<VariablesMap>;
@@ -72,7 +72,12 @@ impl IGenericVariablesScope<VariableScope> for VariableScope {
 }
 
 impl VariableScope {
-	pub fn new_gc(
+	#[inline(always)]
+	pub fn new_gc(variables: GcBox<VariablesMap>, parent: Option<GcBox<VariableScope>>) -> GcBox<VariableScope> {
+		gc_box_from(Self { variables, parent })
+	}
+
+	pub fn new_gc_from_map(
 		variables: VariablesMap,
 		parent: Option<GcBox<VariableScope>>,
 	) -> GcBox<VariableScope> {

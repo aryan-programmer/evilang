@@ -5,21 +5,25 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
-use crate::errors::ResultWithError;
+use crate::errors::{Descriptor, ErrorT, ResultWithError, RuntimeError};
 use crate::interpreter::environment::default_global_scope::get_default_global_scope;
+use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver, IResolver};
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
+use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::cell_ref::{gc_cell_clone, GcBox};
+use crate::interpreter::utils::consts::CURRENT_FILE;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::{GlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
 use crate::parser::parse;
-use crate::utils::cell_ref::{gc_cell_clone, GcBox};
 
 pub mod statement_result;
 pub mod expression_evaluation;
 pub mod native_functions;
 pub mod default_global_scope;
+pub mod resolver;
 
-#[derive(Trace, Finalize)]
+#[derive(Clone, Trace, Finalize)]
 pub struct Environment {
 	pub scope: GcBox<VariableScope>,
 	pub global_scope: GcBox<GlobalScope>,
@@ -32,31 +36,21 @@ delegate_ivariables_map!(for Environment =>
 
 impl Environment {
 	#[inline(always)]
-	pub fn new_full(scope: GcBox<VariableScope>, global_scope: GcBox<GlobalScope>) -> Environment {
-		return Self {
-			scope,
-			global_scope,
-		};
-	}
-
-	#[inline(always)]
-	pub fn new_child_of(scope: GcBox<VariableScope>, global_scope: GcBox<GlobalScope>) -> Environment {
-		return Self {
-			scope: VariableScope::new_gc(VariablesMap::new(), Some(scope)),
-			global_scope,
-		};
-	}
-
-	#[inline(always)]
 	pub fn new() -> Environment {
-		let global_scope = get_default_global_scope();
-		let scope = gc_cell_clone(&global_scope.borrow().scope);
-		return Self::new_full(scope, global_scope);
+		return Self::new_with_resolver(DefaultResolver::new_box());
 	}
 
-	#[inline(always)]
-	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Environment {
-		let global_scope = get_default_global_scope();
+	pub fn new_with_resolver(resolver: BoxIResolver) -> Environment {
+		let global_scope = get_default_global_scope(resolver);
+		let scope = gc_cell_clone(&global_scope.borrow().scope);
+		return Self { scope, global_scope };
+	}
+
+	pub fn new_from_primitives(
+		variables: HashMap<IdentifierT, PrimitiveValue>,
+		resolver: BoxIResolver,
+	) -> Environment {
+		let global_scope = get_default_global_scope(resolver);
 		let scope = gc_cell_clone(&global_scope.borrow().scope);
 		{
 			let scope_borr = scope.borrow();
@@ -65,18 +59,48 @@ impl Environment {
 				scope_vars_borr.deref_mut().assign(&name, value);
 			}
 		}
-		return Self::new_full(scope, global_scope);
+		return Self { scope, global_scope };
 	}
 
 	pub fn new_with_parent(env: &Environment) -> Environment {
 		let global_scope = gc_cell_clone(&env.global_scope);
-		return Self::new_full(
-			VariableScope::new_gc(
+		return Self {
+			scope: VariableScope::new_gc_from_map(
 				VariablesMap::new(),
 				Some(gc_cell_clone(&env.scope)),
 			),
 			global_scope,
-		);
+		};
+	}
+
+	pub fn new_with_object_scope(env: &Environment, obj: &GcBox<RuntimeObject>) -> Environment {
+		let global_scope = gc_cell_clone(&env.global_scope);
+		return Self {
+			scope: VariableScope::new_gc(
+				gc_cell_clone(&obj.borrow().properties),
+				Some(gc_cell_clone(&env.scope)),
+			),
+			global_scope,
+		};
+	}
+
+	pub fn execute_file(file: String, resolver: BoxIResolver) -> ResultWithError<Environment> {
+		let resolved_res = resolver.resolve(None, file)?;
+		let mut env = Self::new_with_resolver(resolver);
+		env.scope.borrow().assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.setup_and_eval_statements(&resolved_res.statements)?;
+		return Ok(env);
+	}
+
+	fn import_file(
+		&self,
+		obj: GcBox<RuntimeObject>,
+		file_path: String,
+	) -> ResultWithError<StatementExecution> {
+		let resolved_res = self.global_scope.borrow().resolver.resolve(Some(self), file_path)?;
+		let mut env = Environment::new_with_object_scope(self, &obj);
+		env.scope.borrow().assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.setup_and_eval_statements(&resolved_res.statements)
 	}
 
 	pub fn eval_program_string(&mut self, input: String) -> ResultWithError<StatementExecution> {
@@ -215,9 +239,31 @@ impl Environment {
 				// Class declaration has already been hoisted
 				Ok(StatementExecution::NormalFlow)
 			}
-			/*stmt => {
+			Statement::NamespaceStatement { namespace, body } => {
+				let obj = self.get_namespace_object(namespace)?;
+				let mut env = Environment::new_with_object_scope(self, &obj);
+				env.setup_and_eval_statements(body)
+			}
+			Statement::ImportStatement {
+				as_object,
+				file_name,
+			} => {
+				let obj = self.get_namespace_object(as_object)?;
+				let file_val = self.eval(file_name)?;
+				let borr = file_val.borrow();
+				let PrimitiveValue::String(file) = borr.deref() else {
+					drop(borr);
+					return Err(RuntimeError::ExpectedValidFileName(Descriptor::Both {
+						value: file_val.consume_or_clone(),
+						expression: file_name.clone(),
+					}).into());
+				};
+				let file_path = file.clone();
+				self.import_file(obj, file_path)
+			}
+			stmt => {
 				Err(ErrorT::UnimplementedStatementTypeForInterpreter(stmt.clone()).into())
-			}*/
+			}
 		};
 	}
 

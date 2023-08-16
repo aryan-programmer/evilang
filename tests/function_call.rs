@@ -1,4 +1,5 @@
 use evilang_lib::ast::expression::{Expression, Expression::{AssignmentExpression, BinaryExpression, Identifier, IntegerLiteral, MemberAccess, StringLiteral}};
+use evilang_lib::ast::expression::Expression::DottedIdentifiers;
 use evilang_lib::ast::expression::MemberIndexer::{PropertyName, SubscriptExpression};
 use evilang_lib::ast::operator::Operator::{Assignment, ModulusAssignment, Plus};
 
@@ -35,10 +36,10 @@ fn chained_function_call() -> TestRes {
 fn console_log() -> TestRes {
 	ensure_program(r#"console.log("values");"#, vec![
 		Expression::function_call(
-			MemberAccess {
-				object: Identifier("console".to_string()).into(),
-				member: PropertyName("log".to_string()),
-			}.into(),
+			DottedIdentifiers([
+				"console".to_string(),
+				"log".to_string(),
+			].into()).into(),
 			vec![
 				StringLiteral("values".to_string()),
 			],
@@ -53,10 +54,10 @@ fn member_complex_assignment() -> TestRes {
 		left: MemberAccess {
 			object: Expression::function_call(
 				MemberAccess {
-					object: MemberAccess {
-						object: Identifier("a".to_string()).into(),
-						member: PropertyName("b".to_string()),
-					}.into(),
+					object: DottedIdentifiers([
+						"a".to_string(),
+						"b".to_string(),
+					].into()).into(),
 					member: SubscriptExpression(
 						BinaryExpression {
 							operator: Plus,
@@ -78,17 +79,17 @@ fn member_complex_assignment() -> TestRes {
 				operator: Plus,
 				left: IntegerLiteral(1).into(),
 				right: Expression::function_call(
-					MemberAccess {
-						object: Identifier("$".to_string()).into(),
-						member: PropertyName("left".to_string()),
-					}.into(),
+					DottedIdentifiers([
+						"$".to_string(),
+						"left".to_string(),
+					].into()).into(),
 					vec![
 						AssignmentExpression {
 							operator: Assignment,
-							left: MemberAccess {
-								object: Identifier("$".to_string()).into(),
-								member: PropertyName("right".to_string()),
-							}.into(),
+							left: DottedIdentifiers([
+								"$".to_string(),
+								"right".to_string(),
+							].into()).into(),
 							right: IntegerLiteral(1).into(),
 						}
 					],

@@ -1,0 +1,14 @@
+class Point {
+	fn constructor(this, x, y) {
+		this.x = x;
+		this.y = y;
+	}
+
+	fn calc(this) {
+		return this.x + this.y;
+	}
+}
+
+namespace Point {
+	let ORIGIN = new Point(0, 0);
+}

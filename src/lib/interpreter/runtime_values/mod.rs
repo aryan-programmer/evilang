@@ -2,20 +2,19 @@ use std::ops::Deref;
 
 use gc::{Finalize, Gc, Trace};
 
-use crate::ast::expression::Expression;
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration};
-use crate::errors::{Descriptor, ResultWithError, RuntimeError};
+use crate::errors::ResultWithError;
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
-use crate::interpreter::utils::consts::{OBJECT, SUPER};
+use crate::interpreter::utils::{expect_object, get_object_superclass};
+use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::interpreter::utils::consts::SUPER;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
-use crate::interpreter::utils::get_object_superclass;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::VariablesMap;
-use crate::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
 
 pub mod ref_to_value;
 pub mod functions;
@@ -82,8 +81,7 @@ impl PrimitiveValue {
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> Self {
 		let closure = Closure::new(
 			decl,
-			gc_cell_clone(&env.scope),
-			gc_cell_clone(&env.global_scope),
+			env.clone(),
 		);
 		let function_closure = Function::Closure(closure);
 		return PrimitiveValue::Function(gc_box_from(function_closure));
@@ -95,24 +93,13 @@ impl PrimitiveValue {
 			super_class,
 			methods
 		} = decl;
-		let super_class_val = if let Some(v) = super_class {
-			env.eval(v)?.consume_or_clone()
+		let super_class = if let Some(v) = super_class {
+			expect_object(env.eval(v)?, Some(v))?
 		} else {
 			get_object_superclass(env)?
 		};
-		let super_class: GcBox<RuntimeObject> =
-			if let PrimitiveValue::Object(ref object_class_ref) = super_class_val {
-				gc_cell_clone(object_class_ref)
-			} else {
-				return Err(RuntimeError::ExpectedClassObject(Descriptor::Both {
-					value: super_class_val,
-					expression: super_class.clone().unwrap_or_else(||
-						Expression::Identifier(OBJECT.to_string())
-					),
-				}).into());
-			};
 		let scope = Environment::new_with_parent(env);
-		scope.declare(&SUPER.to_string(), super_class_val.into())?;
+		scope.declare(&SUPER.to_string(), PrimitiveValue::Object(gc_cell_clone(&super_class)))?;
 		let sub_class = RuntimeObject::new_gc(
 			VariablesMap::new_direct(methods
 				.clone()

@@ -1,4 +1,4 @@
-use crate::ast::expression::{Expression, IdentifierT};
+use crate::ast::expression::{DottedIdentifiers, Expression, IdentifierT};
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 
 pub type BoxStatement = Box<Statement>;
@@ -35,6 +35,14 @@ pub enum Statement {
 	ContinueStatement(i64),
 	FunctionDeclarationStatement(FunctionDeclaration),
 	ClassDeclarationStatement(ClassDeclaration),
+	NamespaceStatement {
+		namespace: DottedIdentifiers,
+		body: StatementList,
+	},
+	ImportStatement {
+		file_name: Expression,
+		as_object: DottedIdentifiers,
+	},
 }
 
 impl Statement {
@@ -88,6 +96,22 @@ impl Statement {
 		methods: Vec<FunctionDeclaration>,
 	) -> Statement {
 		return Statement::ClassDeclarationStatement(ClassDeclaration::new(name, super_class, methods));
+	}
+
+	#[inline(always)]
+	pub fn namespace_statement(
+		namespace: DottedIdentifiers,
+		body: StatementList,
+	) -> Statement {
+		return Statement::NamespaceStatement { namespace, body };
+	}
+
+	#[inline(always)]
+	pub fn import_statement(
+		file_name: Expression,
+		as_object: DottedIdentifiers,
+	) -> Statement {
+		return Statement::ImportStatement { file_name, as_object };
 	}
 }
 

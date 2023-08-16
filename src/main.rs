@@ -1,10 +1,18 @@
 #![allow(dead_code)]
 
+use std::error::Error;
 use std::ops::Deref;
+
+use clap::Parser;
 
 use evilang_lib::ast::statement::StatementList;
 use evilang_lib::interpreter::environment::Environment;
+use evilang_lib::interpreter::environment::resolver::DefaultResolver;
 use evilang_lib::parser::parse;
+
+use crate::cli::CliArguments;
+
+pub mod cli;
 
 type TestRes = ();
 
@@ -33,29 +41,12 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 	return;
 }
 
-fn main() {
-	let mut env = Environment::new();
-	let program = r#"
-class SuperClass {
-}
-SuperClass.x = 12;
-class Point extends SuperClass {
-}
-Point.x = 13;
-push_res_stack(SuperClass.x, Point.x);
-"#;
-
-	/*
-let v2 = allocate_object(Object, "Child");
-push_res_stack(Object);
-push_res_stack(allocate_object());
-push_res_stack(v2);
-push_res_stack(allocate_object(v2));
-*/
-
-	// print_program(program);
-	env.eval_program_string(program.to_string()).map_err(|err| {
-		dbg!(err);
-	}).unwrap();
+fn main() -> Result<(), Box<dyn Error>> {
+	let args = CliArguments::parse();
+	let Some(file) = args.file else {
+		return Ok(());
+	};
+	let env = Environment::execute_file(file, DefaultResolver::new_box())?;
 	dbg!(&env.global_scope.borrow().res_stack);
+	return Ok(());
 }
