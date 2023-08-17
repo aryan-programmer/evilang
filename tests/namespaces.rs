@@ -30,7 +30,7 @@ push_res_stack(Math.INT32_MAX);
 #[test]
 fn imports_namespaces() -> TestRes {
 	let file = env!("CARGO_MANIFEST_DIR").to_string() + "/resources/tests/import_test/main.evil";
-	let mut env = Environment::execute_file(file, DefaultResolver::new_box()).unwrap();
+	let env = Environment::execute_file(file, DefaultResolver::new_box()).unwrap();
 	let prim_true = PrimitiveValue::Boolean(true);
 	for x in env.global_scope.borrow().res_stack.iter() {
 		assert_eq!(x, &prim_true, "Expected all result stack values to be true");

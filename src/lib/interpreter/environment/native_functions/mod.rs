@@ -34,7 +34,7 @@ pub fn allocate_object(
 		get_object_superclass(env)?
 	};
 	let name = if let Some(PrimitiveValue::String(ref s)) = name_opt { s.clone() } else {
-		INSTANCE_OF_.to_string() + &object_class.borrow().name
+		INSTANCE_OF_.to_string() + &object_class.name
 	};
 	return Ok(PrimitiveValue::Object(RuntimeObject::allocate(object_class, name)));
 }

@@ -6,12 +6,12 @@ use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
-use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue, ref_to_value::RefToValue};
+use crate::interpreter::runtime_values::{GcPtrVariableExt, PrimitiveValue, ref_to_value::RefToValue};
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
-use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::{expect_object, expect_object_or_set_object_if_null};
-use crate::interpreter::utils::cell_ref::{gc_cell_clone, GcBox};
+use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::CONSTRUCTOR;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
@@ -99,7 +99,7 @@ impl Environment {
 		});
 	}
 
-	pub fn get_namespace_object(&mut self, idens: &DottedIdentifiers) -> ResultWithError<GcBox<RuntimeObject>> {
+	pub fn get_namespace_object(&mut self, idens: &DottedIdentifiers) -> ResultWithError<GcPtrToObject> {
 		let mut iter = idens.iter();
 		let Some(obj_expr) = iter.next() else {
 			return Err(RuntimeError::ExpectedNamespaceObject(Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))).into());
@@ -150,10 +150,10 @@ impl Environment {
 		if var.is_hoisted() {
 			return Err(ErrorT::CantAccessHoistedVariable(name.clone()).into());
 		}
-		Ok(RefToValue::LValue(var))
+		Ok(RefToValue::Variable(var))
 	}
 
-	fn eval_expr_expect_object(&mut self, expr: &Expression) -> ResultWithError<GcBox<RuntimeObject>> {
+	fn eval_expr_expect_object(&mut self, expr: &Expression) -> ResultWithError<GcPtrToObject> {
 		return expect_object(self.eval(expr)?, Some(expr));
 	}
 
@@ -284,7 +284,7 @@ impl Environment {
 		let class = self.eval_expr_expect_object(&call_expr.callee)?;
 		let obj = RuntimeObject::allocate_instance(class);
 		let res = RuntimeObject::call_method_on_object_with_args(
-			gc_cell_clone(&obj),
+			gc_clone(&obj),
 			self,
 			&CONSTRUCTOR.to_string(),
 			call_expr,
@@ -325,7 +325,7 @@ impl Environment {
 						.map(RefToValue::consume_or_clone)
 					)
 					.collect::<ResultWithError<FunctionParameters>>()?;
-				return Ok(gc_fn.borrow().execute(self, args)?.into());
+				return Ok(gc_fn.execute(self, args)?.into());
 			}
 		};
 	}

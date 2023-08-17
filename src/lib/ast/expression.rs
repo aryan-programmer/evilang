@@ -1,4 +1,4 @@
-use num_traits::{Num};
+use num_traits::Num;
 
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;

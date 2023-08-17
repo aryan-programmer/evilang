@@ -3,28 +3,27 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
-use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
-use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
+use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
+use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr};
+use crate::interpreter::variables_containers::map::{GcPtrMutCellToVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
 use crate::interpreter::variables_containers::map::IVariablesMap;
 
 pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace + Finalize {
-	fn get_variables(&self) -> GcBox<VariablesMap>;
-	fn get_parent(&self) -> Option<GcBox<T>>;
+	fn get_variables(&self) -> GcPtrMutCellToVariablesMap;
+	fn get_parent(&self) -> Option<GcPtr<T>>;
 
-	fn resolve_variable_scope(&self, name: &IdentifierT) -> GcBox<VariablesMap> {
+	fn resolve_variable_scope(&self, name: &IdentifierT) -> GcPtrMutCellToVariablesMap {
 		let self_vars = self.get_variables();
 		if self_vars.borrow().contains_key(name) {
 			return self_vars;
 		}
 		let mut parent_opt = self.get_parent();
 		while let Some(parent) = parent_opt {
-			let v_borrow = parent.borrow();
-			let v_vars = v_borrow.get_variables();
+			let v_vars = parent.get_variables();
 			if v_vars.borrow().contains_key(name) {
 				return v_vars;
 			}
-			parent_opt = v_borrow.get_parent();
+			parent_opt = parent.get_parent();
 		}
 		return self_vars;
 	}
@@ -33,7 +32,7 @@ pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace 
 impl<T: IGenericVariablesScope<T> + 'static> IVariablesMapConstMembers for T {
 	delegate! {
 		to self.resolve_variable_scope(name).borrow() {
-			fn get_actual(&self, name: &IdentifierT) -> Option<GcBox<PrimitiveValue>>;
+			fn get_actual(&self, name: &IdentifierT) -> Option<GcPtrVariable>;
 			fn contains_key(&self, name: &IdentifierT) -> bool;
 		}
 	}
@@ -53,36 +52,38 @@ impl<T: IGenericVariablesScope<T> + 'static> IVariablesMapDelegator for T {
 	}
 }
 
+pub type GcPtrToVariableScope = GcPtr<VariableScope>;
+
 #[derive(PartialEq, Trace, Finalize)]
 pub struct VariableScope {
-	pub variables: GcBox<VariablesMap>,
-	pub parent: Option<GcBox<VariableScope>>,
+	pub variables: GcPtrMutCellToVariablesMap,
+	pub parent: Option<GcPtrToVariableScope>,
 }
 
 impl IGenericVariablesScope<VariableScope> for VariableScope {
 	#[inline(always)]
-	fn get_variables(&self) -> GcBox<VariablesMap> {
-		gc_cell_clone(&self.variables)
+	fn get_variables(&self) -> GcPtrMutCellToVariablesMap {
+		gc_clone(&self.variables)
 	}
 
 	#[inline(always)]
-	fn get_parent(&self) -> Option<GcBox<VariableScope>> {
+	fn get_parent(&self) -> Option<GcPtrToVariableScope> {
 		self.parent.clone()
 	}
 }
 
 impl VariableScope {
 	#[inline(always)]
-	pub fn new_gc(variables: GcBox<VariablesMap>, parent: Option<GcBox<VariableScope>>) -> GcBox<VariableScope> {
-		gc_box_from(Self { variables, parent })
+	pub fn new_gc(variables: GcPtrMutCellToVariablesMap, parent: Option<GcPtrToVariableScope>) -> GcPtrToVariableScope {
+		GcPtr::new(Self { variables, parent })
 	}
 
 	pub fn new_gc_from_map(
 		variables: VariablesMap,
-		parent: Option<GcBox<VariableScope>>,
-	) -> GcBox<VariableScope> {
-		gc_box_from(Self {
-			variables: gc_box_from(variables),
+		parent: Option<GcPtrToVariableScope>,
+	) -> GcPtrToVariableScope {
+		GcPtr::new(Self {
+			variables: gc_ptr_cell_from(variables),
 			parent,
 		})
 	}

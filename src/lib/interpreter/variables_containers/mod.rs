@@ -6,23 +6,26 @@ pub use scope::VariableScope;
 use crate::ast::expression::IdentifierT;
 use crate::errors::ResultWithError;
 use crate::interpreter::environment::resolver::BoxIResolver;
-use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::{gc_box_from, GcBox};
+use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
+use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, GcPtr, GcPtrCell};
 use crate::interpreter::variables_containers::map::{delegate_ivariables_map, IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 
 pub mod map;
 pub mod scope;
 
+pub type GcPtrMutCellToGlobalScope = GcPtr<GcPtrCell<GlobalScope>>;
+
 #[derive(PartialEq, Trace, Finalize)]
 pub struct GlobalScope {
-	pub scope: GcBox<VariableScope>,
+	pub scope: GcPtrToVariableScope,
 	pub res_stack: Vec<PrimitiveValue>,
 	pub resolver: BoxIResolver,
 }
 
 impl GlobalScope {
-	pub fn new_gc_from_variables(variables: VariablesMap, resolver: BoxIResolver) -> GcBox<GlobalScope> {
-		gc_box_from(GlobalScope {
+	pub fn new_gc_from_variables(variables: VariablesMap, resolver: BoxIResolver) -> GcPtrMutCellToGlobalScope {
+		gc_ptr_cell_from(GlobalScope {
 			scope: VariableScope::new_gc_from_map(
 				variables,
 				None,
@@ -34,6 +37,6 @@ impl GlobalScope {
 }
 
 delegate_ivariables_map!(for GlobalScope =>
-	&self: self.scope.borrow(),
-	&self: (mut) self.scope.borrow_mut()
+	&self: self.scope,
+	&self: (mut) self.scope
 );

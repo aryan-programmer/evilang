@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use num_traits::Zero;
 
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration};
@@ -9,9 +9,9 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
-use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::{expect_object, get_object_superclass};
-use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr, GcPtrCell};
 use crate::interpreter::utils::consts::SUPER;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::VariablesMap;
@@ -21,11 +21,13 @@ pub mod ref_to_value;
 pub mod functions;
 pub mod objects;
 
-pub trait GcBoxOfPrimitiveValueExt {
+pub type GcPtrVariable = GcPtr<GcPtrCell<PrimitiveValue>>;
+
+pub trait GcPtrVariableExt {
 	fn is_hoisted(&self) -> bool;
 }
 
-impl GcBoxOfPrimitiveValueExt for GcBox<PrimitiveValue> {
+impl GcPtrVariableExt for GcPtrVariable {
 	#[inline(always)]
 	fn is_hoisted(&self) -> bool {
 		return self.deref().borrow().deref().is_hoisted();
@@ -39,8 +41,8 @@ pub enum PrimitiveValue {
 	Boolean(bool),
 	Number(#[unsafe_ignore_trace] NumberT),
 	String(String),
-	Function(GcBox<Function>),
-	Object(GcBox<RuntimeObject>),
+	Function(GcPtr<Function>),
+	Object(GcPtrToObject),
 }
 
 impl PartialEq for PrimitiveValue {
@@ -62,11 +64,11 @@ impl PartialEq for PrimitiveValue {
 			(
 				PrimitiveValue::Function(self_0),
 				PrimitiveValue::Function(othr_0),
-			) => Gc::ptr_eq(self_0, othr_0),
+			) => GcPtr::ptr_eq(self_0, othr_0),
 			(
 				PrimitiveValue::Object(self_0),
 				PrimitiveValue::Object(othr_0),
-			) => Gc::ptr_eq(self_0, othr_0),
+			) => GcPtr::ptr_eq(self_0, othr_0),
 			(PrimitiveValue::Null, PrimitiveValue::Null) => true,
 			(PrimitiveValue::_HoistedVariable, PrimitiveValue::_HoistedVariable) => true,
 			_ => false,
@@ -84,7 +86,7 @@ impl PrimitiveValue {
 	}
 
 	pub fn new_native_function(f: NativeFunction) -> Self {
-		return PrimitiveValue::Function(gc_box_from(Function::NativeFunction(f)));
+		return PrimitiveValue::Function(GcPtr::new(Function::NativeFunction(f)));
 	}
 
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> Self {
@@ -93,7 +95,7 @@ impl PrimitiveValue {
 			env.clone(),
 		);
 		let function_closure = Function::Closure(closure);
-		return PrimitiveValue::Function(gc_box_from(function_closure));
+		return PrimitiveValue::Function(GcPtr::new(function_closure));
 	}
 
 	pub fn new_class_by_eval(env: &mut Environment, decl: &ClassDeclaration) -> ResultWithError<Self> {
@@ -108,13 +110,13 @@ impl PrimitiveValue {
 			get_object_superclass(env)?
 		};
 		let scope = Environment::new_with_parent(env);
-		scope.declare(&SUPER.to_string(), PrimitiveValue::Object(gc_cell_clone(&super_class)))?;
+		scope.declare(&SUPER.to_string(), PrimitiveValue::Object(gc_clone(&super_class)))?;
 		let sub_class = RuntimeObject::new_gc(
 			VariablesMap::new_direct(methods
 				.clone()
 				.into_iter()
 				.map(|fdecl| {
-					(fdecl.name.clone(), gc_box_from(PrimitiveValue::new_closure(&scope, fdecl)))
+					(fdecl.name.clone(), gc_ptr_cell_from(PrimitiveValue::new_closure(&scope, fdecl)))
 				})
 				.collect()
 			),

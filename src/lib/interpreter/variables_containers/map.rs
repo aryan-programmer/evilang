@@ -6,11 +6,11 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_values::{GcBoxOfPrimitiveValueExt, PrimitiveValue};
-use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::interpreter::runtime_values::{GcPtrVariableExt, GcPtrVariable, PrimitiveValue};
+use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr, GcPtrCell};
 
 pub trait IVariablesMapConstMembers {
-	fn get_actual(&self, name: &IdentifierT) -> Option<GcBox<PrimitiveValue>>;
+	fn get_actual(&self, name: &IdentifierT) -> Option<GcPtrVariable>;
 	fn contains_key(&self, name: &IdentifierT) -> bool;
 }
 
@@ -40,7 +40,7 @@ macro_rules! delegate_ivariables_map {
 	(for $for_type: ty => &$self: ident: $const_delegator: expr, &$mut_self: ident: (mut) $mut_delegator: expr) => {
 		impl IVariablesMapConstMembers for $for_type {
 			#[inline(always)]
-			fn get_actual(&$self, name: &IdentifierT) -> Option<GcBox<PrimitiveValue>> {
+			fn get_actual(&$self, name: &IdentifierT) -> Option<GcPtrVariable> {
 				return $const_delegator.get_actual(name);
 			}
 			#[inline(always)]
@@ -71,9 +71,11 @@ macro_rules! delegate_ivariables_map {
 
 pub use delegate_ivariables_map;
 
+pub type GcPtrMutCellToVariablesMap = GcPtr<GcPtrCell<VariablesMap>>;
+
 #[derive(Debug, PartialEq, Trace, Finalize)]
 pub struct VariablesMap {
-	pub variables: HashMap<IdentifierT, GcBox<PrimitiveValue>>,
+	pub variables: HashMap<IdentifierT, GcPtrVariable>,
 }
 
 impl VariablesMap {
@@ -82,23 +84,23 @@ impl VariablesMap {
 		Self { variables: HashMap::new() }
 	}
 	#[inline(always)]
-	pub fn new_direct(variables: HashMap<IdentifierT, GcBox<PrimitiveValue>>) -> Self {
+	pub fn new_direct(variables: HashMap<IdentifierT, GcPtrVariable>) -> Self {
 		Self { variables }
 	}
 	pub fn new_from_primitives(variables: HashMap<IdentifierT, PrimitiveValue>) -> Self {
 		Self {
 			variables: variables
 				.into_iter()
-				.map(|(iden, val)| (iden, gc_box_from(val)))
+				.map(|(iden, val)| (iden, gc_ptr_cell_from(val)))
 				.collect(),
 		}
 	}
 }
 
 impl IVariablesMapConstMembers for VariablesMap {
-	fn get_actual(&self, name: &IdentifierT) -> Option<GcBox<PrimitiveValue>> {
+	fn get_actual(&self, name: &IdentifierT) -> Option<GcPtrVariable> {
 		return if let Some(v) = self.variables.get(name) {
-			Some(gc_cell_clone(v))
+			Some(gc_clone(v))
 		} else {
 			None
 		};
@@ -116,7 +118,7 @@ impl IVariablesMap for VariablesMap {
 			let mut res = v.borrow_mut();
 			Some(replace(res.deref_mut(), value))
 		} else {
-			self.variables.insert(name.clone(), gc_box_from(value));
+			self.variables.insert(name.clone(), gc_ptr_cell_from(value));
 			None
 		};
 	}

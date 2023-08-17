@@ -1,12 +1,12 @@
 use crate::interpreter::environment::native_functions::make_native_functions_list;
 use crate::interpreter::environment::resolver::BoxIResolver;
-use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
+use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::{gc_box_from, GcBox};
+use crate::interpreter::utils::cell_ref::gc_ptr_cell_from;
 use crate::interpreter::utils::consts::OBJECT;
-use crate::interpreter::variables_containers::{GlobalScope, VariablesMap};
+use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, GlobalScope, VariablesMap};
 
-pub fn make_object_class() -> GcBox<RuntimeObject> {
+pub fn make_object_class() -> GcPtrToObject {
 	return RuntimeObject::new_gc(VariablesMap::new(), None, OBJECT.into());
 }
 
@@ -20,11 +20,11 @@ fn make_default_global_variables() -> VariablesMap {
 			.chain([
 				(OBJECT.to_string(), PrimitiveValue::Object(make_object_class()))
 			].into_iter())
-			.map(|(name, val)| (name, gc_box_from(val)))
+			.map(|(name, val)| (name, gc_ptr_cell_from(val)))
 			.collect()
 	);
 }
 
-pub fn get_default_global_scope(resolver: BoxIResolver) -> GcBox<GlobalScope> {
+pub fn get_default_global_scope(resolver: BoxIResolver) -> GcPtrMutCellToGlobalScope {
 	return GlobalScope::new_gc_from_variables(make_default_global_variables(), resolver);
 }

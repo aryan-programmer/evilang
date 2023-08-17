@@ -10,41 +10,43 @@ use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::runtime_values::ref_to_value::RefToValue;
-use crate::interpreter::utils::cell_ref::{gc_box_from, gc_cell_clone, GcBox};
+use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr};
 use crate::interpreter::utils::consts::INSTANCE_OF_;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
-use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
+use crate::interpreter::variables_containers::map::{GcPtrMutCellToVariablesMap, IVariablesMapConstMembers};
 use crate::interpreter::variables_containers::scope::IGenericVariablesScope;
 use crate::interpreter::variables_containers::VariablesMap;
 
+pub type GcPtrToObject = GcPtr<RuntimeObject>;
+
 #[derive(Debug, PartialEq, Trace, Finalize)]
 pub struct RuntimeObject {
-	pub properties: GcBox<VariablesMap>,
-	pub parent: Option<GcBox<RuntimeObject>>,
+	pub properties: GcPtrMutCellToVariablesMap,
+	pub parent: Option<GcPtrToObject>,
 	pub name: String,
 }
 
 impl RuntimeObject {
 	pub fn new_gc(
 		variables: VariablesMap,
-		parent: Option<GcBox<RuntimeObject>>,
+		parent: Option<GcPtrToObject>,
 		name: String,
-	) -> GcBox<RuntimeObject> {
-		gc_box_from(Self {
-			properties: gc_box_from(variables),
+	) -> GcPtrToObject {
+		GcPtr::new(Self {
+			properties: gc_ptr_cell_from(variables),
 			parent,
 			name,
 		})
 	}
 
 	#[inline(always)]
-	pub fn allocate(parent: GcBox<RuntimeObject>, name: String) -> GcBox<RuntimeObject> {
+	pub fn allocate(parent: GcPtrToObject, name: String) -> GcPtrToObject {
 		return Self::new_gc(VariablesMap::new(), Some(parent), name);
 	}
 
 	#[inline]
-	pub fn allocate_instance(parent: GcBox<RuntimeObject>) -> GcBox<RuntimeObject> {
-		let instance_name = INSTANCE_OF_.to_string() + &parent.borrow().name;
+	pub fn allocate_instance(parent: GcPtrToObject) -> GcPtrToObject {
+		let instance_name = INSTANCE_OF_.to_string() + &parent.name;
 		return Self::new_gc(
 			VariablesMap::new(),
 			Some(parent),
@@ -52,8 +54,8 @@ impl RuntimeObject {
 		);
 	}
 
-	pub fn call_method_on_object_with_args(this: GcBox<RuntimeObject>, env: &mut Environment, method_name: &IdentifierT, call_expr: &CallExpression) -> ResultWithError<FunctionReturnValue> {
-		let Some(method_prop_box) = this.borrow().get_actual(method_name) else {
+	pub fn call_method_on_object_with_args(this: GcPtrToObject, env: &mut Environment, method_name: &IdentifierT, call_expr: &CallExpression) -> ResultWithError<FunctionReturnValue> {
+		let Some(method_prop_box) = this.get_actual(method_name) else {
 			return Err(RuntimeError::ExpectedFunction(Descriptor::Expression((*call_expr.callee).clone())).into());
 		};
 		let method_prop = method_prop_box.borrow();
@@ -75,18 +77,18 @@ impl RuntimeObject {
 					)
 			)
 			.collect::<ResultWithError<FunctionParameters>>()?;
-		return Ok(method.borrow().execute(env, args_with_this)?.into());
+		return Ok(method.execute(env, args_with_this)?.into());
 	}
 }
 
 impl IGenericVariablesScope<RuntimeObject> for RuntimeObject {
 	#[inline(always)]
-	fn get_variables(&self) -> GcBox<VariablesMap> {
-		gc_cell_clone(&self.properties)
+	fn get_variables(&self) -> GcPtrMutCellToVariablesMap {
+		gc_clone(&self.properties)
 	}
 
 	#[inline(always)]
-	fn get_parent(&self) -> Option<GcBox<RuntimeObject>> {
+	fn get_parent(&self) -> Option<GcPtrToObject> {
 		self.parent.clone()
 	}
 }

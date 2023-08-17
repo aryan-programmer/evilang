@@ -5,16 +5,17 @@ use gc::{Finalize, Trace};
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::statement::{BoxStatement, Statement, StatementList};
-use crate::errors::{Descriptor, ErrorT, ResultWithError, RuntimeError};
+use crate::errors::{Descriptor, ResultWithError, RuntimeError};
 use crate::interpreter::environment::default_global_scope::get_default_global_scope;
 use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver};
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
-use crate::interpreter::runtime_values::objects::runtime_object::RuntimeObject;
-use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::{gc_cell_clone, GcBox};
+use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
+use crate::interpreter::runtime_values::objects::runtime_object::GcPtrToObject;
+use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::CURRENT_FILE;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
-use crate::interpreter::variables_containers::{GlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
+use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
+use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 use crate::parser::parse;
 
 pub mod statement_result;
@@ -25,13 +26,13 @@ pub mod resolver;
 
 #[derive(Clone, Trace, Finalize)]
 pub struct Environment {
-	pub scope: GcBox<VariableScope>,
-	pub global_scope: GcBox<GlobalScope>,
+	pub scope: GcPtrToVariableScope,
+	pub global_scope: GcPtrMutCellToGlobalScope,
 }
 
 delegate_ivariables_map!(for Environment =>
-	&self: self.scope.borrow(),
-	&self: (mut) self.scope.borrow_mut()
+	&self: self.scope,
+	&self: (mut) self.scope
 );
 
 impl Environment {
@@ -42,7 +43,7 @@ impl Environment {
 
 	pub fn new_with_resolver(resolver: BoxIResolver) -> Environment {
 		let global_scope = get_default_global_scope(resolver);
-		let scope = gc_cell_clone(&global_scope.borrow().scope);
+		let scope = gc_clone(&global_scope.borrow().scope);
 		return Self { scope, global_scope };
 	}
 
@@ -51,10 +52,9 @@ impl Environment {
 		resolver: BoxIResolver,
 	) -> Environment {
 		let global_scope = get_default_global_scope(resolver);
-		let scope = gc_cell_clone(&global_scope.borrow().scope);
+		let scope = gc_clone(&global_scope.borrow().scope);
 		{
-			let scope_borr = scope.borrow();
-			let mut scope_vars_borr = scope_borr.variables.borrow_mut();
+			let mut scope_vars_borr = scope.variables.borrow_mut();
 			for (name, value) in variables.into_iter() {
 				scope_vars_borr.deref_mut().assign(&name, value);
 			}
@@ -63,22 +63,22 @@ impl Environment {
 	}
 
 	pub fn new_with_parent(env: &Environment) -> Environment {
-		let global_scope = gc_cell_clone(&env.global_scope);
+		let global_scope = gc_clone(&env.global_scope);
 		return Self {
 			scope: VariableScope::new_gc_from_map(
 				VariablesMap::new(),
-				Some(gc_cell_clone(&env.scope)),
+				Some(gc_clone(&env.scope)),
 			),
 			global_scope,
 		};
 	}
 
-	pub fn new_with_object_scope(env: &Environment, obj: &GcBox<RuntimeObject>) -> Environment {
-		let global_scope = gc_cell_clone(&env.global_scope);
+	pub fn new_with_object_scope(env: &Environment, obj: &GcPtrToObject) -> Environment {
+		let global_scope = gc_clone(&env.global_scope);
 		return Self {
 			scope: VariableScope::new_gc(
-				gc_cell_clone(&obj.borrow().properties),
-				Some(gc_cell_clone(&env.scope)),
+				gc_clone(&obj.properties),
+				Some(gc_clone(&env.scope)),
 			),
 			global_scope,
 		};
@@ -87,19 +87,19 @@ impl Environment {
 	pub fn execute_file(file: String, resolver: BoxIResolver) -> ResultWithError<Environment> {
 		let resolved_res = resolver.resolve(None, file)?;
 		let mut env = Self::new_with_resolver(resolver);
-		env.scope.borrow().assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.scope.assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
 		env.setup_and_eval_statements(&resolved_res.statements)?;
 		return Ok(env);
 	}
 
 	fn import_file(
 		&self,
-		obj: GcBox<RuntimeObject>,
+		namespace_object: GcPtrToObject,
 		file_path: String,
 	) -> ResultWithError<StatementExecution> {
 		let resolved_res = self.global_scope.borrow().resolver.resolve(Some(self), file_path)?;
-		let mut env = Environment::new_with_object_scope(self, &obj);
-		env.scope.borrow().assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		let mut env = Environment::new_with_object_scope(self, &namespace_object);
+		env.scope.assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
 		env.setup_and_eval_statements(&resolved_res.statements)
 	}
 
@@ -313,7 +313,7 @@ impl Environment {
 
 	#[inline]
 	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
-		self.scope.deref().borrow().hoist(iden)?;
+		self.scope.hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 }
