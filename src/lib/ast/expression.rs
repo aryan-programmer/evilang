@@ -4,11 +4,12 @@ use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
 use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration};
 use crate::errors::ResultWithError;
-use crate::math::number::NumberT;
+use crate::types::number::NumberT;
+use crate::types::string::StringT;
 
 pub type BoxExpression = Box<Expression>;
 
-pub type IdentifierT = String;
+pub type IdentifierT = StringT;
 pub type DottedIdentifiers = Vec<IdentifierT>;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +24,7 @@ pub enum Expression {
 	NullLiteral,
 	BooleanLiteral(bool),
 	NumericLiteral(NumberT),
-	StringLiteral(String),
+	StringLiteral(StringT),
 	ParenthesizedExpression(BoxExpression),
 	UnaryExpression {
 		operator: Operator,

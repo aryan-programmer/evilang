@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::ast::expression::{Expression, IdentifierT};
+use crate::ast::expression::Expression;
 use crate::errors::{Descriptor, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
@@ -10,22 +10,22 @@ use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::OBJECT;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
 use crate::interpreter::variables_containers::VariablesMap;
+use crate::types::string::CowStringT;
 
 pub mod consts;
 pub mod consume_or_clone;
 pub mod cell_ref;
 
 pub fn get_object_superclass(env: &mut Environment) -> ResultWithError<GcPtrToObject> {
-	let object_class_name = OBJECT.to_string();
 	let Some(result) = env
 		.global_scope
 		.borrow()
-		.get_actual(&object_class_name) else {
-		return Err(RuntimeError::ExpectedClassObject(object_class_name.into()).into());
+		.get_actual(OBJECT.into()) else {
+		return Err(RuntimeError::ExpectedClassObject(OBJECT.into()).into());
 	};
 	Ok(expect_object(
 		RefToValue::Variable(result),
-		Some(&Expression::Identifier(object_class_name)))?)
+		Some(&Expression::Identifier(OBJECT.into())))?)
 }
 
 #[inline(always)]
@@ -51,14 +51,14 @@ pub fn expect_object_fn<T>(object: RefToValue, expr_fn: T) -> ResultWithError<Gc
 pub fn expect_object_or_set_object_if_null<T>(
 	env: &mut Environment,
 	mut object: RefToValue,
-	object_name: &IdentifierT,
+	object_name: CowStringT,
 	expr_fn: T,
 ) -> ResultWithError<GcPtrToObject> where T: Fn() -> Option<Expression> {
 	return Ok(if object.borrow().deref() == &PrimitiveValue::Null {
 		let obj = RuntimeObject::new_gc(
 			VariablesMap::new(),
 			Some(get_object_superclass(env)?),
-			object_name.to_string(),
+			object_name.into(),
 		);
 		object.set(PrimitiveValue::Object(gc_clone(&obj)))?;
 		obj

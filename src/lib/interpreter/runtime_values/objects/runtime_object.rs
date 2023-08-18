@@ -2,7 +2,6 @@ use std::ops::Deref;
 
 use gc::{Finalize, Trace};
 
-use crate::ast::expression::IdentifierT;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
@@ -10,12 +9,13 @@ use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::runtime_values::ref_to_value::RefToValue;
-use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr};
+use crate::interpreter::utils::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr};
 use crate::interpreter::utils::consts::INSTANCE_OF_;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{GcPtrMutCellToVariablesMap, IVariablesMapConstMembers};
 use crate::interpreter::variables_containers::scope::IGenericVariablesScope;
 use crate::interpreter::variables_containers::VariablesMap;
+use crate::types::string::{CowStringT, StringT};
 
 pub type GcPtrToObject = GcPtr<RuntimeObject>;
 
@@ -23,14 +23,14 @@ pub type GcPtrToObject = GcPtr<RuntimeObject>;
 pub struct RuntimeObject {
 	pub properties: GcPtrMutCellToVariablesMap,
 	pub parent: Option<GcPtrToObject>,
-	pub name: String,
+	pub name: StringT,
 }
 
 impl RuntimeObject {
 	pub fn new_gc(
 		variables: VariablesMap,
 		parent: Option<GcPtrToObject>,
-		name: String,
+		name: StringT,
 	) -> GcPtrToObject {
 		GcPtr::new(Self {
 			properties: gc_ptr_cell_from(variables),
@@ -40,8 +40,15 @@ impl RuntimeObject {
 	}
 
 	#[inline(always)]
-	pub fn allocate(parent: GcPtrToObject, name: String) -> GcPtrToObject {
-		return Self::new_gc(VariablesMap::new(), Some(parent), name);
+	pub fn allocate(
+		parent: GcPtrToObject,
+		name: StringT
+	) -> GcPtrToObject {
+		return Self::new_gc(
+			VariablesMap::new(),
+			Some(parent),
+			name
+		);
 	}
 
 	#[inline]
@@ -54,7 +61,7 @@ impl RuntimeObject {
 		);
 	}
 
-	pub fn call_method_on_object_with_args(this: GcPtrToObject, env: &mut Environment, method_name: &IdentifierT, call_expr: &CallExpression) -> ResultWithError<FunctionReturnValue> {
+	pub fn call_method_on_object_with_args(this: GcPtrToObject, env: &mut Environment, method_name: CowStringT, call_expr: &CallExpression) -> ResultWithError<FunctionReturnValue> {
 		let Some(method_prop_box) = this.get_actual(method_name) else {
 			return Err(RuntimeError::ExpectedFunction(Descriptor::Expression((*call_expr.callee).clone())).into());
 		};

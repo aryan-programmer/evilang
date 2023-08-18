@@ -175,7 +175,7 @@ impl Num for NumberT {
 	fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
 		Ok(match i128::from_str_radix(str, radix) {
 			Ok(v) => NumberT::Integer(v),
-			Err(_) => NumberT::Float(f64::from_str_radix(str, radix).map_err(|_err| EvilangError::new(ErrorT::InvalidNumericLiteral(str.to_string()).into()))?),
+			Err(_) => NumberT::Float(f64::from_str_radix(str, radix).map_err(|_err| EvilangError::new(ErrorT::InvalidNumericLiteral(str.into()).into()))?),
 		})
 	}
 }

@@ -1,1 +1,2 @@
+push_res_stack(new Object());
 push_res_stack(10/12);

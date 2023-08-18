@@ -12,16 +12,17 @@ use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::utils::consts::CURRENT_FILE;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
 use crate::parser::parse;
+use crate::types::string::StringT;
 
 pub struct ResolveResult {
-	pub absolute_file_path: String,
+	pub absolute_file_path: StringT,
 	pub statements: StatementList,
 }
 
 pub type BoxIResolver = Box<dyn IResolver>;
 
 pub trait IResolver: IResolverExtras + Trace + Finalize {
-	fn resolve(&self, env: Option<&Environment>, file_name: String) -> ResultWithError<ResolveResult>;
+	fn resolve(&self, env: Option<&Environment>, file_name: StringT) -> ResultWithError<ResolveResult>;
 }
 
 pub trait IResolverExtras {
@@ -79,9 +80,9 @@ impl DefaultResolver {
 		Box::new(Self {})
 	}
 
-	pub fn resolve_file_path(env_opt: Option<&Environment>, file_name: String) -> ResultWithError<PathBuf> {
+	pub fn resolve_file_path(env_opt: Option<&Environment>, file_name: StringT) -> ResultWithError<PathBuf> {
 		let Some(this_file_path_box) = env_opt
-			.and_then(|env| env.get_actual(&CURRENT_FILE.to_string()))
+			.and_then(|env| env.get_actual(CURRENT_FILE.into()))
 			.and_then(|v| if v.borrow().deref() == &PrimitiveValue::Null { None } else { Some(v) }) else {
 			return fs::canonicalize(file_name).map_err(EvilangError::from);
 		};
@@ -107,15 +108,15 @@ impl DefaultResolver {
 }
 
 impl IResolver for DefaultResolver {
-	fn resolve(&self, env: Option<&Environment>, file_name: String) -> ResultWithError<ResolveResult> {
+	fn resolve(&self, env: Option<&Environment>, file_name: StringT) -> ResultWithError<ResolveResult> {
 		// dbg!(&file_name);
 		let f_path = DefaultResolver::resolve_file_path(env, file_name)?;
-		let absolute_file_path = match f_path.to_str() {
-			None => f_path.to_string_lossy().to_string(),
-			Some(v) => v.to_string()
+		let absolute_file_path: StringT = match f_path.to_str() {
+			None => f_path.to_string_lossy().into(),
+			Some(v) => v.into()
 		};
 		// dbg!(&absolute_file_path);
-		let contents: String = fs::read_to_string(f_path).map_err(EvilangError::from)?;
+		let contents: StringT = fs::read_to_string(f_path).map_err(EvilangError::from)?;
 		return Ok(ResolveResult {
 			statements: parse(contents)?,
 			absolute_file_path,

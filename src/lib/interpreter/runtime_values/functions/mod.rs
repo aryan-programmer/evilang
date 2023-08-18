@@ -6,11 +6,14 @@ use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
+use crate::interpreter::utils::cell_ref::GcPtr;
 
 pub mod closure;
 pub mod types;
 pub mod ifunction;
 pub mod native_function;
+
+pub type GcPtrToFunction = GcPtr<Function>;
 
 #[derive(Debug, PartialEq, Trace, Finalize)]
 pub enum Function {

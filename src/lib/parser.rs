@@ -6,9 +6,10 @@ use crate::ast::statement::BoxStatement;
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
 use crate::errors::{ensure, ErrorT, ResultWithError};
 use crate::tokenizer::{Keyword, Token, TokenStream, TokenType};
+use crate::types::string::StringT;
 
 #[inline(always)]
-pub fn parse(program: String) -> ResultWithError<StatementList> {
+pub fn parse(program: StringT) -> ResultWithError<StatementList> {
 	let mut p = Parser::new(TokenStream::new(program));
 	return p.program();
 }

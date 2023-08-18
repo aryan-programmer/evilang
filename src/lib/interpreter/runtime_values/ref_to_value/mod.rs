@@ -21,7 +21,7 @@ pub enum RefToValue {
 	ObjectProperty {
 		object: GcPtrToObject,
 		property_name: IdentifierT,
-		snapshot: PrimitiveValue,
+		snapshot: Option<GcPtrVariable>,
 	},
 }
 
@@ -37,9 +37,17 @@ impl ConsumeOrCloneOf for RefToValue {
 
 	#[inline(always)]
 	fn consume_or_clone(self) -> Self::Target {
+		/*
 		return match self {
 			RefToValue::Value(v) |
 			RefToValue::ObjectProperty { snapshot: v, .. } => v,
+			RefToValue::Variable(v) => v.borrow().clone(),
+		};
+		*/
+		return match self {
+			RefToValue::Value(v) => v,
+			RefToValue::ObjectProperty { snapshot: None, .. } => PrimitiveValue::Null,
+			RefToValue::ObjectProperty { snapshot: Some(v), .. } |
 			RefToValue::Variable(v) => v.borrow().clone(),
 		};
 	}
@@ -52,11 +60,11 @@ impl RefToValue {
 	}
 
 	pub fn new_object_property_ref(object: GcPtrToObject, property_name: IdentifierT) -> Self {
-		let snapshot = object.get_actual(&property_name);
+		let snapshot = object.get_actual(property_name.deref().into());
 		RefToValue::ObjectProperty {
 			object,
 			property_name,
-			snapshot: snapshot.map(|v| v.borrow().clone()).unwrap_or(PrimitiveValue::Null),
+			snapshot,
 		}
 	}
 
@@ -71,13 +79,14 @@ impl RefToValue {
 				property_name,
 				snapshot: _
 			} => {
-				Ok(object.assign_locally(property_name, value))
+				Ok(object.assign_locally(property_name.as_str().into(), value))
 			}
 		};
 	}
 
 	#[inline(always)]
 	pub fn borrow(&self) -> DerefOfRefToValue {
+		/*
 		return match self {
 			RefToValue::Value(v) |
 			RefToValue::ObjectProperty { snapshot: v, .. } => DerefOfRefToValue::DerefRValue(v),
@@ -85,20 +94,36 @@ impl RefToValue {
 				DerefOfRefToValue::DerefLValue(v.borrow())
 			}
 		};
+		*/
+		return match self {
+			RefToValue::Value(v) => DerefOfRefToValue::DerefRValue(v),
+			RefToValue::ObjectProperty { snapshot: None, .. } => DerefOfRefToValue::Value(PrimitiveValue::Null),
+			RefToValue::ObjectProperty { snapshot: Some(v), .. } |
+			RefToValue::Variable(v) => {
+				DerefOfRefToValue::DerefLValue(v.borrow())
+			}
+		};
 	}
 
 	delegate! {
+		/*
 		to match self {
 			RefToValue::Value(v) |
 			RefToValue::ObjectProperty{ snapshot: v, .. } => v,
 			RefToValue::Variable(v) => {
 				v.deref().borrow().deref()
 			}
+		}
+		*/
+
+		to match self {
+			RefToValue::Value(v) => v,
+			RefToValue::ObjectProperty { snapshot: None, .. } => PrimitiveValue::Null,
+			RefToValue::ObjectProperty { snapshot: Some(v), .. } |
+			RefToValue::Variable(v) => v.borrow(),
 		} {
 			pub fn is_truthy(&self) -> bool;
 			pub fn is_hoisted(&self) -> bool;
-			#[call(clone)]
-			pub fn deref_clone(&self) -> PrimitiveValue;
 		}
 	}
 }

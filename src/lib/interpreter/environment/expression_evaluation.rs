@@ -1,7 +1,7 @@
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::ops::Deref;
 
-use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, IdentifierT, MemberIndexer};
+use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, MemberIndexer};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
@@ -15,6 +15,7 @@ use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::CONSTRUCTOR;
 use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::types::string::CowStringT;
 
 macro_rules! by_ref {
     ($b:ident) => {($b)};
@@ -53,16 +54,16 @@ impl Environment {
 				self.eval_binary_operator_expression(operator, left, right)?,
 			Expression::AssignmentExpression { operator, left, right } =>
 				self.eval_binary_operator_expression(operator, left, right)?,
-			Expression::Identifier(name) => self.get_identifier(name)?,
+			Expression::Identifier(name) => self.get_identifier(name.into())?,
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			Expression::FunctionExpression(fdecl) => {
 				let function = PrimitiveValue::new_closure(self, fdecl.clone());
-				self.assign_locally(&fdecl.name, function.clone());
+				self.assign_locally((&fdecl.name).into(), function.clone());
 				function.into()
 			}
 			Expression::ClassDeclarationExpression(cdecl) => {
 				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
-				self.assign_locally(&cdecl.name, class.clone());
+				self.assign_locally((&cdecl.name).into(), class.clone());
 				class.into()
 			}
 			Expression::ParenthesizedExpression(expr) => self.eval(expr)?,
@@ -105,13 +106,13 @@ impl Environment {
 			return Err(RuntimeError::ExpectedNamespaceObject(Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))).into());
 		};
 		let f = || Some(Expression::DottedIdentifiers(idens.clone()));
-		let mut res_ref = self.get_identifier(obj_expr)?;
+		let mut res_ref = self.get_identifier(obj_expr.into())?;
 		let mut res_ref_name = obj_expr;
 		while let Some(next_name) = iter.next() {
 			let obj = expect_object_or_set_object_if_null(
 				self,
 				res_ref,
-				res_ref_name,
+				res_ref_name.into(),
 				f,
 			)?;
 			res_ref = RefToValue::new_object_property_ref(
@@ -123,7 +124,7 @@ impl Environment {
 		let ret_obj = expect_object_or_set_object_if_null(
 			self,
 			res_ref,
-			res_ref_name,
+			res_ref_name.into(),
 			f,
 		)?;
 		Ok(ret_obj)
@@ -134,7 +135,7 @@ impl Environment {
 		let Some(obj_expr) = iter.next()else {
 			return Ok(PrimitiveValue::Null.into());
 		};
-		let mut res = self.get_identifier(obj_expr)?;
+		let mut res = self.get_identifier(obj_expr.into())?;
 		while let Some(next_name) = iter.next() {
 			let obj = expect_object(res, Some(expression))?;
 			res = RefToValue::new_object_property_ref(obj, next_name.clone());
@@ -142,13 +143,14 @@ impl Environment {
 		Ok(res)
 	}
 
-	fn get_identifier(&mut self, name: &IdentifierT) -> ResultWithError<RefToValue> {
-		let var = self.get_actual(name).or_else(|| {
-			self.assign_locally(name, PrimitiveValue::Null.into());
-			self.get_actual(name)
+	fn get_identifier(&mut self, name: CowStringT) -> ResultWithError<RefToValue> {
+		let name_ref = name.deref();
+		let var = self.get_actual(name_ref.into()).or_else(|| {
+			self.assign_locally(name_ref.into(), PrimitiveValue::Null.into());
+			self.get_actual(name_ref.into())
 		}).ok_or_else(|| EvilangError::new(ErrorT::NeverError("When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into())))?;
 		if var.is_hoisted() {
-			return Err(ErrorT::CantAccessHoistedVariable(name.clone()).into());
+			return Err(ErrorT::CantAccessHoistedVariable(name.into()).into());
 		}
 		Ok(RefToValue::Variable(var))
 	}
@@ -286,7 +288,7 @@ impl Environment {
 		let res = RuntimeObject::call_method_on_object_with_args(
 			gc_clone(&obj),
 			self,
-			&CONSTRUCTOR.to_string(),
+			CONSTRUCTOR.into(),
 			call_expr,
 		)?;
 		return Ok(match res {
@@ -305,7 +307,7 @@ impl Environment {
 				return Ok(RuntimeObject::call_method_on_object_with_args(
 					self.eval_expr_expect_object(&object)?,
 					self,
-					method_name,
+					method_name.into(),
 					call_expr,
 				)?.into());
 			}

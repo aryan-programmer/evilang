@@ -3,6 +3,7 @@ use std::ops::Deref;
 use gc::GcCellRef;
 
 use crate::interpreter::runtime_values::PrimitiveValue;
+use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 
 #[derive(Debug)]
 pub enum DerefOfRefToValue<'a> {
@@ -11,8 +12,9 @@ pub enum DerefOfRefToValue<'a> {
 	Value(PrimitiveValue),
 }
 
-impl<'a> DerefOfRefToValue<'a> {
-	pub fn consume_or_clone(self) -> PrimitiveValue {
+impl<'a> ConsumeOrCloneOf for  DerefOfRefToValue<'a> {
+	type Target = PrimitiveValue;
+	fn consume_or_clone(self) -> PrimitiveValue {
 		return match self {
 			DerefOfRefToValue::DerefRValue(v) => v.clone(),
 			DerefOfRefToValue::DerefLValue(r) => r.deref().clone(),

@@ -1,4 +1,5 @@
 use crate::errors::{ErrorT, EvilangError, ResultWithError};
+use crate::types::string::StringT;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Operator {
@@ -50,10 +51,10 @@ impl Operator {
 	}
 }
 
-impl TryFrom<&String> for Operator {
+impl TryFrom<&StringT> for Operator {
 	type Error = EvilangError;
 
-	fn try_from(value: &String) -> Result<Self, Self::Error> {
+	fn try_from(value: &StringT) -> Result<Self, Self::Error> {
 		return match value.as_str() {
 			"+" => Ok(Operator::Plus),
 			"-" => Ok(Operator::Minus),

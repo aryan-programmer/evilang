@@ -11,6 +11,7 @@ use crate::ast::statement::Statement;
 use crate::interpreter::environment::statement_result::StatementExecution;
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::tokenizer::Token;
+use crate::types::string::StringT;
 
 pub type ResultWithError<T, E = EvilangError> = anyhow::Result<T, E>;
 
@@ -26,7 +27,7 @@ pub enum Descriptor {
 impl From<&str> for Descriptor {
 	#[inline(always)]
 	fn from(value: &str) -> Self {
-		Descriptor::Name(value.to_string())
+		Descriptor::Name(value.into())
 	}
 }
 
@@ -54,7 +55,7 @@ impl From<Expression> for Descriptor {
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum RuntimeError {
 	#[error("{0}")]
-	GenericError(String),
+	GenericError(StringT),
 	#[error("Expected {0:#?} to be a function")]
 	ExpectedFunction(Descriptor),
 	#[error("Expected {0:#?} to be a class object")]
@@ -64,19 +65,19 @@ pub enum RuntimeError {
 	#[error("Expected {0:#?} to be an object")]
 	ExpectedObject(Descriptor),
 	#[error("Invalid number of arguments {got:?} expected {expected:?} to be function {func:#?}")]
-	InvalidNumberArgumentsToFunction { got: usize, expected: Option<String>, func: Descriptor },
+	InvalidNumberArgumentsToFunction { got: usize, expected: Option<StringT>, func: Descriptor },
 	#[error("Expected {0:#?} to be a valid subscript expression")]
 	ExpectedValidSubscript(Descriptor),
 	#[error("Expected {0:#?} to be a valid file name expression")]
 	ExpectedValidFileName(Descriptor),
 	#[error("{0}")]
-	IOError(String),
+	IOError(StringT),
 }
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum ErrorT {
 	#[error("This error should never happen: {0}")]
-	NeverError(String),
+	NeverError(StringT),
 	#[error(transparent)]
 	UnexpectedRuntimeError(#[from] RuntimeError),
 	#[error("End of Token Stream")]
@@ -86,7 +87,7 @@ pub enum ErrorT {
 	#[error("Token Cannot be Parsed")]
 	TokenCannotBeParsed,
 	#[error("Invalid numeric literal: {0}")]
-	InvalidNumericLiteral(String),
+	InvalidNumericLiteral(StringT),
 	#[error("Unknown Operator")]
 	UnknownOperator,
 	#[error("Expected a left hand side expression")]

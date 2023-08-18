@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 use std::mem::replace;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use gc::{Finalize, Trace};
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_values::{GcPtrVariableExt, GcPtrVariable, PrimitiveValue};
-use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr, GcPtrCell};
+use crate::interpreter::runtime_values::{GcPtrVariable, GcPtrVariableExt, PrimitiveValue};
+use crate::interpreter::utils::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr, GcPtrCell};
+use crate::types::string::CowStringT;
 
 pub trait IVariablesMapConstMembers {
-	fn get_actual(&self, name: &IdentifierT) -> Option<GcPtrVariable>;
-	fn contains_key(&self, name: &IdentifierT) -> bool;
+	fn get_actual(&self, name: CowStringT) -> Option<GcPtrVariable>;
+	fn contains_key(&self, name: CowStringT) -> bool;
 }
 
 pub trait IVariablesMap: IVariablesMapConstMembers {
@@ -23,16 +24,16 @@ pub trait IVariablesMap: IVariablesMapConstMembers {
 	/// * `value`:
 	///
 	/// returns: Option<PrimitiveValue> The previous value stored in the variable
-	fn assign(&mut self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue>;
-	fn declare(&mut self, name: &IdentifierT, value: PrimitiveValue) -> ResultWithError<()>;
-	fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()>;
+	fn assign(&mut self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue>;
+	fn declare(&mut self, name: CowStringT, value: PrimitiveValue) -> ResultWithError<()>;
+	fn hoist(&mut self, name: CowStringT) -> ResultWithError<()>;
 }
 
 pub trait IVariablesMapDelegator: IVariablesMapConstMembers {
-	fn assign_locally(&self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue>;
-	fn assign(&self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue>;
-	fn declare(&self, name: &IdentifierT, value: PrimitiveValue) -> ResultWithError<()>;
-	fn hoist(&self, name: &IdentifierT) -> ResultWithError<()>;
+	fn assign_locally(&self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue>;
+	fn assign(&self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue>;
+	fn declare(&self, name: CowStringT, value: PrimitiveValue) -> ResultWithError<()>;
+	fn hoist(&self, name: CowStringT) -> ResultWithError<()>;
 }
 
 #[macro_export]
@@ -40,29 +41,29 @@ macro_rules! delegate_ivariables_map {
 	(for $for_type: ty => &$self: ident: $const_delegator: expr, &$mut_self: ident: (mut) $mut_delegator: expr) => {
 		impl IVariablesMapConstMembers for $for_type {
 			#[inline(always)]
-			fn get_actual(&$self, name: &IdentifierT) -> Option<GcPtrVariable> {
+			fn get_actual(&$self, name: CowStringT) -> Option<GcPtrVariable> {
 				return $const_delegator.get_actual(name);
 			}
 			#[inline(always)]
-			fn contains_key(&$self, name: &IdentifierT) -> bool {
+			fn contains_key(&$self, name: CowStringT) -> bool {
 				return $const_delegator.contains_key(name);
 			}
 		}
 		impl IVariablesMapDelegator for $for_type {
 			#[inline(always)]
-			fn assign(&$mut_self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue> {
+			fn assign(&$mut_self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue> {
 				return $mut_delegator.assign(name, value);
 			}
 			#[inline(always)]
-			fn assign_locally(&$mut_self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue> {
+			fn assign_locally(&$mut_self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue> {
 				return $mut_delegator.assign_locally(name, value);
 			}
 			#[inline(always)]
-			fn declare(&$mut_self, name: &IdentifierT, value: PrimitiveValue) -> ResultWithError<()> {
+			fn declare(&$mut_self, name: CowStringT, value: PrimitiveValue) -> ResultWithError<()> {
 				return $mut_delegator.declare(name, value);
 			}
 			#[inline(always)]
-			fn hoist(&$mut_self, name: &IdentifierT) -> ResultWithError<()> {
+			fn hoist(&$mut_self, name: CowStringT) -> ResultWithError<()> {
 				return $mut_delegator.hoist(name);
 			}
 		}
@@ -98,8 +99,8 @@ impl VariablesMap {
 }
 
 impl IVariablesMapConstMembers for VariablesMap {
-	fn get_actual(&self, name: &IdentifierT) -> Option<GcPtrVariable> {
-		return if let Some(v) = self.variables.get(name) {
+	fn get_actual(&self, name: CowStringT) -> Option<GcPtrVariable> {
+		return if let Some(v) = self.variables.get(name.deref()) {
 			Some(gc_clone(v))
 		} else {
 			None
@@ -107,26 +108,26 @@ impl IVariablesMapConstMembers for VariablesMap {
 	}
 
 	#[inline(always)]
-	fn contains_key(&self, name: &IdentifierT) -> bool {
-		self.variables.contains_key(name)
+	fn contains_key(&self, name: CowStringT) -> bool {
+		self.variables.contains_key(name.deref())
 	}
 }
 
 impl IVariablesMap for VariablesMap {
-	fn assign(&mut self, name: &IdentifierT, value: PrimitiveValue) -> Option<PrimitiveValue> {
-		return if let Some(v) = self.variables.get(name) {
+	fn assign(&mut self, name: CowStringT, value: PrimitiveValue) -> Option<PrimitiveValue> {
+		return if let Some(v) = self.variables.get(name.deref()) {
 			let mut res = v.borrow_mut();
 			Some(replace(res.deref_mut(), value))
 		} else {
-			self.variables.insert(name.clone(), gc_ptr_cell_from(value));
+			self.variables.insert(name.into(), gc_ptr_cell_from(value));
 			None
 		};
 	}
 
-	fn declare(&mut self, name: &IdentifierT, value: PrimitiveValue) -> ResultWithError<()> {
-		if let Some(v) = self.variables.get(name) {
+	fn declare(&mut self, name: CowStringT, value: PrimitiveValue) -> ResultWithError<()> {
+		if let Some(v) = self.variables.get(name.deref()) {
 			if !v.is_hoisted() {
-				return Err(ErrorT::CantRedeclareVariable(name.clone()).into());
+				return Err(ErrorT::CantRedeclareVariable(name.into()).into());
 			}
 		}
 		if value.is_hoisted() {
@@ -136,9 +137,9 @@ impl IVariablesMap for VariablesMap {
 		return Ok(());
 	}
 
-	fn hoist(&mut self, name: &IdentifierT) -> ResultWithError<()> {
-		if let Some(_v) = self.variables.get(name) {
-			return Err(ErrorT::CantRedeclareVariable(name.clone()).into());
+	fn hoist(&mut self, name: CowStringT) -> ResultWithError<()> {
+		if let Some(_v) = self.variables.get(name.deref()) {
+			return Err(ErrorT::CantRedeclareVariable(name.into()).into());
 		}
 		self.assign(name, PrimitiveValue::_HoistedVariable.into());
 		return Ok(());

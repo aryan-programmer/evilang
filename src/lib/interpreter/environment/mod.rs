@@ -17,10 +17,11 @@ use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 use crate::parser::parse;
+use crate::types::string::{CowStringT, StringT};
 
 pub mod statement_result;
 pub mod expression_evaluation;
-pub mod native_functions;
+pub mod native_items;
 pub mod default_global_scope;
 pub mod resolver;
 
@@ -36,6 +37,11 @@ delegate_ivariables_map!(for Environment =>
 );
 
 impl Environment {
+	#[inline(always)]
+	pub(crate) fn new_raw(scope: GcPtrToVariableScope, global_scope: GcPtrMutCellToGlobalScope) -> Self {
+		Self { scope, global_scope }
+	}
+
 	#[inline(always)]
 	pub fn new() -> Environment {
 		return Self::new_with_resolver(DefaultResolver::new_box());
@@ -56,7 +62,7 @@ impl Environment {
 		{
 			let mut scope_vars_borr = scope.variables.borrow_mut();
 			for (name, value) in variables.into_iter() {
-				scope_vars_borr.deref_mut().assign(&name, value);
+				scope_vars_borr.deref_mut().assign(name.into(), value);
 			}
 		}
 		return Self { scope, global_scope };
@@ -84,10 +90,10 @@ impl Environment {
 		};
 	}
 
-	pub fn execute_file(file: String, resolver: BoxIResolver) -> ResultWithError<Environment> {
+	pub fn execute_file(file: StringT, resolver: BoxIResolver) -> ResultWithError<Environment> {
 		let resolved_res = resolver.resolve(None, file)?;
 		let mut env = Self::new_with_resolver(resolver);
-		env.scope.assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.scope.assign_locally(CURRENT_FILE.into(), PrimitiveValue::String(resolved_res.absolute_file_path));
 		env.setup_and_eval_statements(&resolved_res.statements)?;
 		return Ok(env);
 	}
@@ -95,15 +101,15 @@ impl Environment {
 	fn import_file(
 		&self,
 		namespace_object: GcPtrToObject,
-		file_path: String,
+		file_path: StringT,
 	) -> ResultWithError<StatementExecution> {
 		let resolved_res = self.global_scope.borrow().resolver.resolve(Some(self), file_path)?;
 		let mut env = Environment::new_with_object_scope(self, &namespace_object);
-		env.scope.assign_locally(&CURRENT_FILE.to_string(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.scope.assign_locally(CURRENT_FILE.into(), PrimitiveValue::String(resolved_res.absolute_file_path));
 		env.setup_and_eval_statements(&resolved_res.statements)
 	}
 
-	pub fn eval_program_string(&mut self, input: String) -> ResultWithError<StatementExecution> {
+	pub fn eval_program_string(&mut self, input: StringT) -> ResultWithError<StatementExecution> {
 		self.setup_and_eval_statements(&parse(input)?)
 	}
 
@@ -111,19 +117,19 @@ impl Environment {
 		match statement {
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls.iter() {
-					self.hoist_identifier(&decl.identifier)?;
+					self.hoist_identifier((&decl.identifier).into())?;
 				}
 			}
 			Statement::FunctionDeclarationStatement(fdecl) => {
 				self.declare(
-					&fdecl.name,
+					(&fdecl.name).into(),
 					PrimitiveValue::new_closure(self, fdecl.clone()).into(),
 				)?;
 			}
 			Statement::ClassDeclarationStatement(cdecl) => {
 				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
 				self.declare(
-					&cdecl.name,
+					(&cdecl.name).into(),
 					class.into(),
 				)?;
 			}
@@ -213,7 +219,7 @@ impl Environment {
 					} else {
 						PrimitiveValue::Null
 					};
-					self.declare(&decl.identifier, value)?;
+					self.declare((&decl.identifier).into(), value)?;
 				}
 				Ok(StatementExecution::NormalFlow)
 			}
@@ -312,7 +318,7 @@ impl Environment {
 	}
 
 	#[inline]
-	pub fn hoist_identifier(&mut self, iden: &IdentifierT) -> ResultWithError<StatementMetaGeneration> {
+	pub fn hoist_identifier(&mut self, iden: CowStringT) -> ResultWithError<StatementMetaGeneration> {
 		self.scope.hoist(iden)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}

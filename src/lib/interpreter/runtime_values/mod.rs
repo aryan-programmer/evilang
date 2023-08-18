@@ -6,16 +6,17 @@ use num_traits::Zero;
 use crate::ast::structs::{ClassDeclaration, FunctionDeclaration};
 use crate::errors::ResultWithError;
 use crate::interpreter::environment::Environment;
+use crate::interpreter::runtime_values::functions::{Function, GcPtrToFunction};
 use crate::interpreter::runtime_values::functions::closure::Closure;
-use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::{expect_object, get_object_superclass};
-use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, gc_clone, GcPtr, GcPtrCell};
+use crate::interpreter::utils::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr, GcPtrCell};
 use crate::interpreter::utils::consts::SUPER;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::VariablesMap;
-use crate::math::number::NumberT;
+use crate::types::number::NumberT;
+use crate::types::string::StringT;
 
 pub mod ref_to_value;
 pub mod functions;
@@ -40,8 +41,8 @@ pub enum PrimitiveValue {
 	Null,
 	Boolean(bool),
 	Number(#[unsafe_ignore_trace] NumberT),
-	String(String),
-	Function(GcPtr<Function>),
+	String(StringT),
+	Function(GcPtrToFunction),
 	Object(GcPtrToObject),
 }
 
@@ -92,7 +93,7 @@ impl PrimitiveValue {
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> Self {
 		let closure = Closure::new(
 			decl,
-			env.clone(),
+			gc_clone(&env.scope),
 		);
 		let function_closure = Function::Closure(closure);
 		return PrimitiveValue::Function(GcPtr::new(function_closure));
@@ -110,7 +111,7 @@ impl PrimitiveValue {
 			get_object_superclass(env)?
 		};
 		let scope = Environment::new_with_parent(env);
-		scope.declare(&SUPER.to_string(), PrimitiveValue::Object(gc_clone(&super_class)))?;
+		scope.declare(SUPER.into(), PrimitiveValue::Object(gc_clone(&super_class)))?;
 		let sub_class = RuntimeObject::new_gc(
 			VariablesMap::new_direct(methods
 				.clone()

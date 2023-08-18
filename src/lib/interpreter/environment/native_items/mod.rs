@@ -21,7 +21,7 @@ pub fn allocate_object(
 ) -> ResultWithError<FunctionReturnValue> {
 	if params.len() > 2 {
 		return Err(RuntimeError::InvalidNumberArgumentsToFunction {
-			expected: Some("0 to 2".to_string()),
+			expected: Some("0 to 2".into()),
 			got: params.len(),
 			func: "allocate_object".into(),
 		}.into());
@@ -43,5 +43,5 @@ pub fn make_native_functions_list() -> HashMap<IdentifierT, NativeFunction> {
 	return HashMap::from_iter([
 		("push_res_stack", push_res_stack as NativeFunctionFn),
 		("allocate_object", allocate_object as NativeFunctionFn)
-	].into_iter().map(|(name, val)| (name.to_string(), NativeFunction::new(val))));
+	].into_iter().map(|(name, val)| (name.into(), NativeFunction::new(val))));
 }

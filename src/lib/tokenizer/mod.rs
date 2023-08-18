@@ -1,6 +1,7 @@
 use crate::errors::{ErrorT, ResultWithError};
 use crate::tokenizer::matchers::{get_token_matchers, Matcher};
 pub use crate::tokenizer::token::{Keyword, TokenType};
+use crate::types::string::StringT;
 
 mod matchers;
 mod token;
@@ -8,11 +9,11 @@ mod token;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	pub typ: TokenType,
-	pub data: String,
+	pub data: StringT,
 }
 
 pub struct TokenStream {
-	str: String,
+	str: StringT,
 	position: usize,
 	token_matchers: Vec<(Matcher, Option<TokenType>)>,
 	sent_eof_dummy: bool,
@@ -27,7 +28,7 @@ impl Iterator for TokenStream {
 				return if self.sent_eof_dummy {
 					None
 				} else {
-					Some(Ok(Token { typ: TokenType::_EOFDummy, data: String::new() }))
+					Some(Ok(Token { typ: TokenType::_EOFDummy, data: StringT::new() }))
 				};
 			}
 			let from = &self.str[self.position..];
@@ -46,7 +47,7 @@ impl Iterator for TokenStream {
 
 impl TokenStream {
 	#[inline(always)]
-	pub fn new(str: String) -> TokenStream {
+	pub fn new(str: StringT) -> TokenStream {
 		return TokenStream {
 			str,
 			position: 0,
