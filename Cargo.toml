@@ -1,3 +1,6 @@
+[workspace]
+members = ["evilang_traits", "evilang_lib", "evilang_proc_macros"]
+
 [package]
 name = "evilang"
 version = "0.1.0"
@@ -7,20 +10,9 @@ authors = ["Aryan Chudasama"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { version = "1.0.71", features = ["backtrace"] }
-backtrace = "0.3.68"
-clap = { version = "4.3.21", features = ["derive"] }
-const-str = "0.5.6"
-delegate = "0.10.0"
-gc = { version = "0.5.0", features = ["derive", "gc_derive"] }
-num-traits = "0.2.16"
-regex = "1.9.1"
-static_assertions = "1.1.0"
-thiserror = "1.0.43"
-
-[lib]
-name = "evilang_lib"
-path = "src/lib/lib.rs"
+clap = "4.3.23"
+evilang_lib = {version = "0.1.0", path = "evilang_lib"}
+evilang_traits = {version = "0.1.0", path = "evilang_traits"}
 
 [[bin]]
 name = "evilang_main"

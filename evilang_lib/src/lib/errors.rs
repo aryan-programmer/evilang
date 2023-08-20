@@ -5,23 +5,57 @@ use std::io;
 use backtrace::Backtrace;
 use thiserror::Error;
 
+use evilang_traits::Clone__SilentlyFail;
+
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
-use crate::interpreter::environment::statement_result::StatementExecution;
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::tokenizer::Token;
 use crate::types::string::StringT;
 
 pub type ResultWithError<T, E = EvilangError> = anyhow::Result<T, E>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Descriptor {
 	None,
 	Name(IdentifierT),
 	Value(PrimitiveValue),
 	Expression(Expression),
 	Both { value: PrimitiveValue, expression: Expression },
+}
+
+impl Descriptor {
+	pub fn new_both(value: &PrimitiveValue, expression: &Expression) -> Descriptor {
+		return Descriptor::Both {
+			value: value.clone__silently_fail(),
+			expression: expression.clone(),
+		};
+	}
+}
+
+impl Clone for Descriptor {
+	#[inline]
+	fn clone(&self) -> Descriptor {
+		match self {
+			Descriptor::None => Descriptor::None,
+			Descriptor::Name(name) => {
+				Descriptor::Name(Clone::clone(name))
+			}
+			Descriptor::Value(value) => {
+				Descriptor::Value(value.clone__silently_fail())
+			}
+			Descriptor::Expression(expr) => {
+				Descriptor::Expression(Clone::clone(expr))
+			}
+			Descriptor::Both { value, expression } => {
+				Descriptor::Both {
+					value: value.clone__silently_fail(),
+					expression: Clone::clone(expression),
+				}
+			}
+		}
+	}
 }
 
 impl From<&str> for Descriptor {
@@ -72,6 +106,8 @@ pub enum RuntimeError {
 	ExpectedValidFileName(Descriptor),
 	#[error("{0}")]
 	IOError(StringT),
+	#[error("Expression can not be cloned: {0:#?}")]
+	CantCloneSafely(Descriptor),
 }
 
 #[derive(Debug, Clone, PartialEq, Error)]
@@ -115,7 +151,7 @@ pub enum ErrorT {
 	#[error("Can't set a variable to be hoisted")]
 	CantSetToHoistedValue,
 	#[error("Invalid unrolling from function {0:?}: {1:#?}")]
-	InvalidUnrollingOfFunction(IdentifierT, StatementExecution),
+	InvalidUnrollingOfFunction(IdentifierT, StringT),
 	#[error("Member functions accessed by the arrow notation mus be immediately called: {0:#?}")]
 	InvalidMethodArrowAccess(Expression),
 }

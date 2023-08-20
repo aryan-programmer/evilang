@@ -9,7 +9,7 @@ use crate::interpreter::environment::statement_result::{StatementExecution, Unro
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::{gc_clone};
+use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 
@@ -47,7 +47,7 @@ impl IFunction for Closure {
 			StatementExecution::NormalFlow => PrimitiveValue::Null,
 			StatementExecution::Unrolling(UnrollingReason::ReturningValue(ret_val)) => ret_val,
 			stmt_res => {
-				return Err(ErrorT::InvalidUnrollingOfFunction(self.code.name.clone(), stmt_res).into());
+				return Err(ErrorT::InvalidUnrollingOfFunction(self.code.name.clone(), format!("{0:#?}", stmt_res)).into());
 			}
 		};
 		return Ok(result);

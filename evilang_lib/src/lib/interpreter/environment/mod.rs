@@ -10,13 +10,14 @@ use crate::interpreter::environment::default_global_scope::get_default_global_sc
 use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver};
 use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
 use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
-use crate::interpreter::runtime_values::objects::runtime_object::GcPtrToObject;
+use crate::interpreter::runtime_values::functions::Function;
+use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::CURRENT_FILE;
-use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 use crate::parser::parse;
+use crate::types::traits::ConsumeOrCloneOf;
 use crate::types::string::{CowStringT, StringT};
 
 pub mod statement_result;
@@ -123,11 +124,11 @@ impl Environment {
 			Statement::FunctionDeclarationStatement(fdecl) => {
 				self.declare(
 					(&fdecl.name).into(),
-					PrimitiveValue::new_closure(self, fdecl.clone()).into(),
+					Function::new_closure(self, fdecl.clone()).into(),
 				)?;
 			}
 			Statement::ClassDeclarationStatement(cdecl) => {
-				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
+				let class = RuntimeObject::new_class_decl(self, cdecl)?;
 				self.declare(
 					(&cdecl.name).into(),
 					class.into(),
@@ -215,7 +216,7 @@ impl Environment {
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls.iter() {
 					let value = if let Some(expr) = &decl.initializer {
-						self.eval(expr)?.consume_or_clone()
+						self.eval(expr)?.consume_or_clone()?
 					} else {
 						PrimitiveValue::Null
 					};
@@ -235,7 +236,7 @@ impl Environment {
 			}
 			Statement::ReturnStatement(expr_opt) => {
 				let res = if let Some(expr) = expr_opt.as_ref() {
-					self.eval(expr)?.consume_or_clone()
+					self.eval(expr)?.consume_or_clone()?
 				} else {
 					PrimitiveValue::Null
 				};
@@ -259,10 +260,7 @@ impl Environment {
 				let borr = file_val.borrow();
 				let PrimitiveValue::String(file) = borr.deref() else {
 					drop(borr);
-					return Err(RuntimeError::ExpectedValidFileName(Descriptor::Both {
-						value: file_val.consume_or_clone(),
-						expression: file_name.clone(),
-					}).into());
+					return Err(RuntimeError::ExpectedValidFileName(Descriptor::new_both(file_val.borrow().deref(), file_name)).into());
 				};
 				let file_path = file.clone();
 				self.import_file(obj, file_path)

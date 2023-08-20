@@ -1,5 +1,5 @@
 use evilang_lib::ast::expression::{BoxExpression, Expression};
-use evilang_lib::ast::expression::Expression::{BinaryExpression};
+use evilang_lib::ast::expression::Expression::BinaryExpression;
 use evilang_lib::ast::operator::Operator::{Division, Minus, Modulus, Multiplication, Plus};
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
@@ -13,7 +13,7 @@ fn addition() -> TestRes {
 		operator: Plus,
 		left: BoxExpression::from(Expression::float_literal(0.1)),
 		right: BoxExpression::from(Expression::float_literal(0.2)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.1+0.2)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.1 + 0.2)]);
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn addition_and_subtraction() -> TestRes {
 			right: BoxExpression::from(Expression::float_literal(0.2)),
 		}),
 		right: BoxExpression::from(Expression::float_literal(0.3)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.1+0.2-0.3)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.1 + 0.2 - 0.3)]);
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn multiplication() -> TestRes {
 		operator: Multiplication,
 		left: BoxExpression::from(Expression::float_literal(0.2)),
 		right: BoxExpression::from(Expression::float_literal(0.3)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2*0.3)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 * 0.3)]);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn multiplication_2() -> TestRes {
 			right: BoxExpression::from(Expression::float_literal(0.3)),
 		}),
 		right: BoxExpression::from(Expression::float_literal(0.4)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2*0.3*0.4)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 * 0.3 * 0.4)]);
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn addition_and_multiplication() -> TestRes {
 			left: BoxExpression::from(Expression::float_literal(0.3)),
 			right: BoxExpression::from(Expression::float_literal(0.4)),
 		}),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2+0.3*0.4)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 + 0.3 * 0.4)]);
 
 	ensure_program_statement_results("0.2+0.3*0.4+0.5;", vec![BinaryExpression {
 		operator: Plus,
@@ -75,7 +75,7 @@ fn addition_and_multiplication() -> TestRes {
 			}),
 		}),
 		right: BoxExpression::from(Expression::float_literal(0.5)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2+0.3*0.4+0.5)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 + 0.3 * 0.4 + 0.5)]);
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn subtraction_division_and_modulus() -> TestRes {
 			left: BoxExpression::from(Expression::float_literal(0.3)),
 			right: BoxExpression::from(Expression::float_literal(0.4)),
 		}),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2-0.3/0.4)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 - 0.3 / 0.4)]);
 
 	ensure_program_statement_results("0.2-0.3%0.4-0.5;", vec![BinaryExpression {
 		operator: Minus,
@@ -102,7 +102,7 @@ fn subtraction_division_and_modulus() -> TestRes {
 			}),
 		}),
 		right: BoxExpression::from(Expression::float_literal(0.5)),
-	}.consume_as_statement()], vec![PrimitiveValue::float(0.2-0.3%0.4-0.5)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float(0.2 - 0.3 % 0.4 - 0.5)]);
 }
 
 #[test]
@@ -115,5 +115,5 @@ fn parenthesis() -> TestRes {
 			right: BoxExpression::from(Expression::float_literal(0.3)),
 		}.consume_as_parenthesized().into(),
 		right: BoxExpression::from(Expression::float_literal(0.4)),
-	}.consume_as_statement()], vec![PrimitiveValue::float((0.2+0.3)*0.4)]);
+	}.consume_as_statement()], vec![PrimitiveValue::float((0.2 + 0.3) * 0.4)]);
 }

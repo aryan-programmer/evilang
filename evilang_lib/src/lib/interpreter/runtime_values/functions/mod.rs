@@ -1,12 +1,13 @@
 use gc::{Finalize, Trace};
 
+use crate::ast::structs::FunctionDeclaration;
 use crate::errors::ResultWithError;
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
-use crate::interpreter::utils::cell_ref::GcPtr;
+use crate::interpreter::utils::cell_ref::{gc_clone, GcPtr};
 
 pub mod closure;
 pub mod types;
@@ -19,6 +20,17 @@ pub type GcPtrToFunction = GcPtr<Function>;
 pub enum Function {
 	NativeFunction(NativeFunction),
 	Closure(Closure),
+}
+
+impl Function {
+	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> GcPtrToFunction {
+		let closure = Closure::new(
+			decl,
+			gc_clone(&env.scope),
+		);
+		let function_closure = Function::Closure(closure);
+		return GcPtr::new(function_closure);
+	}
 }
 
 impl IFunction for Function {

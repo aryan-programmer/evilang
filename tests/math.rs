@@ -1,5 +1,5 @@
 use evilang_lib::ast::expression::{BoxExpression, Expression};
-use evilang_lib::ast::expression::Expression::{BinaryExpression};
+use evilang_lib::ast::expression::Expression::BinaryExpression;
 use evilang_lib::ast::operator::Operator::{Division, Minus, Modulus, Multiplication, Plus};
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 

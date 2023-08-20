@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use gc::{Finalize, Trace};
 
+use evilang_traits::Clone__SilentlyFail;
+
 use crate::ast::statement::StatementList;
 use crate::errors::{Descriptor, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
@@ -88,7 +90,7 @@ impl DefaultResolver {
 		};
 		let this_file_path_borr = this_file_path_box.borrow();
 		let PrimitiveValue::String(this_file_path_str_ref) = this_file_path_borr.deref() else {
-			return Err(RuntimeError::ExpectedValidFileName(Descriptor::Value(this_file_path_borr.clone())).into());
+			return Err(RuntimeError::ExpectedValidFileName(Descriptor::Value(this_file_path_borr.clone__silently_fail())).into());
 		};
 		// dbg!(this_file_path_str_ref);
 		// let this_file_path_str = this_file_path_str_ref.clone();

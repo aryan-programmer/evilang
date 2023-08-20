@@ -1,5 +1,6 @@
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
+use evilang_lib::types::traits::Clone__SilentlyFail;
 
 use crate::common::{ensure_execution_fails, ensure_res_stack_matches, TestData, TestRes};
 
@@ -18,7 +19,7 @@ fn block_scope_tests(input: &str, results: Vec<PrimitiveValue>) -> TestRes {
 	let inp_str = input.to_string();
 	for (left, right) in BLOCK_OPTS.iter() {
 		TestData::new(inp_str.replace("{", left).replace("}", right))
-			.expect_stack(results.clone())
+			.expect_stack(results.iter().map(|v| v.clone__silently_fail()).collect())
 			.check();
 	}
 	return ();

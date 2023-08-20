@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use evilang_traits::Clone__SilentlyFail;
+
 use crate::ast::expression::Expression;
 use crate::errors::{Descriptor, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
@@ -13,7 +15,6 @@ use crate::interpreter::variables_containers::VariablesMap;
 use crate::types::string::CowStringT;
 
 pub mod consts;
-pub mod consume_or_clone;
 pub mod cell_ref;
 
 pub fn get_object_superclass(env: &mut Environment) -> ResultWithError<GcPtrToObject> {
@@ -39,9 +40,9 @@ pub fn expect_object_fn<T>(object: RefToValue, expr_fn: T) -> ResultWithError<Gc
 		Ok(gc_clone(object_class_ref))
 	} else {
 		Err(RuntimeError::ExpectedClassObject(match expr_fn() {
-			None => Descriptor::Value(obj_eval_borr.deref().clone()),
+			None => Descriptor::Value(obj_eval_borr.deref().clone__silently_fail()),
 			Some(expr) => Descriptor::Both {
-				value: obj_eval_borr.deref().clone(),
+				value: obj_eval_borr.deref().clone__silently_fail(),
 				expression: expr,
 			}
 		}).into())

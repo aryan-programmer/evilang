@@ -51,7 +51,7 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 
 fn main() -> Result<(), Box<dyn Error>> {
 	let args = CliArguments::parse();
-	if args.src_debug{
+	if args.src_debug {
 		dbg!(std::mem::size_of::<PrimitiveValue>());
 		dbg!(std::mem::size_of::<NumberT>());
 		dbg!(std::mem::size_of::<StringT>());

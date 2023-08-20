@@ -1,19 +1,19 @@
 use crate::interpreter::runtime_values::PrimitiveValue;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum UnrollingReason {
 	EncounteredBreak(i64),
 	EncounteredContinue(i64),
 	ReturningValue(PrimitiveValue),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum StatementExecution {
 	NormalFlow,
 	Unrolling(UnrollingReason),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum StatementMetaGeneration {
 	NormalGeneration,
 }

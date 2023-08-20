@@ -7,14 +7,15 @@ use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::{GcPtrVariableExt, PrimitiveValue, ref_to_value::RefToValue};
+use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
 use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::{expect_object, expect_object_or_set_object_if_null};
 use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::utils::consts::CONSTRUCTOR;
-use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::types::traits::ConsumeOrCloneOf;
 use crate::types::string::CowStringT;
 
 macro_rules! by_ref {
@@ -57,14 +58,14 @@ impl Environment {
 			Expression::Identifier(name) => self.get_identifier(name.into())?,
 			Expression::FunctionCall(call_expr) => self.eval_function_call(call_expr)?,
 			Expression::FunctionExpression(fdecl) => {
-				let function = PrimitiveValue::new_closure(self, fdecl.clone());
-				self.assign_locally((&fdecl.name).into(), function.clone());
-				function.into()
+				let function = Function::new_closure(self, fdecl.clone());
+				self.assign_locally((&fdecl.name).into(), gc_clone(&function).into());
+				RefToValue::Value(function.into())
 			}
 			Expression::ClassDeclarationExpression(cdecl) => {
-				let class = PrimitiveValue::new_class_by_eval(self, cdecl)?;
-				self.assign_locally((&cdecl.name).into(), class.clone());
-				class.into()
+				let class = RuntimeObject::new_class_decl(self, cdecl)?;
+				self.assign_locally((&cdecl.name).into(), gc_clone(&class).into());
+				RefToValue::Value(class.into())
 			}
 			Expression::ParenthesizedExpression(expr) => self.eval(expr)?,
 			Expression::MemberAccess { object, member } => {
@@ -76,10 +77,7 @@ impl Environment {
 						match subs_borr.deref() {
 							PrimitiveValue::String(str) => str.clone(),
 							val => {
-								return Err(RuntimeError::ExpectedValidSubscript(Descriptor::Both {
-									value: val.clone(),
-									expression: (**expr).clone(),
-								}).into());
+								return Err(RuntimeError::ExpectedValidSubscript(Descriptor::new_both(val, expr)).into());
 							}
 						}
 					}
@@ -217,7 +215,7 @@ impl Environment {
 				if right.is_hoisted() {
 					return Err(ErrorT::CantSetToHoistedValue.into());
 				}
-				left.set(right.consume_or_clone())?;
+				left.set(right.consume_or_clone()?)?;
 			} else {
 				let val_to_assign = self.execute_operation_on_primitive(
 					&operator.strip_assignment()?,
@@ -312,7 +310,7 @@ impl Environment {
 				)?.into());
 			}
 			expr => {
-				let function = self.eval(expr)?.consume_or_clone();
+				let function = self.eval(expr)?.consume_or_clone()?;
 				let PrimitiveValue::Function(ref gc_fn) = function else {
 					return Err(RuntimeError::ExpectedFunction(Descriptor::Both {
 						value: function,
@@ -324,7 +322,7 @@ impl Environment {
 					.iter()
 					.map(|v| self
 						.eval(v)
-						.map(RefToValue::consume_or_clone)
+						.and_then(RefToValue::consume_or_clone)
 					)
 					.collect::<ResultWithError<FunctionParameters>>()?;
 				return Ok(gc_fn.execute(self, args)?.into());

@@ -3,18 +3,20 @@ use std::ops::{Deref, DerefMut};
 
 use delegate::delegate;
 
+use evilang_traits::{Clone__SilentlyFail, TryClone};
+
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
 use crate::interpreter::runtime_values::objects::runtime_object::GcPtrToObject;
 pub use crate::interpreter::runtime_values::ref_to_value::deref_of_ref_to_value::DerefOfRefToValue;
 use crate::interpreter::utils::cell_ref::gc_ptr_cell_from;
-use crate::interpreter::utils::consume_or_clone::ConsumeOrCloneOf;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::types::traits::ConsumeOrCloneOf;
 
 pub mod deref_of_ref_to_value;
 
-#[derive(Debug, PartialEq)]
+#[derive(TryClone, Clone__SilentlyFail, Debug, PartialEq)]
 pub enum RefToValue {
 	Value(PrimitiveValue),
 	Variable(GcPtrVariable),
@@ -36,7 +38,7 @@ impl ConsumeOrCloneOf for RefToValue {
 	type Target = PrimitiveValue;
 
 	#[inline(always)]
-	fn consume_or_clone(self) -> Self::Target {
+	fn consume_or_clone(self) -> ResultWithError<Self::Target> {
 		/*
 		return match self {
 			RefToValue::Value(v) |
@@ -45,10 +47,10 @@ impl ConsumeOrCloneOf for RefToValue {
 		};
 		*/
 		return match self {
-			RefToValue::Value(v) => v,
-			RefToValue::ObjectProperty { snapshot: None, .. } => PrimitiveValue::Null,
+			RefToValue::Value(v) => Ok(v),
+			RefToValue::ObjectProperty { snapshot: None, .. } => Ok(PrimitiveValue::Null),
 			RefToValue::ObjectProperty { snapshot: Some(v), .. } |
-			RefToValue::Variable(v) => v.borrow().clone(),
+			RefToValue::Variable(v) => v.borrow().try_clone_err(),
 		};
 	}
 }
