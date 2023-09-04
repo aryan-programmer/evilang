@@ -9,9 +9,9 @@ use crate::interpreter::environment::statement_result::{StatementExecution, Unro
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::cell_ref::gc_clone;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
+use crate::types::cell_ref::gc_clone;
 
 #[derive(Trace, Finalize)]
 pub struct Closure {
@@ -38,7 +38,7 @@ impl IFunction for Closure {
 			gc_clone(&self.parent_scope),
 			gc_clone(&this_env.global_scope),
 		);
-		let mut env = Environment::new_with_parent(&parent_env);
+		let mut env = Environment::new_with_parent(&parent_env)?;
 		for (FunctionParameterDeclaration { identifier: param_name }, param_value) in self.code.parameters.iter().zip(params.into_iter()) {
 			env.declare(param_name.into(), param_value.into())?;
 		}

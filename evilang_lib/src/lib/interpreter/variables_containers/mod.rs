@@ -6,9 +6,9 @@ pub use scope::VariableScope;
 use crate::errors::ResultWithError;
 use crate::interpreter::environment::resolver::BoxIResolver;
 use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
-use crate::interpreter::utils::cell_ref::{gc_ptr_cell_from, GcPtr, GcPtrCell};
 use crate::interpreter::variables_containers::map::{delegate_ivariables_map, IVariablesMapConstMembers, IVariablesMapDelegator};
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
+use crate::types::cell_ref::{gc_ptr_cell_from, GcPtr, GcPtrCell};
 use crate::types::string::CowStringT;
 
 pub mod map;

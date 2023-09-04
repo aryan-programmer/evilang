@@ -12,6 +12,20 @@ pub enum NumberT {
 	Float(f64),
 }
 
+impl From<i128> for NumberT {
+	#[inline(always)]
+	fn from(value: i128) -> Self {
+		NumberT::Integer(value)
+	}
+}
+
+impl From<f64> for NumberT {
+	#[inline(always)]
+	fn from(value: f64) -> Self {
+		NumberT::Float(value)
+	}
+}
+
 impl Copy for NumberT {}
 
 impl PartialOrd for NumberT {
@@ -177,5 +191,36 @@ impl Num for NumberT {
 			Ok(v) => NumberT::Integer(v),
 			Err(_) => NumberT::Float(f64::from_str_radix(str, radix).map_err(|_err| EvilangError::new(ErrorT::InvalidNumericLiteral(str.into()).into()))?),
 		})
+	}
+}
+
+impl NumberT {
+	#[inline(always)]
+	pub fn round_to_int(&self) -> i128 {
+		match self {
+			NumberT::Integer(v) => *v,
+			NumberT::Float(f) => f.round() as i128,
+		}
+	}
+	#[inline(always)]
+	pub fn floor_to_int(&self) -> i128 {
+		match self {
+			NumberT::Integer(v) => *v,
+			NumberT::Float(f) => f.floor() as i128,
+		}
+	}
+	#[inline(always)]
+	pub fn ceil_to_int(&self) -> i128 {
+		match self {
+			NumberT::Integer(v) => *v,
+			NumberT::Float(f) => f.ceil() as i128,
+		}
+	}
+	#[inline(always)]
+	pub fn as_float(&self) -> f64 {
+		match self {
+			NumberT::Integer(v) => *v as f64,
+			NumberT::Float(f) => *f,
+		}
 	}
 }

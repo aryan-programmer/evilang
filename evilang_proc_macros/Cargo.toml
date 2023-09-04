@@ -10,6 +10,11 @@ syn = { version = "2.0.29", features = ["fold", "extra-traits", "test", "visit",
 synstructure = "0.13.0"
 proc-macro2 = "1.0.66"
 quote = "1.0.33"
+darling = "0.20.3"
+split-iter = "0.1.0"
+itertools = "0.11.0"
+maybe-owned = "0.3.4"
+unhygienic = "0.1.1"
 
 [lib]
 name = "evilang_proc_macros"

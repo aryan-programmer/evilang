@@ -46,7 +46,8 @@ pub enum TokenType {
 	Identifier,
 	Comma,
 	Dot,
-	Arrow,
+	// Arrow,
+	DoubleColon,
 	Keyword(Keyword),
 }
 

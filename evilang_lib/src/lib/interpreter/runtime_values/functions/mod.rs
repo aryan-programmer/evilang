@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Write};
+
 use gc::{Finalize, Trace};
 
 use crate::ast::structs::FunctionDeclaration;
@@ -7,7 +9,7 @@ use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
 use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
-use crate::interpreter::utils::cell_ref::{gc_clone, GcPtr};
+use crate::types::cell_ref::{gc_clone, GcPtr};
 
 pub mod closure;
 pub mod types;
@@ -20,6 +22,25 @@ pub type GcPtrToFunction = GcPtr<Function>;
 pub enum Function {
 	NativeFunction(NativeFunction),
 	Closure(Closure),
+}
+
+impl Display for Function {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Function::NativeFunction(nf) => {
+				let mut res = std::fmt::Result::Ok(());
+				backtrace::resolve(nf.f as *mut std::os::raw::c_void, |v| {
+					res = if let Some(name) = v.name() {
+						std::fmt::Display::fmt(&name, f)
+					} else {
+						f.write_str("native function")
+					};
+				});
+				res
+			}
+			Function::Closure(cl) => f.write_str(cl.code.name.as_str())
+		}
+	}
 }
 
 impl Function {

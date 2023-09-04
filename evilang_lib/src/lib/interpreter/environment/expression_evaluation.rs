@@ -1,7 +1,9 @@
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::ops::Deref;
 
-use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, MemberIndexer};
+use itertools::{Either::Left, Either::Right};
+
+use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, IdentifierT, MemberIndexer};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
 use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
@@ -12,11 +14,12 @@ use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
 use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
 use crate::interpreter::utils::{expect_object, expect_object_or_set_object_if_null};
-use crate::interpreter::utils::cell_ref::gc_clone;
-use crate::interpreter::utils::consts::CONSTRUCTOR;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
-use crate::types::traits::ConsumeOrCloneOf;
+use crate::tokenizer::TokenType;
+use crate::types::cell_ref::gc_clone;
+use crate::types::consts::CONSTRUCTOR;
 use crate::types::string::CowStringT;
+use crate::types::traits::ConsumeOrCloneOf;
 
 macro_rules! by_ref {
     ($b:ident) => {($b)};
@@ -69,26 +72,12 @@ impl Environment {
 			}
 			Expression::ParenthesizedExpression(expr) => self.eval(expr)?,
 			Expression::MemberAccess { object, member } => {
-				let name = match member {
-					MemberIndexer::PropertyName(name) => name.clone(),
-					MemberIndexer::SubscriptExpression(expr) => {
-						let subscript = self.eval(expr)?;
-						let subs_borr = subscript.borrow();
-						match subs_borr.deref() {
-							PrimitiveValue::String(str) => str.clone(),
-							val => {
-								return Err(RuntimeError::ExpectedValidSubscript(Descriptor::new_both(val, expr)).into());
-							}
-						}
-					}
-					MemberIndexer::MethodNameArrow(_) => {
-						return Err(ErrorT::InvalidMethodArrowAccess(expression.clone()).into());
-					}
-				};
+				let name = self.name_from_member_indexer(member)?;
 				let object_val = self.eval_expr_expect_object(object)?;
-				RefToValue::new_object_property_ref(object_val, name)
+				RefToValue::new_object_property_ref(object_val, name.into_owned())
 			}
-			Expression::DottedIdentifiers(idens) => self.get_dotted_identifiers(expression, idens)?,
+			Expression::DottedIdentifiers(idens) =>
+				self.get_dotted_identifiers(expression, idens.identifiers.iter())?,
 			Expression::NewObjectExpression(call_expr) => self.eval_new_object_expression(call_expr)?,
 			/*
 			expr => {
@@ -98,12 +87,29 @@ impl Environment {
 		});
 	}
 
+	fn name_from_member_indexer<'a>(&mut self, member: &'a MemberIndexer) -> ResultWithError<CowStringT<'a>> {
+		match member {
+			MemberIndexer::PropertyName(name) => Ok(name.as_str().into()),
+			MemberIndexer::SubscriptExpression(expr) => {
+				match self.eval(expr)?.consume_or_clone()?.consume_as_string() {
+					Left(str) => Ok(str.into()),
+					Right(val) => {
+						return Err(RuntimeError::ExpectedValidSubscript(Descriptor::new_both(val.into(), expr.deref().deref().into())).into());
+					}
+				}
+			}
+			// MemberIndexer::MethodNameArrow(_) => {
+			// 	return Err(ErrorT::InvalidMethodArrowAccess(expression.clone()).into());
+			// }
+		}
+	}
+
 	pub fn get_namespace_object(&mut self, idens: &DottedIdentifiers) -> ResultWithError<GcPtrToObject> {
-		let mut iter = idens.iter();
+		let mut iter = idens.identifiers.iter();
 		let Some(obj_expr) = iter.next() else {
 			return Err(RuntimeError::ExpectedNamespaceObject(Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))).into());
 		};
-		let f = || Some(Expression::DottedIdentifiers(idens.clone()));
+		let f = || Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()));
 		let mut res_ref = self.get_identifier(obj_expr.into())?;
 		let mut res_ref_name = obj_expr;
 		while let Some(next_name) = iter.next() {
@@ -128,9 +134,12 @@ impl Environment {
 		Ok(ret_obj)
 	}
 
-	fn get_dotted_identifiers(&mut self, expression: &Expression, idens: &DottedIdentifiers) -> ResultWithError<RefToValue> {
-		let mut iter = idens.iter();
-		let Some(obj_expr) = iter.next()else {
+	pub fn get_dotted_identifiers<'a, TIter: Iterator<Item=&'a IdentifierT>>(
+		&mut self,
+		expression: &Expression,
+		mut iter: TIter,
+	) -> ResultWithError<RefToValue> {
+		let Some(obj_expr) = iter.next() else {
 			return Ok(PrimitiveValue::Null.into());
 		};
 		let mut res = self.get_identifier(obj_expr.into())?;
@@ -141,7 +150,7 @@ impl Environment {
 		Ok(res)
 	}
 
-	fn get_identifier(&mut self, name: CowStringT) -> ResultWithError<RefToValue> {
+	pub fn get_identifier(&mut self, name: CowStringT) -> ResultWithError<RefToValue> {
 		let name_ref = name.deref();
 		let var = self.get_actual(name_ref.into()).or_else(|| {
 			self.assign_locally(name_ref.into(), PrimitiveValue::Null.into());
@@ -150,14 +159,14 @@ impl Environment {
 		if var.is_hoisted() {
 			return Err(ErrorT::CantAccessHoistedVariable(name.into()).into());
 		}
-		Ok(RefToValue::Variable(var))
+		Ok(RefToValue::Variable(var.into_owned()))
 	}
 
 	fn eval_expr_expect_object(&mut self, expr: &Expression) -> ResultWithError<GcPtrToObject> {
 		return expect_object(self.eval(expr)?, Some(expr));
 	}
 
-	fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
+	pub fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
 		let arg_eval = self.eval(argument)?;
 		let prim_borrow = arg_eval.borrow();
 		let prim_ref = prim_borrow.deref();
@@ -171,7 +180,7 @@ impl Environment {
 		});
 	}
 
-	fn eval_binary_operator_expression(
+	pub fn eval_binary_operator_expression(
 		&mut self,
 		operator: &Operator,
 		left: &BoxExpression,
@@ -202,7 +211,7 @@ impl Environment {
 		return self.execute_binary_expression(operator, left_eval, right_eval, left, right);
 	}
 
-	fn execute_binary_expression(
+	pub fn execute_binary_expression(
 		&mut self,
 		operator: &Operator,
 		mut left: RefToValue,
@@ -243,7 +252,7 @@ impl Environment {
 		)?.into());
 	}
 
-	fn execute_operation_on_primitive(
+	pub fn execute_operation_on_primitive(
 		&mut self,
 		operator: &Operator,
 		left: &PrimitiveValue,
@@ -282,7 +291,7 @@ impl Environment {
 
 	fn eval_new_object_expression(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
 		let class = self.eval_expr_expect_object(&call_expr.callee)?;
-		let obj = RuntimeObject::allocate_instance(class);
+		let obj = RuntimeObject::allocate_instance(class, None);
 		let res = RuntimeObject::call_method_on_object_with_args(
 			gc_clone(&obj),
 			self,
@@ -297,13 +306,35 @@ impl Environment {
 
 	//noinspection RsLift
 	fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
+		// dbg!(&call_expr.callee);
 		match call_expr.callee.deref() {
 			Expression::MemberAccess {
 				object,
-				member: MemberIndexer::MethodNameArrow(method_name)
+				member
 			} => {
+				let method_name = self.name_from_member_indexer(member)?;
 				return Ok(RuntimeObject::call_method_on_object_with_args(
 					self.eval_expr_expect_object(&object)?,
+					self,
+					method_name,
+					call_expr,
+				)?.into());
+			}
+			Expression::DottedIdentifiers(idens)
+			if idens.identifiers.len() > 1 && idens
+				.delimiters
+				.last()
+				.map(|v| v.typ == TokenType::Dot)
+				.unwrap_or(false)
+			=> {
+				let left_iter = &idens.identifiers[0..idens.identifiers.len() - 1];
+				let object = self.get_dotted_identifiers(
+					call_expr.callee.deref(),
+					left_iter.iter(),
+				)?;
+				let method_name = idens.identifiers.last().unwrap();
+				return Ok(RuntimeObject::call_method_on_object_with_args(
+					expect_object(object, Some(call_expr.callee.deref()))?,
 					self,
 					method_name.into(),
 					call_expr,
@@ -312,10 +343,7 @@ impl Environment {
 			expr => {
 				let function = self.eval(expr)?.consume_or_clone()?;
 				let PrimitiveValue::Function(ref gc_fn) = function else {
-					return Err(RuntimeError::ExpectedFunction(Descriptor::Both {
-						value: function,
-						expression: expr.clone(),
-					}).into());
+					return Err(RuntimeError::ExpectedFunction(Descriptor::new_both(function.into(), expr.into())).into());
 				};
 				let args = call_expr
 					.arguments

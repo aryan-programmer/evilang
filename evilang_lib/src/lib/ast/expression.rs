@@ -4,19 +4,25 @@ use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
 use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration};
 use crate::errors::ResultWithError;
+use crate::tokenizer::Token;
 use crate::types::number::NumberT;
 use crate::types::string::StringT;
 
 pub type BoxExpression = Box<Expression>;
 
 pub type IdentifierT = StringT;
-pub type DottedIdentifiers = Vec<IdentifierT>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DottedIdentifiers {
+	pub identifiers: Vec<IdentifierT>,
+	pub delimiters: Vec<Token>,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MemberIndexer {
 	PropertyName(IdentifierT),
 	SubscriptExpression(BoxExpression),
-	MethodNameArrow(IdentifierT),
+	// MethodNameArrow(IdentifierT),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,10 +86,10 @@ impl Expression {
 		return Expression::AssignmentExpression { operator, left, right };
 	}
 
-	#[inline(always)]
-	pub fn member_method_access(object: BoxExpression, property_name: IdentifierT) -> Expression {
-		return Expression::MemberAccess { object, member: MemberIndexer::MethodNameArrow(property_name) };
-	}
+	// #[inline(always)]
+	// pub fn member_method_access(object: BoxExpression, property_name: IdentifierT) -> Expression {
+	// 	return Expression::MemberAccess { object, member: MemberIndexer::MethodNameArrow(property_name) };
+	// }
 
 	#[inline(always)]
 	pub fn member_property_access(object: BoxExpression, property_name: IdentifierT) -> Expression {

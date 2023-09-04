@@ -1,2 +1,6 @@
-push_res_stack(new Object());
-push_res_stack(10/12);
+fn medium_tests(){
+
+}
+
+debug(to_string(medium_tests));
+debug(to_string(Vector::from));

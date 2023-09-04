@@ -17,7 +17,7 @@ fn simple_assignment() -> TestRes {
 		HashMap::from([
 			("x".into(), PrimitiveValue::integer(-1))
 		]),
-		DefaultResolver::new_box());
+		DefaultResolver::new_box()).unwrap();
 	TestData::new("x;x = 1;x;".to_string()).expect_statements_and_results(vec![
 		identifier_stmt("x"),
 		AssignmentExpression {
@@ -39,7 +39,7 @@ fn complex_assignment() -> TestRes {
 		HashMap::from([
 			("x".into(), PrimitiveValue::integer(12))
 		]),
-		DefaultResolver::new_box());
+		DefaultResolver::new_box()).unwrap();
 	{
 		TestData::new(r#"
 	x += 1;
@@ -90,7 +90,7 @@ fn chained_assignment() -> TestRes {
 			("x".into(), PrimitiveValue::integer(5)),
 			("y".into(), PrimitiveValue::integer(6)),
 		]),
-		DefaultResolver::new_box());
+		DefaultResolver::new_box()).unwrap();
 	let mut test = {
 		TestData::new(r#"
 	x;
@@ -131,7 +131,7 @@ fn chained_complex_assignment() -> TestRes {
 			("y".into(), PrimitiveValue::integer(6)),
 			("z".into(), PrimitiveValue::integer(7)),
 		]),
-		DefaultResolver::new_box());
+		DefaultResolver::new_box()).unwrap();
 	let mut test = {
 		TestData::new(r#"
 	x;
@@ -182,7 +182,7 @@ fn complex_assignments() -> TestRes {
 			("y".into(), PrimitiveValue::integer(6)),
 			("z".into(), PrimitiveValue::integer(7)),
 		]),
-		DefaultResolver::new_box());
+		DefaultResolver::new_box()).unwrap();
 	let mut test = {
 		TestData::new(r#"
 	x;

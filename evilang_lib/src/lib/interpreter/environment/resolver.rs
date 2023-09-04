@@ -1,19 +1,17 @@
 use std::any::Any;
 use std::fs;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use gc::{Finalize, Trace};
-
-use evilang_traits::Clone__SilentlyFail;
 
 use crate::ast::statement::StatementList;
 use crate::errors::{Descriptor, EvilangError, ResultWithError, RuntimeError};
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::utils::consts::CURRENT_FILE;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
 use crate::parser::parse;
+use crate::types::consts::CURRENT_FILE;
 use crate::types::string::StringT;
 
 pub struct ResolveResult {
@@ -71,6 +69,33 @@ impl Clone for Box<dyn IResolver> {
 #[derive(Clone, PartialEq, Trace, Finalize)]
 pub struct DefaultResolver {}
 
+pub fn normalize_path(path: &Path) -> PathBuf {
+	let mut components = path.components().peekable();
+	let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+		components.next();
+		PathBuf::from(c.as_os_str())
+	} else {
+		PathBuf::new()
+	};
+
+	for component in components {
+		match component {
+			Component::Prefix(..) => unreachable!(),
+			Component::RootDir => {
+				ret.push(component.as_os_str());
+			}
+			Component::CurDir => {}
+			Component::ParentDir => {
+				ret.pop();
+			}
+			Component::Normal(c) => {
+				ret.push(c);
+			}
+		}
+	}
+	ret
+}
+
 impl DefaultResolver {
 	#[inline(always)]
 	pub fn new() -> Self {
@@ -87,10 +112,11 @@ impl DefaultResolver {
 			.and_then(|env| env.get_actual(CURRENT_FILE.into()))
 			.and_then(|v| if v.borrow().deref() == &PrimitiveValue::Null { None } else { Some(v) }) else {
 			return fs::canonicalize(file_name).map_err(EvilangError::from);
+			return Ok(normalize_path(Path::new(&file_name)).to_path_buf());//.map_err(EvilangError::from);
 		};
 		let this_file_path_borr = this_file_path_box.borrow();
 		let PrimitiveValue::String(this_file_path_str_ref) = this_file_path_borr.deref() else {
-			return Err(RuntimeError::ExpectedValidFileName(Descriptor::Value(this_file_path_borr.clone__silently_fail())).into());
+			return Err(RuntimeError::ExpectedValidFileName(Descriptor::Value(this_file_path_borr.deref().clone__silently_fail())).into());
 		};
 		// dbg!(this_file_path_str_ref);
 		// let this_file_path_str = this_file_path_str_ref.clone();

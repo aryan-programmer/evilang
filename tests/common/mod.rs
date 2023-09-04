@@ -10,8 +10,10 @@ use evilang_lib::ast::statement::{Statement, StatementList};
 use evilang_lib::ast::statement::Statement::ExpressionStatement;
 use evilang_lib::errors::ErrorT;
 use evilang_lib::interpreter::environment::Environment;
+use evilang_lib::interpreter::environment::resolver::DefaultResolver;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 use evilang_lib::parser::parse;
+use evilang_lib::types::string::CowStringT;
 
 pub type TestRes = ();
 
@@ -122,7 +124,7 @@ impl TestData {
 	}
 
 	pub fn check(&mut self) -> TestRes {
-		let mut env = Environment::new();
+		let mut env = Environment::new().unwrap();
 		self.check_parsing();
 		self.exec_and_check_statement_results(&mut env);
 		self.check_stack_results_no_exec(&mut env);
@@ -150,7 +152,7 @@ pub fn ensure_parsing_fails(input: &str, typ: Option<ErrorT>) -> TestRes {
 }
 
 pub fn ensure_execution_fails(input: String, typ: Option<ErrorT>) -> TestRes {
-	let mut env = Environment::new();
+	let mut env = Environment::new().unwrap();
 	match env.eval_program_string(input.clone()) {
 		Ok(exec_res) => {
 			panic!("Program {} expected to fail resulted in {:#?}", input, exec_res);
@@ -207,4 +209,14 @@ pub fn push_res_stack_stmt(val: Expression) -> Statement {
 		Identifier("push_res_stack".to_string()).into(),
 		vec![val],
 	));
+}
+
+pub fn run_asserts_in_file(file: CowStringT) {
+	let file = env!("CARGO_MANIFEST_DIR").to_string() + file.as_ref();
+	let env = Environment::execute_file(file, DefaultResolver::new_box()).unwrap();
+	let prim_true = PrimitiveValue::Boolean(true);
+	let global_scope_borrow = env.global_scope.borrow();
+	let res_stack = &global_scope_borrow.res_stack;
+	let trues = vec![prim_true; res_stack.len()];
+	assert_eq!(res_stack, &trues, "Expected all result stack values to be true");
 }

@@ -1,7 +1,7 @@
-use evilang_lib::ast::expression::{Expression, Expression::{AssignmentExpression, BinaryExpression, Identifier, MemberAccess, StringLiteral}};
-use evilang_lib::ast::expression::Expression::DottedIdentifiers;
+use evilang_lib::ast::expression::{DottedIdentifiers, Expression, Expression::{AssignmentExpression, BinaryExpression, Identifier, MemberAccess, StringLiteral}};
 use evilang_lib::ast::expression::MemberIndexer::{PropertyName, SubscriptExpression};
 use evilang_lib::ast::operator::Operator::{Assignment, ModulusAssignment, Plus};
+use evilang_lib::tokenizer::{Token, TokenType};
 
 use crate::common::{ensure_program, test_expression_and_assignment, TestRes};
 
@@ -36,10 +36,15 @@ fn chained_function_call() -> TestRes {
 fn console_log() -> TestRes {
 	ensure_program(r#"console.log("values");"#, vec![
 		Expression::function_call(
-			DottedIdentifiers([
-				"console".to_string(),
-				"log".to_string(),
-			].into()).into(),
+			Expression::DottedIdentifiers(DottedIdentifiers {
+				identifiers: [
+					"console".to_string(),
+					"log".to_string(),
+				].into(),
+				delimiters: [
+					Token { typ: TokenType::Dot, data: ".".to_string() }
+				].into(),
+			}).into(),
 			vec![
 				StringLiteral("values".to_string()),
 			],
@@ -54,10 +59,15 @@ fn member_complex_assignment() -> TestRes {
 		left: MemberAccess {
 			object: Expression::function_call(
 				MemberAccess {
-					object: DottedIdentifiers([
-						"a".to_string(),
-						"b".to_string(),
-					].into()).into(),
+					object: Expression::DottedIdentifiers(DottedIdentifiers {
+						identifiers: [
+							"a".to_string(),
+							"b".to_string(),
+						].into(),
+						delimiters: [
+							Token { typ: TokenType::Dot, data: ".".to_string() }
+						].into(),
+					}).into(),
 					member: SubscriptExpression(
 						BinaryExpression {
 							operator: Plus,
@@ -79,17 +89,27 @@ fn member_complex_assignment() -> TestRes {
 				operator: Plus,
 				left: Expression::integer_literal(1).into(),
 				right: Expression::function_call(
-					DottedIdentifiers([
-						"$".to_string(),
-						"left".to_string(),
-					].into()).into(),
+					Expression::DottedIdentifiers(DottedIdentifiers {
+						identifiers: [
+							"$".to_string(),
+							"left".to_string(),
+						].into(),
+						delimiters: [
+							Token { typ: TokenType::Dot, data: ".".to_string() }
+						].into(),
+					}).into(),
 					vec![
 						AssignmentExpression {
 							operator: Assignment,
-							left: DottedIdentifiers([
-								"$".to_string(),
-								"right".to_string(),
-							].into()).into(),
+							left: Expression::DottedIdentifiers(DottedIdentifiers {
+								identifiers: [
+									"$".to_string(),
+									"right".to_string(),
+								].into(),
+								delimiters: [
+									Token { typ: TokenType::Dot, data: ".".to_string() }
+								].into(),
+							}).into(),
 							right: Expression::integer_literal(1).into(),
 						}
 					],

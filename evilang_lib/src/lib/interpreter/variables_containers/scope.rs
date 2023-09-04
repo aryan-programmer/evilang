@@ -2,12 +2,13 @@ use std::ops::Deref;
 
 use delegate::delegate;
 use gc::{Finalize, Trace};
+use maybe_owned::MaybeOwned;
 
 use crate::errors::ResultWithError;
 use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
-use crate::interpreter::utils::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr};
 use crate::interpreter::variables_containers::map::{GcPtrMutCellToVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
 use crate::interpreter::variables_containers::map::IVariablesMap;
+use crate::types::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr};
 use crate::types::string::CowStringT;
 
 pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace + Finalize {
@@ -33,9 +34,12 @@ pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace 
 }
 
 impl<T: IGenericVariablesScope<T> + 'static> IVariablesMapConstMembers for T {
+	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>> {
+		self.resolve_variable_scope(name.deref().into()).borrow().get_actual(name).map(|v| v.into_owned().into())
+	}
+
 	delegate! {
 		to self.resolve_variable_scope(name.deref().into()).borrow() {
-			fn get_actual(&self, name: CowStringT) -> Option<GcPtrVariable>;
 			fn contains_key(&self, name: CowStringT) -> bool;
 		}
 	}

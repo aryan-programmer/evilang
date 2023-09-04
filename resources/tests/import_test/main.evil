@@ -1,11 +1,14 @@
 import "./sub/sub_file_1.evil" as sub_f1;
 import "./sub/sub_2/sub_2_file_1.evil" as sub2_f1;
 import "./sub/point.evil" as point;
+import "../common/index.evil" as tests;
+let assert = tests.assert;
 
-push_res_stack(sub_f1.value == "sub.sub_file_1");
-push_res_stack(sub2_f1.main_adj.main_adj_val == "main_adj_v");
+assert(sub_f1.value == "sub.sub_file_1");
+assert(sub2_f1.main_adj.main_adj_val == "main_adj_v");
 
-push_res_stack(point.Point.ORIGIN->calc() == 0);
+debug(point.Point.ORIGIN.calc());
+assert(point.Point.ORIGIN.calc() == 0);
 
 let p = new point.Point(10, 12);
-push_res_stack(p->calc() == 22);
+assert(p.calc() == 22);

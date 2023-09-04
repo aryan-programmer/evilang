@@ -5,6 +5,7 @@ class Point {
 	}
 
 	fn calc(this) {
+		debug(this.x);
 		return this.x + this.y;
 	}
 }

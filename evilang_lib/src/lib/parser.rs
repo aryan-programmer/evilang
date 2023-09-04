@@ -673,8 +673,8 @@ impl Parser {
 
 	fn dotted_identifier_expression(&mut self) -> ResultWithError<Expression> {
 		let mut res = self.dotted_identifiers()?;
-		return if res.len() == 1 {
-			Ok(Expression::Identifier(res.pop().unwrap()))
+		return if res.identifiers.len() == 1 {
+			Ok(Expression::Identifier(res.identifiers.pop().unwrap()))
 		} else {
 			Ok(Expression::DottedIdentifiers(res))
 		};
@@ -795,7 +795,7 @@ impl Parser {
 	#[inline]
 	fn check_if_next_token_is_member_access_like(&mut self) -> ResultWithError<bool> {
 		return Ok(match self.lookahead_type()? {
-			TokenType::Dot | TokenType::OpenSquareBracket | TokenType::Arrow => true,
+			TokenType::Dot | TokenType::DoubleColon | TokenType::OpenSquareBracket /*| TokenType::Arrow*/ => true,
 			_ => false
 		});
 	}
@@ -813,11 +813,18 @@ impl Parser {
 			self.eat(TokenType::Dot)?;
 			let property_name = self.identifier()?;
 			return Ok((Expression::member_property_access(res.into(), property_name), true));
-		} else if self.lookahead_type()? == TokenType::Arrow {
+		} else if self.lookahead_type()? == TokenType::DoubleColon {
+			self.eat(TokenType::DoubleColon)?;
+			let property_name = self.identifier()?;
+			return Ok((
+				Expression::member_property_access(res.into(), property_name)
+					.consume_as_parenthesized(),
+				true));
+		} /*else if self.lookahead_type()? == TokenType::Arrow {
 			self.eat(TokenType::Arrow)?;
 			let property_name = self.identifier()?;
 			return Ok((Expression::member_method_access(res.into(), property_name), true));
-		} else if self.lookahead_type()? == TokenType::OpenSquareBracket {
+		}*/ else if self.lookahead_type()? == TokenType::OpenSquareBracket {
 			self.eat(TokenType::OpenSquareBracket)?;
 			let expr = self.expression()?.into();
 			self.eat(TokenType::CloseSquareBracket)?;
@@ -829,7 +836,21 @@ impl Parser {
 
 	#[inline]
 	fn dotted_identifiers(&mut self) -> ResultWithError<DottedIdentifiers> {
-		return self.delimited_items(Self::identifier, TokenType::Dot, TokenType::_EOFDummy);
+		let mut idens = Vec::<IdentifierT>::new();
+		let mut delims = Vec::<Token>::new();
+		loop {
+			idens.push(self.identifier()?);
+			match self.lookahead_type()? {
+				TokenType::Dot | TokenType::DoubleColon => {
+					delims.push(self.eat_any()?);
+				}
+				_ => break
+			}
+		}
+		return Ok(DottedIdentifiers {
+			identifiers: idens,
+			delimiters: delims,
+		});
 	}
 	// endregion
 }

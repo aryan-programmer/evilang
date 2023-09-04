@@ -37,8 +37,8 @@ class Point3D extends Point {
 
 let p = new Point(10, 12);
 let p3 = new Point3D(10, 20, 30);
-push_res_stack(p->calc());
-push_res_stack(p3->calc());
+push_res_stack(p.calc());
+push_res_stack(p3.calc());
 "#.to_string())
 		// region ...expect_statements
 		.expect_statements([
@@ -205,14 +205,14 @@ push_res_stack(p3->calc());
 				},
 			].into()),
 			push_res_stack_stmt(Expression::function_call(
-				Expression::member_method_access(
+				Expression::member_property_access(
 					Identifier("p".into()).into(),
 					"calc".into(),
 				).into(),
 				[].into(),
 			)),
 			push_res_stack_stmt(Expression::function_call(
-				Expression::member_method_access(
+				Expression::member_property_access(
 					Identifier("p3".into()).into(),
 					"calc".into(),
 				).into(),
@@ -254,11 +254,11 @@ class Point extends SuperClass {
 Point.x = -1;
 
 let p = new Point(10, 12);
-push_res_stack(p->calc());
-p->setX(31);
-push_res_stack(p->calc());
-p->setY(11);
-push_res_stack(p->calc());
+push_res_stack(p.calc());
+p.setX(31);
+push_res_stack(p.calc());
+p.setY(11);
+push_res_stack(p.calc());
 
 push_res_stack(SuperClass.x);
 push_res_stack(Point.x);
@@ -289,7 +289,7 @@ class Point {
 }
 
 fn pusher(pnt){
-	push_res_stack(pnt.x, pnt.y, pnt->calc());
+	push_res_stack(pnt.x, pnt.y, pnt.calc());
 }
 
 let p = new Point(10, 12);
@@ -297,7 +297,7 @@ pusher(p);
 
 Point.push = pusher;
 
-p->push();
+p.push();
 
 push_res_stack(p.push == pusher);
 "#.to_string())

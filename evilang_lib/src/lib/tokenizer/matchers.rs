@@ -19,6 +19,16 @@ const IDENTIFIER_REGEX: &str = r#"^[a-zA-Z_$][a-zA-Z0-9_$]*"#;
 
 pub(super) type Matcher = Box<dyn Fn(&str) -> Option<&str>>;
 
+fn is_identifier_char(ch: char) -> bool {
+	if ch.is_alphanumeric() {
+		return true;
+	}
+	return match ch {
+		'_' | '$' => true,
+		_ => false
+	};
+}
+
 fn regex_matcher(regex_str: &str) -> Matcher {
 	let reg = Regex::new(regex_str).unwrap();
 	return Box::new(move |s: &str| Some(reg.find(s)?.as_str()));
@@ -35,7 +45,7 @@ fn starts_with_matcher(start: &'static str) -> Matcher {
 fn keyword_matcher(start: &'static str) -> Matcher {
 	let start_code_points_len = start.chars().count();
 	return Box::new(move |s: &str| if s.starts_with(start) {
-		if s.chars().nth(start_code_points_len).map_or(false, |v| !v.is_alphanumeric()) {
+		if s.chars().nth(start_code_points_len).map_or(false, |v| !is_identifier_char(v)) {
 			Some(start)
 		} else {
 			None
@@ -72,7 +82,8 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(starts_with_matcher("]"), Some(TokenType::CloseSquareBracket)),
 		(starts_with_matcher(","), Some(TokenType::Comma)),
 		(starts_with_matcher("."), Some(TokenType::Dot)),
-		(starts_with_matcher("->"), Some(TokenType::Arrow)),
+		(starts_with_matcher("::"), Some(TokenType::DoubleColon)),
+		// (starts_with_matcher("->"), Some(TokenType::Arrow)),
 		//
 		(one_of_many(["==", "!="]), Some(TokenType::EqualityOperator)),
 		(starts_with_matcher("&&"), Some(TokenType::LogicalAndOperator)),

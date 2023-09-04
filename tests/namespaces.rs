@@ -1,8 +1,6 @@
-use evilang_lib::interpreter::environment::Environment;
-use evilang_lib::interpreter::environment::resolver::DefaultResolver;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
-use crate::common::{TestData, TestRes};
+use crate::common::{run_asserts_in_file, TestData, TestRes};
 
 mod common;
 
@@ -15,9 +13,9 @@ namespace Math {
 		return n * n;
 	}
 }
-push_res_stack(Math.square(2));
-push_res_stack(Math.square(3));
-push_res_stack(Math.INT32_MAX);
+push_res_stack(Math::square(2));
+push_res_stack(Math::square(3));
+push_res_stack(Math::INT32_MAX);
 "#.to_string())
 		.expect_stack(vec![
 			PrimitiveValue::integer(4),
@@ -29,10 +27,5 @@ push_res_stack(Math.INT32_MAX);
 
 #[test]
 fn imports_namespaces() -> TestRes {
-	let file = env!("CARGO_MANIFEST_DIR").to_string() + "/resources/tests/import_test/main.evil";
-	let env = Environment::execute_file(file, DefaultResolver::new_box()).unwrap();
-	let prim_true = PrimitiveValue::Boolean(true);
-	for x in env.global_scope.borrow().res_stack.iter() {
-		assert_eq!(x, &prim_true, "Expected all result stack values to be true");
-	}
+	run_asserts_in_file("/resources/tests/import_test/main.evil".into());
 }

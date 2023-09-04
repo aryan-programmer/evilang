@@ -3,9 +3,8 @@ use std::fmt::{Display, Formatter};
 use std::io;
 
 use backtrace::Backtrace;
+use maybe_owned::MaybeOwned;
 use thiserror::Error;
-
-use evilang_traits::Clone__SilentlyFail;
 
 use crate::ast::expression::{Expression, IdentifierT};
 use crate::ast::operator::Operator;
@@ -22,14 +21,34 @@ pub enum Descriptor {
 	Name(IdentifierT),
 	Value(PrimitiveValue),
 	Expression(Expression),
-	Both { value: PrimitiveValue, expression: Expression },
+	ExpressionAndValue { value: PrimitiveValue, expression: Expression },
+	NameAndValue { name: IdentifierT, value: PrimitiveValue },
 }
 
 impl Descriptor {
-	pub fn new_both(value: &PrimitiveValue, expression: &Expression) -> Descriptor {
-		return Descriptor::Both {
-			value: value.clone__silently_fail(),
-			expression: expression.clone(),
+	pub fn new_both(value: MaybeOwned<PrimitiveValue>, expression: MaybeOwned<Expression>) -> Descriptor {
+		return Descriptor::ExpressionAndValue {
+			value: Self::value_to_owned(value),
+			expression: expression.into_owned(),
+		};
+	}
+
+	fn value_to_owned(value: MaybeOwned<PrimitiveValue>) -> PrimitiveValue {
+		match value {
+			MaybeOwned::Owned(v) => v,
+			MaybeOwned::Borrowed(v) => v.clone__silently_fail()
+		}
+	}
+
+	pub fn with_value(self, value: MaybeOwned<PrimitiveValue>) -> Descriptor {
+		let v = Self::value_to_owned(value);
+		return match self {
+			Descriptor::None => Descriptor::Value(v),
+			Descriptor::Name(name) => Descriptor::NameAndValue { name, value: v },
+			Descriptor::Value(_) => Descriptor::Value(v),
+			Descriptor::Expression(expression) => Descriptor::ExpressionAndValue { expression, value: v },
+			Descriptor::ExpressionAndValue { expression, value: _ } => Descriptor::ExpressionAndValue { expression, value: v },
+			Descriptor::NameAndValue { name, value: _ } => Descriptor::NameAndValue { name, value: v },
 		};
 	}
 }
@@ -48,10 +67,16 @@ impl Clone for Descriptor {
 			Descriptor::Expression(expr) => {
 				Descriptor::Expression(Clone::clone(expr))
 			}
-			Descriptor::Both { value, expression } => {
-				Descriptor::Both {
+			Descriptor::ExpressionAndValue { value, expression } => {
+				Descriptor::ExpressionAndValue {
 					value: value.clone__silently_fail(),
 					expression: Clone::clone(expression),
+				}
+			}
+			Descriptor::NameAndValue { name, value } => {
+				Descriptor::NameAndValue {
+					name: Clone::clone(name),
+					value: value.clone__silently_fail(),
 				}
 			}
 		}
@@ -90,6 +115,14 @@ impl From<Expression> for Descriptor {
 pub enum RuntimeError {
 	#[error("{0}")]
 	GenericError(StringT),
+	#[error("Expected {0:#?} to not be null")]
+	UnexpectedNullValue(Descriptor),
+	#[error("Expected {0:#?} to be a boolean")]
+	ExpectedBoolean(Descriptor),
+	#[error("Expected {0:#?} to be a number")]
+	ExpectedNumber(Descriptor),
+	#[error("Expected {0:#?} to be a string")]
+	ExpectedString(Descriptor),
 	#[error("Expected {0:#?} to be a function")]
 	ExpectedFunction(Descriptor),
 	#[error("Expected {0:#?} to be a class object")]
@@ -98,6 +131,10 @@ pub enum RuntimeError {
 	ExpectedNamespaceObject(Descriptor),
 	#[error("Expected {0:#?} to be an object")]
 	ExpectedObject(Descriptor),
+	#[error("Expected {0:#?} to be a native struct object")]
+	ExpectedNativeObject(Descriptor),
+	#[error("Invalid arguments {0:#?}: {1:#?}")]
+	InvalidArgumentsToFunction(String, Descriptor),
 	#[error("Invalid number of arguments {got:?} expected {expected:?} to be function {func:#?}")]
 	InvalidNumberArgumentsToFunction { got: usize, expected: Option<StringT>, func: Descriptor },
 	#[error("Expected {0:#?} to be a valid subscript expression")]

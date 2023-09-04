@@ -2,21 +2,20 @@ use std::mem::replace;
 use std::ops::{Deref, DerefMut};
 
 use delegate::delegate;
-
-use evilang_traits::{Clone__SilentlyFail, TryClone};
+use maybe_owned::MaybeOwned;
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
 use crate::interpreter::runtime_values::objects::runtime_object::GcPtrToObject;
 pub use crate::interpreter::runtime_values::ref_to_value::deref_of_ref_to_value::DerefOfRefToValue;
-use crate::interpreter::utils::cell_ref::gc_ptr_cell_from;
 use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::types::cell_ref::gc_ptr_cell_from;
 use crate::types::traits::ConsumeOrCloneOf;
 
 pub mod deref_of_ref_to_value;
 
-#[derive(TryClone, Clone__SilentlyFail, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RefToValue {
 	Value(PrimitiveValue),
 	Variable(GcPtrVariable),
@@ -62,7 +61,7 @@ impl RefToValue {
 	}
 
 	pub fn new_object_property_ref(object: GcPtrToObject, property_name: IdentifierT) -> Self {
-		let snapshot = object.get_actual(property_name.deref().into());
+		let snapshot = object.get_actual(property_name.deref().into()).map(MaybeOwned::into_owned);
 		RefToValue::ObjectProperty {
 			object,
 			property_name,

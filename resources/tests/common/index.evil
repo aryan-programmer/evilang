@@ -1,0 +1,10 @@
+fn assert(expr, message){
+	if(expr){
+		push_res_stack(true);
+	}else{
+		if(message == null){
+			message = "Expected expression to be true";
+		}
+		push_res_stack(message);
+	}
+}
