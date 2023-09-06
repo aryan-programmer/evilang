@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 
 use gc::{Finalize, Trace};
 
@@ -28,7 +28,7 @@ impl Display for Function {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Function::NativeFunction(nf) => {
-				let mut res = std::fmt::Result::Ok(());
+				let mut res = Ok(());
 				backtrace::resolve(nf.f as *mut std::os::raw::c_void, |v| {
 					res = if let Some(name) = v.name() {
 						std::fmt::Display::fmt(&name, f)

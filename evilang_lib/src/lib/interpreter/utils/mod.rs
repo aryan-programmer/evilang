@@ -21,7 +21,7 @@ pub fn expect_object_fn<T>(object: &PrimitiveValue, desc_fn: T) -> ResultWithErr
 	return if let PrimitiveValue::Object(object_class_ref) = object {
 		Ok(object_class_ref)
 	} else {
-		Err(RuntimeError::ExpectedClassObject(desc_fn().with_value(object.deref().deref().into())).into())
+		Err(RuntimeError::ExpectedClassObject(desc_fn().with_value(object.into())).into())
 	};
 }
 

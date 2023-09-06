@@ -1,10 +1,7 @@
-#[macro_use]
 extern crate darling;
 
-use proc_macro2;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{ItemImpl, parse_macro_input};
-use syn::spanned::Spanned;
 
 use crate::derive_build_class::RootData;
 
@@ -15,7 +12,7 @@ mod utils;
 pub fn derive_build_class(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let ic = item.clone();
 	let input = parse_macro_input!(ic as ItemImpl);
-	let (mut rv, item_impl) = RootData::parse_and_strip_extra_attributes(attr.clone(), input.clone());
+	let (rv, item_impl) = RootData::parse_and_strip_extra_attributes(attr.clone(), input.clone());
 	// println!("{0:#?}\n{1:#?}\n{2:#?}", attr, rv, input);
 	let new_impl = rv.generate_implementation();
 	// println!("{}", new_impl.to_string());

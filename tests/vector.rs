@@ -1,6 +1,4 @@
-use evilang_lib::interpreter::runtime_values::PrimitiveValue;
-
-use crate::common::{run_asserts_in_file, TestData, TestRes};
+use crate::common::{run_asserts_in_file, TestRes};
 
 mod common;
 

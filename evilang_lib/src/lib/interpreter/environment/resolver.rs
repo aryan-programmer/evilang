@@ -56,7 +56,7 @@ impl PartialEq for dyn IResolver {
 
 impl PartialEq<&BoxIResolver> for BoxIResolver {
 	fn eq(&self, other: &&Self) -> bool {
-		self.equals_resolver(other.deref().deref().deref())
+		self.equals_resolver(&***other)
 	}
 }
 
@@ -112,7 +112,7 @@ impl DefaultResolver {
 			.and_then(|env| env.get_actual(CURRENT_FILE.into()))
 			.and_then(|v| if v.borrow().deref() == &PrimitiveValue::Null { None } else { Some(v) }) else {
 			return fs::canonicalize(file_name).map_err(EvilangError::from);
-			return Ok(normalize_path(Path::new(&file_name)).to_path_buf());//.map_err(EvilangError::from);
+			//return Ok(normalize_path(Path::new(&file_name)).to_path_buf());//.map_err(EvilangError::from);
 		};
 		let this_file_path_borr = this_file_path_box.borrow();
 		let PrimitiveValue::String(this_file_path_str_ref) = this_file_path_borr.deref() else {

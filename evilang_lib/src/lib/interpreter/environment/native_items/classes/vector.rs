@@ -8,7 +8,7 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::environment::native_items::classes::object::ObjectSuperclass;
 use crate::interpreter::runtime_values::functions::GcPtrToFunction;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
-use crate::interpreter::runtime_values::i_native_struct::{INativeClass, INativeClass_BuildClass, INativeClass_GetClassCached, native_wrap, NativeClassMemberFunctionContext, NativeClassStaticFunctionContext, auto_unwrap_exec_fn};
+use crate::interpreter::runtime_values::i_native_struct::{auto_unwrap_exec_fn, INativeClass, INativeClass_BuildClass, INativeClass_GetClassCached, native_wrap, NativeClassMemberFunctionContext, NativeClassStaticFunctionContext};
 use crate::interpreter::runtime_values::i_native_struct::INativeClass_IsStructWrapper;
 use crate::interpreter::runtime_values::i_native_struct::INativeStruct;
 use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
@@ -32,7 +32,7 @@ implement_get_class_cached!(Vector);
 
 impl INativeStruct for Vector {}
 
-#[derive_build_class(name = "Vector", evilang_lib_crate = crate)]
+#[derive_build_class(evilang_lib_crate = crate)]
 impl Vector {
 	#[export = "constructor"]
 	pub fn constructor(_ctx: NativeClassMemberFunctionContext) -> ResultWithError<Self> {
@@ -57,7 +57,7 @@ impl Vector {
 	#[export]
 	pub fn repeat(ctx: NativeClassStaticFunctionContext, v: PrimitiveValue, n: NumberT) -> ResultWithError<PrimitiveValue> {
 		let res = Self {
-			vec: (0..(n.floor_to_int() as usize)).map(|i| v.try_clone_err()).collect::<ResultWithError<Vec<_>>>()?
+			vec: (0..(n.floor_to_int() as usize)).map(|_i| v.try_clone_err()).collect::<ResultWithError<Vec<_>>>()?
 		};
 		let obj = RuntimeObject::allocate_instance(
 			Vector::get_class_cached(ctx.env)?,

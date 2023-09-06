@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use crate::ast::expression::IdentifierT;
 use crate::errors::{Descriptor, ResultWithError, RuntimeError};
@@ -19,7 +18,7 @@ pub fn push_res_stack(env: &mut Environment, params: FunctionParameters) -> Resu
 	Ok(PrimitiveValue::Null.into())
 }
 
-pub fn to_string(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+pub fn to_string(_env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
 	Ok(PrimitiveValue::String(match params.first().unwrap() {
 		PrimitiveValue::Null => { "null".to_string() }
 		PrimitiveValue::Boolean(v) => { if *v { "true" } else { "false" }.to_string() }
@@ -35,14 +34,14 @@ pub fn to_string(env: &mut Environment, params: FunctionParameters) -> ResultWit
 	}))
 }
 
-pub fn print(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+pub fn print(_env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
 	for x in params.into_iter() {
 		print!("{}", x);
 	}
 	Ok(PrimitiveValue::Null.into())
 }
 
-pub fn debug(env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+pub fn debug(_env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
 	println!("{0:#?}", params);
 	Ok(PrimitiveValue::Null.into())
 }

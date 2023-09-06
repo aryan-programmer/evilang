@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 use std::mem::swap;
 use std::ops::Deref;
 
@@ -48,14 +48,14 @@ pub enum PrimitiveValue {
 impl Display for PrimitiveValue {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
-			PrimitiveValue::_HoistedVariable => {f.write_str("<hoisted_variable>")}
-			PrimitiveValue::Null => {f.write_str("null")}
-			PrimitiveValue::Boolean(b) => {std::fmt::Display::fmt(b, f)}
-			PrimitiveValue::Number(n) => {std::fmt::Display::fmt(n, f)}
-			PrimitiveValue::String(s) => {std::fmt::Display::fmt(s, f)}
-			PrimitiveValue::Function(fnc) => {std::fmt::Display::fmt(fnc.deref().deref(), f)}
-			PrimitiveValue::Object(o) => {std::fmt::Display::fmt(&o.name, f)}
-			PrimitiveValue::NativeStruct(ns) => {f.write_str("<native_struct>")}
+			PrimitiveValue::_HoistedVariable => { f.write_str("<hoisted_variable>") }
+			PrimitiveValue::Null => { f.write_str("null") }
+			PrimitiveValue::Boolean(b) => { std::fmt::Display::fmt(b, f) }
+			PrimitiveValue::Number(n) => { std::fmt::Display::fmt(n, f) }
+			PrimitiveValue::String(s) => { std::fmt::Display::fmt(s, f) }
+			PrimitiveValue::Function(fnc) => { std::fmt::Display::fmt(fnc.deref().deref(), f) }
+			PrimitiveValue::Object(o) => { std::fmt::Display::fmt(&o.name, f) }
+			PrimitiveValue::NativeStruct(_ns) => { f.write_str("<native_struct>") }
 		}
 	}
 }

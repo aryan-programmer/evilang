@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use std::borrow::Cow;
 use std::ops::Deref;
 
@@ -16,7 +18,6 @@ use crate::utils::crate_imports::CrateImports;
 fn define_alias_exports<'a, TIter: Iterator<Item=&'a FnExportData>>(
 	imports: &CrateImports,
 	iter: TIter,
-	orig_name: Cow<str>,
 	export_name: &Ident,
 ) -> Vec<TokenStream> {
 	let CrateImports { ResultWithError, Environment, FunctionParameters, FunctionReturnValue, .. } = imports;
@@ -98,7 +99,7 @@ fn define_export_for_constructor(
 			const THIS_PARAM_NAME: &'static str = #concat_str!("this parameter of ", FUNC_NAME);
 			let mut drain = params.drain(..);
 			let this_val = drain.next().unwrap();
-			#(#params_decl_list)*;
+			#(#params_decl_list)*
 			let this_obj = #expect_object_fn(
 				&this_val,
 				|| #Descriptor::Name(THIS_PARAM_NAME.into())
@@ -140,7 +141,6 @@ fn define_export_for_member_function(
 	let mut iter = fn_dat.exports.iter();
 	let main_export = iter.next().expect("Expected an export");
 	let orig_name = &fn_dat.signature.ident;
-	let orig_name_str = orig_name.to_string();
 	let export_name = &main_export.export_ident;
 	let first_arg = fn_dat.signature.inputs.first().expect("Expected at-least one argument");
 	let FnArg::Receiver(self_param) = first_arg else {
@@ -160,7 +160,6 @@ fn define_export_for_member_function(
 	let rest_exports = define_alias_exports(
 		&imports,
 		iter,
-		orig_name_str.into(),
 		&export_name,
 	);
 	let res = quote_spanned! { main_export.attribute.get_span() =>
@@ -181,7 +180,7 @@ fn define_export_for_member_function(
 			// }
 			let mut drain = params.drain(..);
 			let this_val = drain.next().unwrap();
-			#(#params_decl_list)*;
+			#(#params_decl_list)*
 			let this_val_ref = &this_val;
 			let result = #native_unwrap_exec_fn::<#ExpT, _, _, _>(
 				&this_val,
@@ -202,7 +201,6 @@ fn define_export_for_member_function(
 fn define_export_for_static_function(
 	imports: &CrateImports,
 	ExpT: &TokenStream,
-	NATIVE_BOX_WRAP_NAME: &TokenStream,
 	fn_dat: &FunctionData,
 ) -> TokenStream {
 	if fn_dat.exports.len() == 0 {
@@ -221,7 +219,6 @@ fn define_export_for_static_function(
 	let mut iter = fn_dat.exports.iter();
 	let main_export = iter.next().expect("Expected an export");
 	let orig_name = &fn_dat.signature.ident;
-	let orig_name_str = orig_name.to_string();
 	let export_name = &main_export.export_ident;
 	let (params_decl_list, param_names_list) = for_params(
 		fn_dat.signature.inputs.iter().skip(1/*skip ctx*/),
@@ -232,14 +229,13 @@ fn define_export_for_static_function(
 	let rest_exports = define_alias_exports(
 		&imports,
 		iter,
-		orig_name_str.into(),
 		&export_name,
 	);
 	let res = quote_spanned! { main_export.attribute.get_span() =>
 		pub fn #export_name(env: &mut #Environment, mut params: #FunctionParameters) ->
 			#ResultWithError<#FunctionReturnValue> {
 			let mut drain = params.drain(..);
-			#(#params_decl_list)*;
+			#(#params_decl_list)*
 			let result = #ExpT::#orig_name(
 				#NativeClassStaticFunctionContext::new(env),
 				#(#param_names_list),*
@@ -254,7 +250,6 @@ fn define_export_for_static_function(
 fn define_export_for_raw_native_function(
 	imports: &CrateImports,
 	ExpT: &TokenStream,
-	NATIVE_BOX_WRAP_NAME: &TokenStream,
 	fn_dat: &FunctionData,
 ) -> TokenStream {
 	if fn_dat.exports.len() == 0 {
@@ -270,12 +265,10 @@ fn define_export_for_raw_native_function(
 	let mut iter = fn_dat.exports.iter();
 	let main_export = iter.next().expect("Expected an export");
 	let orig_name = &fn_dat.signature.ident;
-	let orig_name_str = orig_name.to_string();
 	let export_name = &main_export.export_ident;
 	let rest_exports = define_alias_exports(
 		&imports,
 		iter,
-		orig_name_str.into(),
 		&export_name,
 	);
 	let res = quote_spanned! { main_export.attribute.get_span() =>
@@ -291,8 +284,8 @@ fn define_export_for_raw_native_function(
 
 #[derive(FromMeta, Debug, Default)]
 pub(crate) struct RootAttributes {
-	#[darling(default)]
-	name: Option<String>,
+	// #[darling(default)]
+	// name: Option<String>,
 	#[darling(default)]
 	evilang_lib_crate: Option<Path>,
 }
@@ -319,7 +312,7 @@ impl TryParseAttribute for ExportAttribute {
 		Self {
 			export_as: Some(expr_as_string(expr)),
 			attribute: None,
-			raw: false
+			raw: false,
 		}
 	}
 
@@ -390,7 +383,7 @@ impl RootData {
 			items: implementation.items.into_iter().map(|impl_item| match impl_item {
 				ImplItem::Fn(f) => {
 					// dbg!(&f.attrs);
-					let (mut exports_iter, attrs_iter) =
+					let (exports_iter, attrs_iter) =
 						f.attrs
 							.into_iter()
 							.map(ExportAttribute::try_parse_attribute)
@@ -418,14 +411,13 @@ impl RootData {
 		}, implementation)
 	}
 
-	#[allow(non_snake_case)]
-	pub fn generate_implementation(mut self) -> TokenStream {
+	pub fn generate_implementation(self) -> TokenStream {
 		let module = self.attributes.evilang_lib_crate
 			.as_ref()
 			.map(Path::to_token_stream)
 			.unwrap_or_else(|| quote! {::#MODULE_NAME});
 		let imports = CrateImports::new(module);
-		let CrateImports { ResultWithError, Descriptor, ErrorT, EvilangError, RuntimeError, Environment, GcPtrToObject, PrimitiveValue, expect_object_fn, FunctionReturnValue, FunctionParameters, concat_str, INativeClass, INativeClass_BuildClass, from_option_of_primitive_value, NativeClassMemberFunctionContext, native_wrap, native_unwrap_exec_fn, Some_, None_, Err_, Ok_, gc_ptr_cell_from, RuntimeObject, VariablesMap, HashMap, INativeClass_IsStructWrapper, .. } = &imports;
+		let CrateImports { ResultWithError, Environment, GcPtrToObject, PrimitiveValue, concat_str, INativeClass, INativeClass_BuildClass, Ok_, gc_ptr_cell_from, RuntimeObject, VariablesMap, HashMap, INativeClass_IsStructWrapper, .. } = &imports;
 		let SelfT = &self.self_ty;
 		let ExpT = quote! {super::#SelfT};
 		let Self_exports = str_concat_token_stream(
@@ -490,14 +482,12 @@ impl RootData {
 				return define_export_for_raw_native_function(
 					&imports,
 					&ExpT,
-					&NATIVE_BOX_WRAP_NAME,
 					func,
 				);
 			}
 			return define_export_for_static_function(
 				&imports,
 				&ExpT,
-				&NATIVE_BOX_WRAP_NAME,
 				func,
 			);
 		};
@@ -513,9 +503,9 @@ impl RootData {
 			}
 			impl #INativeClass_BuildClass for #SelfT {
 				fn build_class(env: &mut #Environment) -> #ResultWithError<#GcPtrToObject> {
-					#Ok_(#RuntimeObject::new_gc(#VariablesMap::new_direct(#HashMap::from([
+					return #Ok_(#RuntimeObject::new_gc(#VariablesMap::new_direct(#HashMap::from([
 						#(#export_tuples_for_functions),*
-					])), <#SelfT as #INativeClass>::get_parent_class(env)?, <#SelfT as #INativeClass>::NAME.into()))
+					])), <#SelfT as #INativeClass>::get_parent_class(env)?, <#SelfT as #INativeClass>::NAME.into()));
 				}
 			}
 			#[allow(non_snake_case)]
