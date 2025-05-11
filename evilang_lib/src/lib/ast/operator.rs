@@ -1,4 +1,4 @@
-use crate::errors::{ErrorT, EvilangError, ResultWithError};
+use crate::errors::{ ErrorT, EvilangError, ResultWithError };
 use crate::types::string::StringT;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -27,15 +27,15 @@ pub enum Operator {
 
 impl Operator {
 	pub fn is_assignment(&self) -> bool {
-		return match self {
+		return matches!(
+			self,
 			Operator::Assignment |
-			Operator::PlusAssignment |
-			Operator::MinusAssignment |
-			Operator::MultiplicationAssignment |
-			Operator::DivisionAssignment |
-			Operator::ModulusAssignment => true,
-			_ => false,
-		};
+				Operator::PlusAssignment |
+				Operator::MinusAssignment |
+				Operator::MultiplicationAssignment |
+				Operator::DivisionAssignment |
+				Operator::ModulusAssignment
+		);
 	}
 
 	pub fn strip_assignment(&self) -> ResultWithError<Operator> {
@@ -46,7 +46,7 @@ impl Operator {
 			Operator::MultiplicationAssignment => Ok(Operator::Multiplication),
 			Operator::DivisionAssignment => Ok(Operator::Division),
 			Operator::ModulusAssignment => Ok(Operator::Modulus),
-			v => Err(ErrorT::CantStripAssignment(v.clone()).into()),
+			v => Err(ErrorT::CantStripAssignment(*v).into()),
 		};
 	}
 }
@@ -76,7 +76,7 @@ impl TryFrom<&StringT> for Operator {
 			"&&" => Ok(Operator::LogicalAnd),
 			"||" => Ok(Operator::LogicalOr),
 			"!" => Ok(Operator::LogicalNot),
-			_ => Err(ErrorT::UnknownOperator.into())
+			_ => Err(ErrorT::UnknownOperator.into()),
 		};
 	}
 }

@@ -4,9 +4,16 @@ use crate::interpreter::environment::native_items::classes::object::ObjectSuperc
 use crate::interpreter::environment::native_items::classes::vector::Vector;
 use crate::interpreter::environment::native_items::make_native_functions_list;
 use crate::interpreter::environment::resolver::BoxIResolver;
-use crate::interpreter::runtime_values::i_native_struct::{INativeClass, INativeClass_GetClassCached};
+use crate::interpreter::runtime_values::i_native_struct::{
+	INativeClass,
+	INativeClass_GetClassCached,
+};
 use crate::interpreter::runtime_values::PrimitiveValue;
-use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, GlobalScope, VariablesMap};
+use crate::interpreter::variables_containers::{
+	GcPtrMutCellToGlobalScope,
+	GlobalScope,
+	VariablesMap,
+};
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::types::cell_ref::gc_ptr_cell_from;
 use crate::types::consts::OBJECT;
@@ -15,12 +22,8 @@ fn make_default_global_variables() -> VariablesMap {
 	return VariablesMap::new_direct(
 		make_native_functions_list()
 			.into_iter()
-			.map(|(name, f)| {
-				(name, PrimitiveValue::new_native_function(f))
-			})
-			.chain([
-				(OBJECT.into(), PrimitiveValue::Object(ObjectSuperclass::build_and_cache())),
-			].into_iter())
+			.map(|(name, f)| { (name, PrimitiveValue::new_native_function(f)) })
+			.chain([(OBJECT.into(), PrimitiveValue::Object(ObjectSuperclass::build_and_cache()))])
 			.map(|(name, val)| (name, gc_ptr_cell_from(val)))
 			.collect()
 	);

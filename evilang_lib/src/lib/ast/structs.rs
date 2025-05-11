@@ -1,4 +1,4 @@
-use crate::ast::expression::{BoxExpression, Expression, IdentifierT};
+use crate::ast::expression::{ BoxExpression, Expression, IdentifierT };
 use crate::ast::statement::BoxStatement;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +35,11 @@ pub struct FunctionDeclaration {
 
 impl FunctionDeclaration {
 	#[inline(always)]
-	pub fn new(name: IdentifierT, parameters: Vec<FunctionParameterDeclaration>, body: BoxStatement) -> Self {
+	pub fn new(
+		name: IdentifierT,
+		parameters: Vec<FunctionParameterDeclaration>,
+		body: BoxStatement
+	) -> Self {
 		Self { name, parameters, body }
 	}
 }
@@ -49,7 +53,11 @@ pub struct ClassDeclaration {
 
 impl ClassDeclaration {
 	#[inline(always)]
-	pub fn new(name: IdentifierT, super_class: Option<Expression>, methods: Vec<FunctionDeclaration>) -> Self {
+	pub fn new(
+		name: IdentifierT,
+		super_class: Option<Expression>,
+		methods: Vec<FunctionDeclaration>
+	) -> Self {
 		Self { name, super_class, methods }
 	}
 }

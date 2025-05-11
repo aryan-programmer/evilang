@@ -20,19 +20,19 @@ pub enum StatementMetaGeneration {
 
 #[macro_export]
 macro_rules! handle_unrolling {
-	($val: expr) => {
+	($val:expr) => {
 		if let StatementExecution::Unrolling(imm_exit) = $val {
 			return Ok(StatementExecution::Unrolling(imm_exit));
 		}
-	}
+	};
 }
 
 #[macro_export]
 macro_rules! handle_unrolling_in_loop {
-	($val: expr) => {
+	($val:expr) => {
 		handle_unrolling_in_loop!($val => break: break; continue: continue;)
 	};
-	($val: expr => break: $break_stmt: stmt; continue: $continue_stmt: stmt;) => {
+	($val:expr => break: $break_stmt:stmt; continue: $continue_stmt:stmt;) => {
 		if let StatementExecution::Unrolling(imm_exit) = $val {
 			match imm_exit {
 				UnrollingReason::EncounteredBreak(v) => {
@@ -52,8 +52,9 @@ macro_rules! handle_unrolling_in_loop {
 				},
 			};
 		}
-	}
+	};
 }
 
 pub use handle_unrolling;
 pub use handle_unrolling_in_loop;
+

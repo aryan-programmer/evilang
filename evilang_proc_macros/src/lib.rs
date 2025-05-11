@@ -1,7 +1,8 @@
+#![allow(clippy::needless_return)]
 extern crate darling;
 
 use quote::quote;
-use syn::{ItemImpl, parse_macro_input};
+use syn::{ ItemImpl, parse_macro_input };
 
 use crate::derive_build_class::RootData;
 
@@ -9,14 +10,17 @@ mod derive_build_class;
 mod utils;
 
 #[proc_macro_attribute]
-pub fn derive_build_class(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_build_class(
+	attr: proc_macro::TokenStream,
+	item: proc_macro::TokenStream
+) -> proc_macro::TokenStream {
 	let ic = item.clone();
 	let input = parse_macro_input!(ic as ItemImpl);
 	let (rv, item_impl) = RootData::parse_and_strip_extra_attributes(attr.clone(), input.clone());
 	// println!("{0:#?}\n{1:#?}\n{2:#?}", attr, rv, input);
 	let new_impl = rv.generate_implementation();
 	// println!("{}", new_impl.to_string());
-	proc_macro::TokenStream::from(quote! {#item_impl #new_impl})
+	proc_macro::TokenStream::from(quote! { #item_impl #new_impl })
 }
 
 /*

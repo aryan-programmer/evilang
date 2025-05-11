@@ -2,7 +2,7 @@ use num_traits::Num;
 
 use crate::ast::operator::Operator;
 use crate::ast::statement::Statement;
-use crate::ast::structs::{CallExpression, ClassDeclaration, FunctionDeclaration};
+use crate::ast::structs::{ CallExpression, ClassDeclaration, FunctionDeclaration };
 use crate::errors::ResultWithError;
 use crate::tokenizer::Token;
 use crate::types::number::NumberT;
@@ -72,7 +72,11 @@ impl Expression {
 	}
 
 	#[inline(always)]
-	pub fn binary_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
+	pub fn binary_expression(
+		operator: Operator,
+		left: BoxExpression,
+		right: BoxExpression
+	) -> Expression {
 		return Expression::BinaryExpression { operator, left, right };
 	}
 
@@ -82,7 +86,11 @@ impl Expression {
 	}
 
 	#[inline(always)]
-	pub fn assignment_expression(operator: Operator, left: BoxExpression, right: BoxExpression) -> Expression {
+	pub fn assignment_expression(
+		operator: Operator,
+		left: BoxExpression,
+		right: BoxExpression
+	) -> Expression {
 		return Expression::AssignmentExpression { operator, left, right };
 	}
 
@@ -107,18 +115,19 @@ impl Expression {
 	}
 
 	#[inline(always)]
-	pub fn new_object_expression(class_expr: BoxExpression, arguments: Vec<Expression>) -> Expression {
+	pub fn new_object_expression(
+		class_expr: BoxExpression,
+		arguments: Vec<Expression>
+	) -> Expression {
 		return Expression::NewObjectExpression(CallExpression::new(class_expr, arguments));
 	}
 
 	#[inline(always)]
 	pub fn is_lhs(&self) -> bool {
-		return match self {
-			Expression::Identifier(_) => true,
-			Expression::MemberAccess { .. } => true,
-			Expression::DottedIdentifiers(_) => true,
-			_ => false,
-		};
+		return matches!(
+			self,
+			Expression::Identifier(_) | Expression::MemberAccess { .. } | Expression::DottedIdentifiers(_)
+		);
 	}
 
 	#[inline(always)]

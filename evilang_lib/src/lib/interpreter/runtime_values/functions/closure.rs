@@ -1,13 +1,16 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{ Debug, Formatter };
 
-use gc::{Finalize, Trace};
+use gc::{ Finalize, Trace };
 
-use crate::ast::structs::{FunctionDeclaration, FunctionParameterDeclaration};
-use crate::errors::{ErrorT, ResultWithError};
+use crate::ast::structs::{ FunctionDeclaration, FunctionParameterDeclaration };
+use crate::errors::{ ErrorT, ResultWithError };
 use crate::interpreter::environment::Environment;
-use crate::interpreter::environment::statement_result::{StatementExecution, UnrollingReason};
+use crate::interpreter::environment::statement_result::{ StatementExecution, UnrollingReason };
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
-use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
+use crate::interpreter::runtime_values::functions::types::{
+	FunctionParameters,
+	FunctionReturnValue,
+};
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::variables_containers::map::IVariablesMapDelegator;
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
@@ -33,21 +36,33 @@ impl Debug for Closure {
 }
 
 impl IFunction for Closure {
-	fn execute(&self, this_env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+	fn execute(
+		&self,
+		this_env: &mut Environment,
+		params: FunctionParameters
+	) -> ResultWithError<FunctionReturnValue> {
 		let parent_env = Environment::new_raw(
 			gc_clone(&self.parent_scope),
-			gc_clone(&this_env.global_scope),
+			gc_clone(&this_env.global_scope)
 		);
 		let mut env = Environment::new_with_parent(&parent_env)?;
-		for (FunctionParameterDeclaration { identifier: param_name }, param_value) in self.code.parameters.iter().zip(params.into_iter()) {
-			env.declare(param_name.into(), param_value.into())?;
+		for (
+			FunctionParameterDeclaration { identifier: param_name },
+			param_value,
+		) in self.code.parameters.iter().zip(params.into_iter()) {
+			env.declare(param_name.into(), param_value)?;
 		}
 		let stmt_res = env.setup_and_eval_statement(&self.code.body)?;
 		let result = match stmt_res {
 			StatementExecution::NormalFlow => PrimitiveValue::Null,
 			StatementExecution::Unrolling(UnrollingReason::ReturningValue(ret_val)) => ret_val,
 			stmt_res => {
-				return Err(ErrorT::InvalidUnrollingOfFunction(self.code.name.clone(), format!("{0:#?}", stmt_res)).into());
+				return Err(
+					ErrorT::InvalidUnrollingOfFunction(
+						self.code.name.clone(),
+						format!("{0:#?}", stmt_res)
+					).into()
+				);
 			}
 		};
 		return Ok(result);

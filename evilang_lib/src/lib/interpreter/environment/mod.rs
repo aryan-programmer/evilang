@@ -1,24 +1,43 @@
 use std::collections::HashMap;
 use std::ops::DerefMut;
 
-use gc::{Finalize, Trace};
-use itertools::{Either::Left, Either::Right};
+use gc::{ Finalize, Trace };
+use itertools::{ Either::Left, Either::Right };
 
-use crate::ast::expression::{Expression, IdentifierT};
-use crate::ast::statement::{BoxStatement, Statement, StatementList};
-use crate::errors::{Descriptor, ResultWithError, RuntimeError};
-use crate::interpreter::environment::default_global_scope::{get_default_global_scope, setup_environment};
-use crate::interpreter::environment::resolver::{BoxIResolver, DefaultResolver};
-use crate::interpreter::environment::statement_result::{handle_unrolling, handle_unrolling_in_loop, StatementExecution, StatementMetaGeneration, UnrollingReason};
-use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
+use crate::ast::expression::{ Expression, IdentifierT };
+use crate::ast::statement::{ BoxStatement, Statement, StatementList };
+use crate::errors::{ Descriptor, ResultWithError, RuntimeError };
+use crate::interpreter::environment::default_global_scope::{
+	get_default_global_scope,
+	setup_environment,
+};
+use crate::interpreter::environment::resolver::{ BoxIResolver, DefaultResolver };
+use crate::interpreter::environment::statement_result::{
+	handle_unrolling,
+	handle_unrolling_in_loop,
+	StatementExecution,
+	StatementMetaGeneration,
+	UnrollingReason,
+};
+use crate::interpreter::runtime_values::{ GcPtrVariable, PrimitiveValue };
 use crate::interpreter::runtime_values::functions::Function;
-use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
-use crate::interpreter::variables_containers::{GcPtrMutCellToGlobalScope, map::{delegate_ivariables_map, IVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator}, VariableScope, VariablesMap};
+use crate::interpreter::runtime_values::objects::runtime_object::{ GcPtrToObject, RuntimeObject };
+use crate::interpreter::variables_containers::{
+	GcPtrMutCellToGlobalScope,
+	map::{
+		delegate_ivariables_map,
+		IVariablesMap,
+		IVariablesMapConstMembers,
+		IVariablesMapDelegator,
+	},
+	VariableScope,
+	VariablesMap,
+};
 use crate::interpreter::variables_containers::scope::GcPtrToVariableScope;
 use crate::parser::parse;
 use crate::types::cell_ref::gc_clone;
 use crate::types::consts::CURRENT_FILE;
-use crate::types::string::{CowStringT, StringT};
+use crate::types::string::{ CowStringT, StringT };
 use crate::types::traits::ConsumeOrCloneOf;
 
 pub mod statement_result;
@@ -40,7 +59,10 @@ delegate_ivariables_map!(for Environment =>
 
 impl Environment {
 	#[inline(always)]
-	pub(crate) fn new_raw(scope: GcPtrToVariableScope, global_scope: GcPtrMutCellToGlobalScope) -> Self {
+	pub(crate) fn new_raw(
+		scope: GcPtrToVariableScope,
+		global_scope: GcPtrMutCellToGlobalScope
+	) -> Self {
 		Self { scope, global_scope }
 	}
 
@@ -59,7 +81,7 @@ impl Environment {
 
 	pub fn new_from_primitives(
 		variables: HashMap<IdentifierT, PrimitiveValue>,
-		resolver: BoxIResolver,
+		resolver: BoxIResolver
 	) -> ResultWithError<Environment> {
 		let global_scope = get_default_global_scope(resolver);
 		let scope = gc_clone(&global_scope.borrow().scope);
@@ -75,21 +97,18 @@ impl Environment {
 	pub fn new_with_parent(env: &Environment) -> ResultWithError<Environment> {
 		let global_scope = gc_clone(&env.global_scope);
 		return Ok(Self {
-			scope: VariableScope::new_gc_from_map(
-				VariablesMap::new(),
-				Some(gc_clone(&env.scope)),
-			),
+			scope: VariableScope::new_gc_from_map(VariablesMap::new(), Some(gc_clone(&env.scope))),
 			global_scope,
 		});
 	}
 
-	pub fn new_with_object_scope(env: &Environment, obj: &GcPtrToObject) -> ResultWithError<Environment> {
+	pub fn new_with_object_scope(
+		env: &Environment,
+		obj: &GcPtrToObject
+	) -> ResultWithError<Environment> {
 		let global_scope = gc_clone(&env.global_scope);
 		return Ok(Self {
-			scope: VariableScope::new_gc(
-				gc_clone(&obj.properties),
-				Some(gc_clone(&env.scope)),
-			),
+			scope: VariableScope::new_gc(gc_clone(&obj.properties), Some(gc_clone(&env.scope))),
 			global_scope,
 		});
 	}
@@ -97,7 +116,10 @@ impl Environment {
 	pub fn execute_file(file: StringT, resolver: BoxIResolver) -> ResultWithError<Environment> {
 		let resolved_res = resolver.resolve(None, file)?;
 		let mut env = Self::new_with_resolver(resolver)?;
-		env.scope.assign_locally(CURRENT_FILE.into(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.scope.assign_locally(
+			CURRENT_FILE.into(),
+			PrimitiveValue::String(resolved_res.absolute_file_path)
+		);
 		env.setup_and_eval_statements(&resolved_res.statements)?;
 		return Ok(env);
 	}
@@ -105,11 +127,14 @@ impl Environment {
 	fn import_file(
 		&self,
 		namespace_object: GcPtrToObject,
-		file_path: StringT,
+		file_path: StringT
 	) -> ResultWithError<StatementExecution> {
 		let resolved_res = self.global_scope.borrow().resolver.resolve(Some(self), file_path)?;
 		let mut env = Environment::new_with_object_scope(self, &namespace_object)?;
-		env.scope.assign_locally(CURRENT_FILE.into(), PrimitiveValue::String(resolved_res.absolute_file_path));
+		env.scope.assign_locally(
+			CURRENT_FILE.into(),
+			PrimitiveValue::String(resolved_res.absolute_file_path)
+		);
 		env.setup_and_eval_statements(&resolved_res.statements)
 	}
 
@@ -117,7 +142,10 @@ impl Environment {
 		self.setup_and_eval_statements(&parse(input)?)
 	}
 
-	pub fn setup_scope_for_statement(&mut self, statement: &Statement) -> ResultWithError<StatementMetaGeneration> {
+	pub fn setup_scope_for_statement(
+		&mut self,
+		statement: &Statement
+	) -> ResultWithError<StatementMetaGeneration> {
 		match statement {
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls.iter() {
@@ -125,31 +153,31 @@ impl Environment {
 				}
 			}
 			Statement::FunctionDeclarationStatement(fdecl) => {
-				self.declare(
-					(&fdecl.name).into(),
-					Function::new_closure(self, fdecl.clone()).into(),
-				)?;
+				self.declare((&fdecl.name).into(), Function::new_closure(self, fdecl.clone()).into())?;
 			}
 			Statement::ClassDeclarationStatement(cdecl) => {
 				let class = RuntimeObject::new_class_decl(self, cdecl)?;
-				self.declare(
-					(&cdecl.name).into(),
-					class.into(),
-				)?;
+				self.declare((&cdecl.name).into(), class.into())?;
 			}
 			_ => {}
 		}
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 
-	pub fn setup_scope(&mut self, statements: &StatementList) -> ResultWithError<StatementMetaGeneration> {
+	pub fn setup_scope(
+		&mut self,
+		statements: &StatementList
+	) -> ResultWithError<StatementMetaGeneration> {
 		for statement in statements.iter() {
 			self.setup_scope_for_statement(statement)?;
 		}
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 
-	pub fn setup_and_eval_statements(&mut self, statements: &StatementList) -> ResultWithError<StatementExecution> {
+	pub fn setup_and_eval_statements(
+		&mut self,
+		statements: &StatementList
+	) -> ResultWithError<StatementExecution> {
 		self.setup_scope(statements)?;
 		for statement in statements.iter() {
 			handle_unrolling!(self.eval_statement(statement)?);
@@ -157,20 +185,22 @@ impl Environment {
 		return Ok(StatementExecution::NormalFlow);
 	}
 
-	pub fn setup_and_eval_statement(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
+	pub fn setup_and_eval_statement(
+		&mut self,
+		statement: &Statement
+	) -> ResultWithError<StatementExecution> {
 		self.setup_scope_for_statement(statement)?;
 		return self.eval_statement(statement);
 	}
 
 	#[allow(non_snake_case)]
-	pub fn eval_statement__creates_scope(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
+	pub fn eval_statement__creates_scope(
+		&mut self,
+		statement: &Statement
+	) -> ResultWithError<StatementExecution> {
 		return match statement {
-			Statement::EmptyStatement => {
-				Ok(StatementExecution::NormalFlow)
-			}
-			Statement::BlockStatement(statements) => {
-				self.eval_block__creates_scope(statements)
-			}
+			Statement::EmptyStatement => { Ok(StatementExecution::NormalFlow) }
+			Statement::BlockStatement(statements) => { self.eval_block__creates_scope(statements) }
 			Statement::ForLoop { initialization, condition, increment, body } => {
 				self.eval_for_loop__creates_scope(initialization, condition, increment, body)
 			}
@@ -183,12 +213,8 @@ impl Environment {
 
 	pub fn eval_statement(&mut self, statement: &Statement) -> ResultWithError<StatementExecution> {
 		return match statement {
-			Statement::EmptyStatement => {
-				Ok(StatementExecution::NormalFlow)
-			}
-			Statement::BlockStatement(statements) => {
-				self.eval_block__creates_scope(statements)
-			}
+			Statement::EmptyStatement => { Ok(StatementExecution::NormalFlow) }
+			Statement::BlockStatement(statements) => { self.eval_block__creates_scope(statements) }
 			Statement::IfStatement { condition, if_branch, else_branch } => {
 				self.eval_if_statement(condition, if_branch, else_branch)
 			}
@@ -254,15 +280,16 @@ impl Environment {
 				let mut env = Environment::new_with_object_scope(self, &obj)?;
 				env.setup_and_eval_statements(body)
 			}
-			Statement::ImportStatement {
-				as_object,
-				file_name,
-			} => {
+			Statement::ImportStatement { as_object, file_name } => {
 				let obj = self.get_namespace_object(as_object)?;
 				let file = match self.eval(file_name)?.consume_or_clone()?.consume_as_string() {
 					Left(str) => str,
 					Right(val) => {
-						return Err(RuntimeError::ExpectedValidFileName(Descriptor::new_both(val.into(), file_name.into())).into());
+						return Err(
+							RuntimeError::ExpectedValidFileName(
+								Descriptor::new_both(val.into(), file_name.into())
+							).into()
+						);
 					}
 				};
 				self.import_file(obj, file)
@@ -274,21 +301,29 @@ impl Environment {
 	}
 
 	#[allow(non_snake_case)]
-	fn eval_block__creates_scope(&mut self, statements: &StatementList) -> ResultWithError<StatementExecution> {
+	fn eval_block__creates_scope(
+		&mut self,
+		statements: &StatementList
+	) -> ResultWithError<StatementExecution> {
 		Environment::new_with_parent(self)?.setup_and_eval_statements(statements)
 	}
 
 	#[allow(non_snake_case)]
-	fn eval_for_loop__creates_scope(&mut self, initialization: &BoxStatement, condition: &Expression, increment: &BoxStatement, body: &BoxStatement) -> ResultWithError<StatementExecution> {
+	fn eval_for_loop__creates_scope(
+		&mut self,
+		initialization: &BoxStatement,
+		condition: &Expression,
+		increment: &BoxStatement,
+		body: &BoxStatement
+	) -> ResultWithError<StatementExecution> {
 		let mut env = Environment::new_with_parent(self)?;
 		let init_eval_res = match &**initialization {
-			Statement::BlockStatement(stmts) => {
-				env.setup_and_eval_statements(stmts)?
-			}
-			init => env.setup_and_eval_statement(init)?
+			Statement::BlockStatement(stmts) => { env.setup_and_eval_statements(stmts)? }
+			init => env.setup_and_eval_statement(init)?,
 		};
 		handle_unrolling!(init_eval_res);
 		'for_simulator: while env.eval(condition)?.is_truthy() {
+			#[allow(clippy::never_loop)]
 			'for_simulator_innermost: loop {
 				let v = env.eval_statement__creates_scope(body)?;
 				handle_unrolling_in_loop!(v =>
@@ -305,15 +340,18 @@ impl Environment {
 		Ok(StatementExecution::NormalFlow)
 	}
 
-	fn eval_if_statement(&mut self, condition: &Expression, if_branch: &BoxStatement, else_branch: &Option<BoxStatement>) -> ResultWithError<StatementExecution> {
+	fn eval_if_statement(
+		&mut self,
+		condition: &Expression,
+		if_branch: &BoxStatement,
+		else_branch: &Option<BoxStatement>
+	) -> ResultWithError<StatementExecution> {
 		return if self.eval(condition)?.is_truthy() {
 			self.eval_statement__creates_scope(if_branch)
+		} else if let Some(else_branch_v) = else_branch {
+			self.eval_statement__creates_scope(else_branch_v)
 		} else {
-			if let Some(else_branch_v) = else_branch {
-				self.eval_statement__creates_scope(else_branch_v)
-			} else {
-				Ok(StatementExecution::NormalFlow)
-			}
+			Ok(StatementExecution::NormalFlow)
 		};
 	}
 

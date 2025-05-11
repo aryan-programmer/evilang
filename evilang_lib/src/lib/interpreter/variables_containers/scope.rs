@@ -1,14 +1,19 @@
 use std::ops::Deref;
 
 use delegate::delegate;
-use gc::{Finalize, Trace};
+use gc::{ Finalize, Trace };
 use maybe_owned::MaybeOwned;
 
 use crate::errors::ResultWithError;
-use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
-use crate::interpreter::variables_containers::map::{GcPtrMutCellToVariablesMap, IVariablesMapConstMembers, IVariablesMapDelegator, VariablesMap};
+use crate::interpreter::runtime_values::{ GcPtrVariable, PrimitiveValue };
+use crate::interpreter::variables_containers::map::{
+	GcPtrMutCellToVariablesMap,
+	IVariablesMapConstMembers,
+	IVariablesMapDelegator,
+	VariablesMap,
+};
 use crate::interpreter::variables_containers::map::IVariablesMap;
-use crate::types::cell_ref::{gc_clone, gc_ptr_cell_from, GcPtr};
+use crate::types::cell_ref::{ gc_clone, gc_ptr_cell_from, GcPtr };
 use crate::types::string::CowStringT;
 
 pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace + Finalize {
@@ -35,7 +40,11 @@ pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace 
 
 impl<T: IGenericVariablesScope<T> + 'static> IVariablesMapConstMembers for T {
 	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>> {
-		self.resolve_variable_scope(name.deref().into()).borrow().get_actual(name).map(|v| v.into_owned().into())
+		self
+			.resolve_variable_scope(name.deref().into())
+			.borrow()
+			.get_actual(name)
+			.map(|v| v.into_owned().into())
 	}
 
 	delegate! {
@@ -81,13 +90,16 @@ impl IGenericVariablesScope<VariableScope> for VariableScope {
 
 impl VariableScope {
 	#[inline(always)]
-	pub fn new_gc(variables: GcPtrMutCellToVariablesMap, parent: Option<GcPtrToVariableScope>) -> GcPtrToVariableScope {
+	pub fn new_gc(
+		variables: GcPtrMutCellToVariablesMap,
+		parent: Option<GcPtrToVariableScope>
+	) -> GcPtrToVariableScope {
 		GcPtr::new(Self { variables, parent })
 	}
 
 	pub fn new_gc_from_map(
 		variables: VariablesMap,
-		parent: Option<GcPtrToVariableScope>,
+		parent: Option<GcPtrToVariableScope>
 	) -> GcPtrToVariableScope {
 		GcPtr::new(Self {
 			variables: gc_ptr_cell_from(variables),

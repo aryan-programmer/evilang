@@ -1,38 +1,68 @@
 use evilang_lib::ast::expression::Expression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, BooleanLiteral, Identifier, StringLiteral};
-use evilang_lib::ast::operator::Operator::{Equals, LessThanOrEqualTo, Modulus, MultiplicationAssignment, PlusAssignment};
+use evilang_lib::ast::expression::Expression::{
+	AssignmentExpression,
+	BinaryExpression,
+	BooleanLiteral,
+	Identifier,
+	StringLiteral,
+};
+use evilang_lib::ast::operator::Operator::{
+	Equals,
+	LessThanOrEqualTo,
+	Modulus,
+	MultiplicationAssignment,
+	PlusAssignment,
+};
 use evilang_lib::ast::statement::Statement;
-use evilang_lib::ast::statement::Statement::{BlockStatement, BreakStatement, ContinueStatement, DoWhileLoop, EmptyStatement, ExpressionStatement, ForLoop, IfStatement, VariableDeclarations, WhileLoop};
+use evilang_lib::ast::statement::Statement::{
+	BlockStatement,
+	BreakStatement,
+	ContinueStatement,
+	DoWhileLoop,
+	EmptyStatement,
+	ExpressionStatement,
+	ForLoop,
+	IfStatement,
+	VariableDeclarations,
+	WhileLoop,
+};
 use evilang_lib::ast::structs::VariableDeclaration;
 use evilang_lib::interpreter::runtime_values::PrimitiveValue;
 
-use crate::common::{ensure_parsing_fails, ensure_program, ensure_program_statement_results, identifier_stmt, push_res_stack_stmt, TestData, TestRes};
+use crate::common::{
+	ensure_parsing_fails,
+	ensure_program,
+	ensure_program_statement_results,
+	identifier_stmt,
+	push_res_stack_stmt,
+	TestData,
+	TestRes,
+};
 
 mod common;
 
-
 fn get_parts() -> (Statement, Expression, Statement) {
-	let initialization = VariableDeclarations(vec![VariableDeclaration {
-		identifier: "i".to_string(),
-		initializer: Some(Expression::integer_literal(1)),
-	}]);
+	let initialization = VariableDeclarations(
+		vec![VariableDeclaration {
+			identifier: "i".to_string(),
+			initializer: Some(Expression::integer_literal(1)),
+		}]
+	);
 	let condition = BinaryExpression {
 		operator: LessThanOrEqualTo,
 		left: Identifier("i".to_string()).into(),
 		right: Expression::integer_literal(10).into(),
 	};
-	let increment = ExpressionStatement(
-		AssignmentExpression {
-			operator: PlusAssignment,
-			left: Identifier("i".to_string()).into(),
-			right: Expression::integer_literal(1).into(),
-		},
-	);
+	let increment = ExpressionStatement(AssignmentExpression {
+		operator: PlusAssignment,
+		left: Identifier("i".to_string()).into(),
+		right: Expression::integer_literal(1).into(),
+	});
 	(initialization, condition, increment)
 }
 
 fn primitive_values_integer_range() -> Vec<PrimitiveValue> {
-	(1..11).map(|v| PrimitiveValue::integer(v)).collect()
+	(1..11).map(PrimitiveValue::integer).collect()
 }
 
 #[test]
@@ -45,34 +75,32 @@ fn while_loop() -> TestRes {
 		i += 1;
 	}
 "#.to_string())
-		.expect_statements(vec![
-			initialization.clone(),
-			WhileLoop {
+		.expect_statements(
+			vec![initialization.clone(), WhileLoop {
 				condition: condition.clone(),
-				body: BlockStatement([
-					push_res_stack_stmt(Identifier("i".into())),
-					increment.clone()
-				].into()).into(),
-			},
-		])
+				body: BlockStatement(
+					[push_res_stack_stmt(Identifier("i".into())), increment.clone()].into()
+				).into(),
+			}]
+		)
 		.expect_stack(primitive_values_integer_range())
 		.check();
-	ensure_program_statement_results(r#"
+	ensure_program_statement_results(
+		r#"
 	let i = 1;
 	while (i <= 10) i += 1;
 	i;
-"#, vec![
-		initialization,
-		WhileLoop {
-			condition,
-			body: increment.into(),
-		},
-		identifier_stmt("i"),
-	], vec![
-		PrimitiveValue::Null,
-		PrimitiveValue::Null,
-		PrimitiveValue::integer(11),
-	]);
+"#,
+		vec![
+			initialization,
+			WhileLoop {
+				condition,
+				body: increment.into(),
+			},
+			identifier_stmt("i")
+		],
+		vec![PrimitiveValue::Null, PrimitiveValue::Null, PrimitiveValue::integer(11)]
+	);
 }
 
 #[test]
@@ -90,16 +118,14 @@ fn do_while_loop() -> TestRes {
 		i += 1;
 	} while (i <= 10);
 "#.to_string())
-		.expect_statements(vec![
-			initialization,
-			DoWhileLoop {
+		.expect_statements(
+			vec![initialization, DoWhileLoop {
 				condition,
-				body: BlockStatement([
-					push_res_stack_stmt(Identifier("i".into())),
-					increment,
-				].into()).into(),
-			},
-		])
+				body: BlockStatement(
+					[push_res_stack_stmt(Identifier("i".into())), increment].into()
+				).into(),
+			}]
+		)
 		.expect_stack(primitive_values_integer_range())
 		.check();
 	TestData::new(r#"
@@ -107,14 +133,14 @@ fn do_while_loop() -> TestRes {
 		push_res_stack("atleast_once");
 	} while (false);
 "#.to_string())
-		.expect_statements(vec![
-			DoWhileLoop {
+		.expect_statements(
+			vec![DoWhileLoop {
 				condition: BooleanLiteral(false),
-				body: BlockStatement([
-					push_res_stack_stmt(StringLiteral("atleast_once".to_string())),
-				].into()).into(),
-			},
-		])
+				body: BlockStatement(
+					[push_res_stack_stmt(StringLiteral("atleast_once".to_string()))].into()
+				).into(),
+			}]
+		)
 		.expect_stack(vec![PrimitiveValue::String("atleast_once".to_string())])
 		.check();
 }
@@ -128,44 +154,45 @@ fn for_loop() -> TestRes {
 		push_res_stack(i);
 	}
 "#.to_string())
-		.expect_statements(vec![
-			ForLoop {
+		.expect_statements(
+			vec![ForLoop {
 				initialization: initialization.clone().into(),
 				condition: condition.clone(),
 				increment: increment.clone().into(),
 				body: BlockStatement(vec![for_body.clone()]).into(),
-			},
-		])
+			}]
+		)
 		.expect_stack(primitive_values_integer_range())
 		.check();
 	TestData::new(r#"
 	for(let i = 1; i <= 10; i += 1)
 		push_res_stack(i);
 "#.to_string())
-		.expect_statements(vec![
-			ForLoop {
+		.expect_statements(
+			vec![ForLoop {
 				initialization: initialization.into(),
 				condition,
 				increment: increment.into(),
 				body: for_body.into(),
-			},
-		])
+			}]
+		)
 		.expect_stack(primitive_values_integer_range())
 		.check();
 }
 
 #[test]
 fn empty_for_loop() -> TestRes {
-	ensure_program(r#"
+	ensure_program(
+		r#"
 	for(;;);
-"#, vec![
-		ForLoop {
+"#,
+		vec![ForLoop {
 			initialization: EmptyStatement.into(),
 			condition: BooleanLiteral(true),
 			increment: EmptyStatement.into(),
 			body: EmptyStatement.into(),
-		},
-	]);
+		}]
+	);
 }
 
 #[test]
@@ -173,7 +200,8 @@ fn exotic_for_loop() -> TestRes {
 	let (initialization, condition, increment) = get_parts();
 	let i = Identifier("i".to_string());
 	let j = Identifier("j".to_string());
-	TestData::new(r#"
+	TestData::new(
+		r#"
 	for({
 			let i = 1;
 			let j = 2;
@@ -187,52 +215,72 @@ fn exotic_for_loop() -> TestRes {
 		push_res_stack(i);
 		push_res_stack(j);
 	}
-"#.to_string())
-		.expect_statements(vec![
-			ForLoop {
-				initialization: BlockStatement(vec![
-					initialization,
-					VariableDeclarations(vec![VariableDeclaration {
-						identifier: "j".to_string(),
-						initializer: Some(Expression::integer_literal(2)),
-					}]),
-					AssignmentExpression {
-						operator: PlusAssignment,
-						left: i.clone().into(),
-						right: j.clone().into(),
-					}.consume_as_statement(),
-				]).into(),
+"#.to_string()
+	)
+		.expect_statements(
+			vec![ForLoop {
+				initialization: BlockStatement(
+					vec![
+						initialization,
+						VariableDeclarations(
+							vec![VariableDeclaration {
+								identifier: "j".to_string(),
+								initializer: Some(Expression::integer_literal(2)),
+							}]
+						),
+						(AssignmentExpression {
+							operator: PlusAssignment,
+							left: i.clone().into(),
+							right: j.clone().into(),
+						}).consume_as_statement()
+					]
+				).into(),
 				condition,
-				increment: BlockStatement(vec![
-					increment.into(),
-					AssignmentExpression {
-						operator: MultiplicationAssignment,
-						left: j.clone().into(),
-						right: Expression::integer_literal(2).into(),
-					}.consume_as_statement(),
-				]).into(),
-				body: BlockStatement(vec![
-					push_res_stack_stmt(Identifier("i".to_string())),
-					push_res_stack_stmt(Identifier("j".to_string())),
-				]).into(),
-			},
-		])
-		.expect_stack(vec![
-			/*i=*/PrimitiveValue::integer(3), /*j=*/PrimitiveValue::integer(2),
-			/*i=*/PrimitiveValue::integer(4), /*j=*/PrimitiveValue::integer(4),
-			/*i=*/PrimitiveValue::integer(5), /*j=*/PrimitiveValue::integer(8),
-			/*i=*/PrimitiveValue::integer(6), /*j=*/PrimitiveValue::integer(16),
-			/*i=*/PrimitiveValue::integer(7), /*j=*/PrimitiveValue::integer(32),
-			/*i=*/PrimitiveValue::integer(8), /*j=*/PrimitiveValue::integer(64),
-			/*i=*/PrimitiveValue::integer(9), /*j=*/PrimitiveValue::integer(128),
-			/*i=*/PrimitiveValue::integer(10), /*j=*/PrimitiveValue::integer(256),
-		])
+				increment: BlockStatement(
+					vec![
+						increment,
+						(AssignmentExpression {
+							operator: MultiplicationAssignment,
+							left: j.clone().into(),
+							right: Expression::integer_literal(2).into(),
+						}).consume_as_statement()
+					]
+				).into(),
+				body: BlockStatement(
+					vec![
+						push_res_stack_stmt(Identifier("i".to_string())),
+						push_res_stack_stmt(Identifier("j".to_string()))
+					]
+				).into(),
+			}]
+		)
+		.expect_stack(
+			vec![
+				/*i=*/ PrimitiveValue::integer(3),
+				/*j=*/ PrimitiveValue::integer(2),
+				/*i=*/ PrimitiveValue::integer(4),
+				/*j=*/ PrimitiveValue::integer(4),
+				/*i=*/ PrimitiveValue::integer(5),
+				/*j=*/ PrimitiveValue::integer(8),
+				/*i=*/ PrimitiveValue::integer(6),
+				/*j=*/ PrimitiveValue::integer(16),
+				/*i=*/ PrimitiveValue::integer(7),
+				/*j=*/ PrimitiveValue::integer(32),
+				/*i=*/ PrimitiveValue::integer(8),
+				/*j=*/ PrimitiveValue::integer(64),
+				/*i=*/ PrimitiveValue::integer(9),
+				/*j=*/ PrimitiveValue::integer(128),
+				/*i=*/ PrimitiveValue::integer(10),
+				/*j=*/ PrimitiveValue::integer(256)
+			]
+		)
 		.check();
 }
 
 #[test]
 fn break_and_continue() -> TestRes {
-	TestData::new(r#"
+	TestData::new(
+		r#"
 	let sum = 0, i = 1;
 	while(i <= 10){
 		if(i%3==0){
@@ -246,77 +294,85 @@ fn break_and_continue() -> TestRes {
 		i += 1;
 	}
 	push_res_stack(sum);
-"#.into())
-		.expect_statements([
-			VariableDeclarations([
-				VariableDeclaration {
-					identifier: "sum".into(),
-					initializer: Some(Expression::integer_literal(0)),
-				},
-				VariableDeclaration {
-					identifier: "i".into(),
-					initializer: Some(Expression::integer_literal(1)),
-				}
-			].into()),
-			WhileLoop {
-				condition: BinaryExpression {
-					operator: LessThanOrEqualTo,
-					left: Identifier("i".into()).into(),
-					right: Expression::integer_literal(10).into(),
-				},
-				body: BlockStatement([
-					IfStatement {
-						condition: BinaryExpression {
-							operator: Equals,
-							left: BinaryExpression {
-								operator: Modulus,
-								left: Identifier("i".into()).into(),
-								right: Expression::integer_literal(3).into(),
-							}.into(),
-							right: Expression::integer_literal(0).into(),
+"#.into()
+	)
+		.expect_statements(
+			[
+				VariableDeclarations(
+					[
+						VariableDeclaration {
+							identifier: "sum".into(),
+							initializer: Some(Expression::integer_literal(0)),
 						},
-						if_branch: BlockStatement([
-							AssignmentExpression {
+						VariableDeclaration {
+							identifier: "i".into(),
+							initializer: Some(Expression::integer_literal(1)),
+						},
+					].into()
+				),
+				WhileLoop {
+					condition: BinaryExpression {
+						operator: LessThanOrEqualTo,
+						left: Identifier("i".into()).into(),
+						right: Expression::integer_literal(10).into(),
+					},
+					body: BlockStatement(
+						[
+							IfStatement {
+								condition: BinaryExpression {
+									operator: Equals,
+									left: (BinaryExpression {
+										operator: Modulus,
+										left: Identifier("i".into()).into(),
+										right: Expression::integer_literal(3).into(),
+									}).into(),
+									right: Expression::integer_literal(0).into(),
+								},
+								if_branch: BlockStatement(
+									[
+										(AssignmentExpression {
+											operator: PlusAssignment,
+											left: Identifier("i".into()).into(),
+											right: Expression::integer_literal(1).into(),
+										}).consume_as_statement(),
+										ContinueStatement(1),
+									].into()
+								).into(),
+								else_branch: None,
+							},
+							IfStatement {
+								condition: BinaryExpression {
+									operator: Equals,
+									left: Identifier("i".into()).into(),
+									right: Expression::integer_literal(8).into(),
+								},
+								if_branch: BlockStatement([BreakStatement(1)].into()).into(),
+								else_branch: None,
+							},
+							ExpressionStatement(AssignmentExpression {
+								operator: PlusAssignment,
+								left: Identifier("sum".into()).into(),
+								right: Identifier("i".into()).into(),
+							}),
+							(AssignmentExpression {
 								operator: PlusAssignment,
 								left: Identifier("i".into()).into(),
 								right: Expression::integer_literal(1).into(),
-							}.consume_as_statement(),
-							ContinueStatement(1)
-						].into()).into(),
-						else_branch: None,
-					},
-					IfStatement {
-						condition: BinaryExpression {
-							operator: Equals,
-							left: Identifier("i".into()).into(),
-							right: Expression::integer_literal(8).into(),
-						},
-						if_branch: BlockStatement([BreakStatement(1)].into()).into(),
-						else_branch: None,
-					},
-					ExpressionStatement(
-						AssignmentExpression {
-							operator: PlusAssignment,
-							left: Identifier("sum".into()).into(),
-							right: Identifier("i".into()).into(),
-						},
-					),
-					AssignmentExpression {
-						operator: PlusAssignment,
-						left: Identifier("i".into()).into(),
-						right: Expression::integer_literal(1).into(),
-					}.consume_as_statement().into()
-				].into()).into(),
-			},
-			Expression::function_call(
-				Identifier("push_res_stack".into()).into(),
-				[Identifier("sum".into())].into(),
-			).consume_as_statement(),
-		].into())
+							}).consume_as_statement(),
+						].into()
+					).into(),
+				},
+				Expression::function_call(
+					Identifier("push_res_stack".into()).into(),
+					[Identifier("sum".into())].into()
+				).consume_as_statement(),
+			].into()
+		)
 		.expect_stack(vec![PrimitiveValue::integer(19)])
 		.check();
 
-	TestData::new(r#"
+	TestData::new(
+		r#"
 	let sum = 0, i = 1;
 	do{
 		if(i%3==0){
@@ -330,11 +386,13 @@ fn break_and_continue() -> TestRes {
 		i += 1;
 	} while(i <= 10);
 	push_res_stack(sum);
-"#.into())
+"#.into()
+	)
 		.expect_stack(vec![PrimitiveValue::integer(19)])
 		.check();
 
-	TestData::new(r#"
+	TestData::new(
+		r#"
 	let sum = 0;
 	for(let i = 1; i <= 10; i += 1){
 		if(i%3==0){
@@ -350,76 +408,92 @@ fn break_and_continue() -> TestRes {
 		sum += i;
 	}
 	push_res_stack(sum);
-"#.into())
-		.expect_statements([
-			VariableDeclarations([VariableDeclaration {
-				identifier: "sum".into(),
-				initializer: Some(Expression::integer_literal(0)),
-			}].into()),
-			ForLoop {
-				initialization: VariableDeclarations([VariableDeclaration {
-					identifier: "i".into(),
-					initializer: Some(Expression::integer_literal(1)),
-				}].into()).into(),
-				condition: BinaryExpression {
-					operator: LessThanOrEqualTo,
-					left: Identifier("i".into()).into(),
-					right: Expression::integer_literal(10).into(),
-				},
-				increment: AssignmentExpression {
-					operator: PlusAssignment,
-					left: Identifier("i".into()).into(),
-					right: Expression::integer_literal(1).into(),
-				}.consume_as_statement().into(),
-				body: BlockStatement([
-					IfStatement {
-						condition: BinaryExpression {
-							operator: Equals,
-							left: BinaryExpression {
-								operator: Modulus,
-								left: Identifier("i".into()).into(),
-								right: Expression::integer_literal(3).into(),
-							}.into(),
-							right: Expression::integer_literal(0).into(),
+"#.into()
+	)
+		.expect_statements(
+			[
+				VariableDeclarations(
+					[
+						VariableDeclaration {
+							identifier: "sum".into(),
+							initializer: Some(Expression::integer_literal(0)),
 						},
-						if_branch: BlockStatement([
-							WhileLoop {
-								condition: BooleanLiteral(true),
-								body: BlockStatement([ContinueStatement(2)].into()).into(),
+					].into()
+				),
+				ForLoop {
+					initialization: VariableDeclarations(
+						[
+							VariableDeclaration {
+								identifier: "i".into(),
+								initializer: Some(Expression::integer_literal(1)),
 							},
-						].into()).into(),
-						else_branch: None,
+						].into()
+					).into(),
+					condition: BinaryExpression {
+						operator: LessThanOrEqualTo,
+						left: Identifier("i".into()).into(),
+						right: Expression::integer_literal(10).into(),
 					},
-					IfStatement {
-						condition: BinaryExpression {
-							operator: Equals,
-							left: Identifier("i".into()).into(),
-							right: Expression::integer_literal(8).into(),
-						},
-						if_branch: BlockStatement([
-							DoWhileLoop {
-								condition: BooleanLiteral(
-									true,
-								),
-								body: BlockStatement([BreakStatement(2)].into()).into(),
-							}
-						].into()).into(),
-						else_branch: None,
-					},
-					ExpressionStatement(
-						AssignmentExpression {
-							operator: PlusAssignment,
-							left: Identifier("sum".into()).into(),
-							right: Identifier("i".into()).into(),
-						},
-					),
-				].into()).into(),
-			},
-			Expression::function_call(
-				Identifier("push_res_stack".into()).into(),
-				[Identifier("sum".into())].into(),
-			).consume_as_statement(),
-		].into())
+					increment: (AssignmentExpression {
+						operator: PlusAssignment,
+						left: Identifier("i".into()).into(),
+						right: Expression::integer_literal(1).into(),
+					})
+						.consume_as_statement()
+						.into(),
+					body: BlockStatement(
+						[
+							IfStatement {
+								condition: BinaryExpression {
+									operator: Equals,
+									left: (BinaryExpression {
+										operator: Modulus,
+										left: Identifier("i".into()).into(),
+										right: Expression::integer_literal(3).into(),
+									}).into(),
+									right: Expression::integer_literal(0).into(),
+								},
+								if_branch: BlockStatement(
+									[
+										WhileLoop {
+											condition: BooleanLiteral(true),
+											body: BlockStatement([ContinueStatement(2)].into()).into(),
+										},
+									].into()
+								).into(),
+								else_branch: None,
+							},
+							IfStatement {
+								condition: BinaryExpression {
+									operator: Equals,
+									left: Identifier("i".into()).into(),
+									right: Expression::integer_literal(8).into(),
+								},
+								if_branch: BlockStatement(
+									[
+										DoWhileLoop {
+											condition: BooleanLiteral(true),
+											body: BlockStatement([BreakStatement(2)].into()).into(),
+										},
+									].into()
+								).into(),
+								else_branch: None,
+							},
+							ExpressionStatement(AssignmentExpression {
+								operator: PlusAssignment,
+								left: Identifier("sum".into()).into(),
+								right: Identifier("i".into()).into(),
+							}),
+						].into()
+					).into(),
+				},
+				Expression::function_call(
+					Identifier("push_res_stack".into()).into(),
+					[Identifier("sum".into())].into()
+				).consume_as_statement(),
+			].into()
+		)
 		.expect_stack(vec![PrimitiveValue::integer(19)])
 		.check()
 }
+

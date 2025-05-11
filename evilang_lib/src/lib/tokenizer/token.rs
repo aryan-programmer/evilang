@@ -54,24 +54,16 @@ pub enum TokenType {
 impl TokenType {
 	#[inline(always)]
 	pub fn is_literal(&self) -> bool {
-		return match self {
+		return matches!(
+			self,
 			TokenType::String |
-			TokenType::Number |
-			TokenType::Keyword(
-				Keyword::True |
-				Keyword::False |
-				Keyword::Null
-			) => true,
-			_ => false,
-		};
+				TokenType::Number |
+				TokenType::Keyword(Keyword::True | Keyword::False | Keyword::Null)
+		);
 	}
 
 	#[inline(always)]
 	pub fn is_unary_operator(&self) -> bool {
-		return match self {
-			TokenType::AdditiveOperator |
-			TokenType::LogicalNotOperator => true,
-			_ => false,
-		};
+		return matches!(self, TokenType::AdditiveOperator | TokenType::LogicalNotOperator);
 	}
 }

@@ -1,118 +1,136 @@
 use evilang_lib::ast::expression::Expression;
-use evilang_lib::ast::expression::Expression::{AssignmentExpression, BinaryExpression, Identifier};
-use evilang_lib::ast::operator::Operator::{Assignment, DivisionAssignment, GreaterThan, GreaterThanOrEqualTo, LessThan, LessThanOrEqualTo, MinusAssignment, ModulusAssignment, MultiplicationAssignment};
-use evilang_lib::ast::statement::Statement::{BlockStatement, ExpressionStatement, IfStatement};
+use evilang_lib::ast::expression::Expression::{
+	AssignmentExpression,
+	BinaryExpression,
+	Identifier,
+};
+use evilang_lib::ast::operator::Operator::{
+	Assignment,
+	DivisionAssignment,
+	GreaterThan,
+	GreaterThanOrEqualTo,
+	LessThan,
+	LessThanOrEqualTo,
+	MinusAssignment,
+	ModulusAssignment,
+	MultiplicationAssignment,
+};
+use evilang_lib::ast::statement::Statement::{ BlockStatement, ExpressionStatement, IfStatement };
 
-use crate::common::{ensure_program, TestRes};
+use crate::common::{ ensure_program, TestRes };
 
 mod common;
 
 #[test]
 fn if_branch() -> TestRes {
-	ensure_program(r#"
+	ensure_program(
+		r#"
 	if (x >= 32) {
 		stuff -= 1;
 	}
-"#, vec![
-		IfStatement {
+"#,
+		vec![IfStatement {
 			condition: BinaryExpression {
 				operator: GreaterThanOrEqualTo,
 				left: Identifier("x".parse().unwrap()).into(),
 				right: Expression::integer_literal(32).into(),
 			},
-			if_branch: BlockStatement([
-				ExpressionStatement(
-					AssignmentExpression {
+			if_branch: BlockStatement(
+				[
+					ExpressionStatement(AssignmentExpression {
 						operator: MinusAssignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
 						right: Expression::integer_literal(1).into(),
-					},
-				)
-			].into()).into(),
+					}),
+				].into()
+			).into(),
 			else_branch: None,
-		},
-	]);
+		}]
+	);
 }
 
 #[test]
 fn if_else_branch() -> TestRes {
-	ensure_program(r#"
+	ensure_program(
+		r#"
 	if (x < 12) {
 		stuff = 1;
 	} else {
 		ot1_h *= 4;
 	}
-"#, vec![
-		IfStatement {
+"#,
+		vec![IfStatement {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
 				right: Expression::integer_literal(12).into(),
 			},
-			if_branch: BlockStatement([
-				ExpressionStatement(
-					AssignmentExpression {
+			if_branch: BlockStatement(
+				[
+					ExpressionStatement(AssignmentExpression {
 						operator: Assignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
 						right: Expression::integer_literal(1).into(),
-					},
-				)
-			].into()).into(),
-			else_branch: Some(BlockStatement([
-				ExpressionStatement(
-					AssignmentExpression {
-						operator: MultiplicationAssignment,
-						left: Identifier("ot1_h".parse().unwrap()).into(),
-						right: Expression::integer_literal(4).into(),
-					},
-				),
-			].into()).into()),
-		},
-	]);
+					}),
+				].into()
+			).into(),
+			else_branch: Some(
+				BlockStatement(
+					[
+						ExpressionStatement(AssignmentExpression {
+							operator: MultiplicationAssignment,
+							left: Identifier("ot1_h".parse().unwrap()).into(),
+							right: Expression::integer_literal(4).into(),
+						}),
+					].into()
+				).into()
+			),
+		}]
+	);
 }
 
 #[test]
 fn if_if_else_branch() -> TestRes {
-	ensure_program(r#"
+	ensure_program(
+		r#"
 	if (x < 12)
 		if (y <= 13) stuff = 1;
 		else ot1_h *= 4;
-"#, vec![
-		IfStatement {
+"#,
+		vec![IfStatement {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
 				right: Expression::integer_literal(12).into(),
 			},
-			if_branch: IfStatement {
+			if_branch: (IfStatement {
 				condition: BinaryExpression {
 					operator: LessThanOrEqualTo,
 					left: Identifier("y".parse().unwrap()).into(),
 					right: Expression::integer_literal(13).into(),
 				},
-				if_branch: ExpressionStatement(
-					AssignmentExpression {
-						operator: Assignment,
-						left: Identifier("stuff".parse().unwrap()).into(),
-						right: Expression::integer_literal(1).into(),
-					},
-				).into(),
-				else_branch: Some(ExpressionStatement(
-					AssignmentExpression {
+				if_branch: ExpressionStatement(AssignmentExpression {
+					operator: Assignment,
+					left: Identifier("stuff".parse().unwrap()).into(),
+					right: Expression::integer_literal(1).into(),
+				}).into(),
+				else_branch: Some(
+					ExpressionStatement(AssignmentExpression {
 						operator: MultiplicationAssignment,
 						left: Identifier("ot1_h".parse().unwrap()).into(),
 						right: Expression::integer_literal(4).into(),
-					},
-				).into()),
-			}.into(),
+					}).into()
+				),
+			}).into(),
 			else_branch: None,
-		},
-	]);
+		}]
+	);
 }
 
 #[test]
 fn if_elseif_else_ladder() -> TestRes {
-	ensure_program(r#"
+	ensure_program(
+		r#"
 	if (x < 12) {
 		stuff = 1;
 	} else if (Zyx > 12) {
@@ -121,54 +139,57 @@ fn if_elseif_else_ladder() -> TestRes {
 		val23 *= 4;
 		$data %= 13;
 	}
-"#, vec![
-		IfStatement {
+"#,
+		vec![IfStatement {
 			condition: BinaryExpression {
 				operator: LessThan,
 				left: Identifier("x".parse().unwrap()).into(),
 				right: Expression::integer_literal(12).into(),
 			},
-			if_branch: BlockStatement([
-				ExpressionStatement(
-					AssignmentExpression {
+			if_branch: BlockStatement(
+				[
+					ExpressionStatement(AssignmentExpression {
 						operator: Assignment,
 						left: Identifier("stuff".parse().unwrap()).into(),
 						right: Expression::integer_literal(1).into(),
+					}),
+				].into()
+			).into(),
+			else_branch: Some(
+				(IfStatement {
+					condition: BinaryExpression {
+						operator: GreaterThan,
+						left: Identifier("Zyx".parse().unwrap()).into(),
+						right: Expression::integer_literal(12).into(),
 					},
-				)
-			].into()).into(),
-			else_branch: Some(IfStatement {
-				condition: BinaryExpression {
-					operator: GreaterThan,
-					left: Identifier("Zyx".parse().unwrap()).into(),
-					right: Expression::integer_literal(12).into(),
-				},
-				if_branch: BlockStatement([
-					ExpressionStatement(
-						AssignmentExpression {
-							operator: DivisionAssignment,
-							left: Identifier("stuff".parse().unwrap()).into(),
-							right: Expression::integer_literal(12).into(),
-						},
-					)
-				].into()).into(),
-				else_branch: Some(BlockStatement([
-					ExpressionStatement(
-						AssignmentExpression {
-							operator: MultiplicationAssignment,
-							left: Identifier("val23".parse().unwrap()).into(),
-							right: Expression::integer_literal(4).into(),
-						},
+					if_branch: BlockStatement(
+						[
+							ExpressionStatement(AssignmentExpression {
+								operator: DivisionAssignment,
+								left: Identifier("stuff".parse().unwrap()).into(),
+								right: Expression::integer_literal(12).into(),
+							}),
+						].into()
+					).into(),
+					else_branch: Some(
+						BlockStatement(
+							[
+								ExpressionStatement(AssignmentExpression {
+									operator: MultiplicationAssignment,
+									left: Identifier("val23".parse().unwrap()).into(),
+									right: Expression::integer_literal(4).into(),
+								}),
+								ExpressionStatement(AssignmentExpression {
+									operator: ModulusAssignment,
+									left: Identifier("$data".parse().unwrap()).into(),
+									right: Expression::integer_literal(13).into(),
+								}),
+							].into()
+						).into()
 					),
-					ExpressionStatement(
-						AssignmentExpression {
-							operator: ModulusAssignment,
-							left: Identifier("$data".parse().unwrap()).into(),
-							right: Expression::integer_literal(13).into(),
-						},
-					),
-				].into()).into()),
-			}.into()),
-		},
-	]);
+				}).into()
+			),
+		}]
+	);
 }
+

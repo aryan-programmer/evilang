@@ -1,12 +1,12 @@
 use std::any::Any;
 use std::fs;
 use std::ops::Deref;
-use std::path::{Component, Path, PathBuf};
+use std::path::{ Component, Path, PathBuf };
 
-use gc::{Finalize, Trace};
+use gc::{ Finalize, Trace };
 
 use crate::ast::statement::StatementList;
-use crate::errors::{Descriptor, EvilangError, ResultWithError, RuntimeError};
+use crate::errors::{ Descriptor, EvilangError, ResultWithError, RuntimeError };
 use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::PrimitiveValue;
 use crate::interpreter::variables_containers::map::IVariablesMapConstMembers;
@@ -22,7 +22,11 @@ pub struct ResolveResult {
 pub type BoxIResolver = Box<dyn IResolver>;
 
 pub trait IResolver: IResolverExtras + Trace + Finalize {
-	fn resolve(&self, env: Option<&Environment>, file_name: StringT) -> ResultWithError<ResolveResult>;
+	fn resolve(
+		&self,
+		env: Option<&Environment>,
+		file_name: StringT
+	) -> ResultWithError<ResolveResult>;
 }
 
 pub trait IResolverExtras {
@@ -41,10 +45,7 @@ impl<T> IResolverExtras for T where T: 'static + IResolver + Clone + PartialEq {
 	}
 
 	fn equals_resolver(&self, other: &dyn IResolver) -> bool {
-		other
-			.as_any()
-			.downcast_ref::<T>()
-			.map_or(false, |a| self == a)
+		other.as_any().downcast_ref::<T>() == Some(self)
 	}
 }
 
@@ -96,6 +97,12 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 	ret
 }
 
+impl Default for DefaultResolver {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl DefaultResolver {
 	#[inline(always)]
 	pub fn new() -> Self {
@@ -107,7 +114,10 @@ impl DefaultResolver {
 		Box::new(Self {})
 	}
 
-	pub fn resolve_file_path(env_opt: Option<&Environment>, file_name: StringT) -> ResultWithError<PathBuf> {
+	pub fn resolve_file_path(
+		env_opt: Option<&Environment>,
+		file_name: StringT
+	) -> ResultWithError<PathBuf> {
 		let Some(this_file_path_box) = env_opt
 			.and_then(|env| env.get_actual(CURRENT_FILE.into()))
 			.and_then(|v| if v.borrow().deref() == &PrimitiveValue::Null { None } else { Some(v) }) else {
@@ -116,7 +126,11 @@ impl DefaultResolver {
 		};
 		let this_file_path_borr = this_file_path_box.borrow();
 		let PrimitiveValue::String(this_file_path_str_ref) = this_file_path_borr.deref() else {
-			return Err(RuntimeError::ExpectedValidFileName(Descriptor::Value(this_file_path_borr.deref().clone__silently_fail())).into());
+			return Err(
+				RuntimeError::ExpectedValidFileName(
+					Descriptor::Value(this_file_path_borr.deref().clone__silently_fail())
+				).into()
+			);
 		};
 		// dbg!(this_file_path_str_ref);
 		// let this_file_path_str = this_file_path_str_ref.clone();
@@ -136,12 +150,16 @@ impl DefaultResolver {
 }
 
 impl IResolver for DefaultResolver {
-	fn resolve(&self, env: Option<&Environment>, file_name: StringT) -> ResultWithError<ResolveResult> {
+	fn resolve(
+		&self,
+		env: Option<&Environment>,
+		file_name: StringT
+	) -> ResultWithError<ResolveResult> {
 		// dbg!(&file_name);
 		let f_path = DefaultResolver::resolve_file_path(env, file_name)?;
 		let absolute_file_path: StringT = match f_path.to_str() {
 			None => f_path.to_string_lossy().into(),
-			Some(v) => v.into()
+			Some(v) => v.into(),
 		};
 		// dbg!(&absolute_file_path);
 		let contents: StringT = fs::read_to_string(f_path).map_err(EvilangError::from)?;

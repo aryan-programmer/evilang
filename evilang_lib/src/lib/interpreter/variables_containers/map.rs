@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::mem::replace;
-use std::ops::{Deref, DerefMut};
+use std::ops::{ Deref, DerefMut };
 
-use gc::{Finalize, Trace};
+use gc::{ Finalize, Trace };
 use maybe_owned::MaybeOwned;
 
 use crate::ast::expression::IdentifierT;
-use crate::errors::{ErrorT, ResultWithError};
-use crate::interpreter::runtime_values::{GcPtrVariable, GcPtrVariableExt, PrimitiveValue};
-use crate::types::cell_ref::{gc_ptr_cell_from, GcPtr, GcPtrCell};
+use crate::errors::{ ErrorT, ResultWithError };
+use crate::interpreter::runtime_values::{ GcPtrVariable, GcPtrVariableExt, PrimitiveValue };
+use crate::types::cell_ref::{ gc_ptr_cell_from, GcPtr, GcPtrCell };
 use crate::types::string::CowStringT;
 
 pub trait IVariablesMapConstMembers {
@@ -39,7 +39,10 @@ pub trait IVariablesMapDelegator: IVariablesMapConstMembers {
 
 #[macro_export]
 macro_rules! delegate_ivariables_map {
-	(for $for_type: ty => &$self: ident: $const_delegator: expr, &$mut_self: ident: (mut) $mut_delegator: expr) => {
+	(
+		for $for_type:ty => &$self:ident: $const_delegator:expr,
+		&$mut_self:ident: (mut) $mut_delegator:expr
+	) => {
 		impl IVariablesMapConstMembers for $for_type {
 			#[inline(always)]
 			fn get_actual(&$self, name: CowStringT) -> Option<::maybe_owned::MaybeOwned<GcPtrVariable>> {
@@ -80,6 +83,12 @@ pub struct VariablesMap {
 	pub variables: HashMap<IdentifierT, GcPtrVariable>,
 }
 
+impl Default for VariablesMap {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl VariablesMap {
 	#[inline(always)]
 	pub fn new() -> Self {
@@ -101,11 +110,7 @@ impl VariablesMap {
 
 impl IVariablesMapConstMembers for VariablesMap {
 	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>> {
-		return if let Some(v) = self.variables.get(name.deref()) {
-			Some(v.into())
-		} else {
-			None
-		};
+		return self.variables.get(name.deref()).map(|v| v.into());
 	}
 
 	#[inline(always)]
@@ -142,7 +147,7 @@ impl IVariablesMap for VariablesMap {
 		if let Some(_v) = self.variables.get(name.deref()) {
 			return Err(ErrorT::CantRedeclareVariable(name.into()).into());
 		}
-		self.assign(name, PrimitiveValue::_HoistedVariable.into());
+		self.assign(name, PrimitiveValue::_HoistedVariable);
 		return Ok(());
 	}
 }

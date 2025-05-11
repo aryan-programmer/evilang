@@ -7,3 +7,4 @@ pub trait ConsumeOrCloneOf {
 
 	fn consume_or_clone(self) -> ResultWithError<Self::Target>;
 }
+

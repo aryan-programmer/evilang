@@ -5,48 +5,55 @@ use std::ops::Deref;
 
 use darling::FromMeta;
 use itertools::Either;
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use proc_macro2::{ Ident, Span, TokenStream };
+use quote::{ quote, quote_spanned, ToTokens };
 use split_iter::Splittable;
-use syn::{Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, Path, Signature, Type};
+use syn::{ Attribute, Expr, FnArg, ImplItem, ImplItemFn, ItemImpl, Path, Signature, Type };
 use syn::spanned::Spanned;
 
-use crate::utils::{expr_as_string, MODULE_NAME, str_concat_token_stream};
-use crate::utils::attributes::{ParseArgs, TryParseAttribute};
+use crate::utils::{ expr_as_string, MODULE_NAME, str_concat_token_stream };
+use crate::utils::attributes::{ ParseArgs, TryParseAttribute };
 use crate::utils::crate_imports::CrateImports;
 
-fn define_alias_exports<'a, TIter: Iterator<Item=&'a FnExportData>>(
+fn define_alias_exports<'a, TIter: Iterator<Item = &'a FnExportData>>(
 	imports: &CrateImports,
 	iter: TIter,
-	export_name: &Ident,
+	export_name: &Ident
 ) -> Vec<TokenStream> {
-	let CrateImports { ResultWithError, Environment, FunctionParameters, FunctionReturnValue, .. } = imports;
-	iter.map(|export_attr| {
-		let new_export_name = &export_attr.export_ident;
-		return quote_spanned! { export_attr.attribute.get_span() =>
+	let CrateImports { ResultWithError, Environment, FunctionParameters, FunctionReturnValue, .. } =
+		imports;
+	iter
+		.map(|export_attr| {
+			let new_export_name = &export_attr.export_ident;
+			return quote_spanned! { export_attr.attribute.get_span() =>
 			#[inline(always)]
 			pub fn #new_export_name(env: &mut #Environment, params: #FunctionParameters) -> #ResultWithError<#FunctionReturnValue> {
 				return #export_name(env, params);
 			}
 		};
-	}).collect::<Vec<_>>()
+		})
+		.collect::<Vec<_>>()
 }
 
 fn for_params<TIterElemType, TIter, TDrainRes, TDrainNextFn>(
 	iter: TIter,
-	drain_next_fn: TDrainNextFn,
-) -> (Vec<TDrainRes>, Vec<Ident>)
-	where TIter: Iterator<Item=TIterElemType>,
-	      TDrainNextFn: Fn(usize, TIterElemType, &Ident) -> TDrainRes {
+	drain_next_fn: TDrainNextFn
+)
+	-> (Vec<TDrainRes>, Vec<Ident>)
+	where
+		TIter: Iterator<Item = TIterElemType>,
+		TDrainNextFn: Fn(usize, TIterElemType, &Ident) -> TDrainRes
+{
 	let (params_decl_list, param_names_list): (Vec<_>, Vec<_>) = iter
 		.enumerate()
 		.map(|(i, v)| {
 			let name = Ident::new(
 				("_param_val_".to_string() + i.to_string().as_str()).as_str(),
-				Span::call_site(),
+				Span::call_site()
 			);
 			(drain_next_fn(i, v, &name), name)
-		}).unzip();
+		})
+		.unzip();
 	(params_decl_list, param_names_list)
 }
 
@@ -56,7 +63,7 @@ fn define_export_for_constructor(
 	NATIVE_BOX_WRAP_NAME: &TokenStream,
 	fn_dat: &FunctionData,
 	// other_exports: TIter,
-	ctor_export: &FnExportData,
+	ctor_export: &FnExportData
 ) -> TokenStream {
 	let CrateImports {
 		ResultWithError,
@@ -77,10 +84,11 @@ fn define_export_for_constructor(
 	let export_name = &ctor_export.export_ident;
 	let orig_name = &fn_dat.signature.ident;
 	let (params_decl_list, param_names_list) = for_params(
-		fn_dat.signature.inputs.iter().skip(1/*skip ctx*/),
-		|_i, input, name| quote_spanned! {input.span() =>
+		fn_dat.signature.inputs.iter().skip(1 /*skip ctx*/),
+		|_i, input, name|
+			quote_spanned! {input.span() =>
 			let #name = #from_option_of_primitive_value(drain.next())?;
-		},
+		}
 	);
 	// let rest_exports = define_alias_exports(
 	// 	&imports,
@@ -88,15 +96,16 @@ fn define_export_for_constructor(
 	// 	orig_name.to_string().into(),
 	// 	&export_name,
 	// );
-	let res = quote_spanned! { ctor_export.attribute.get_span() =>
+	let res =
+		quote_spanned! { ctor_export.attribute.get_span() =>
 		pub fn #export_name(env: &mut #Environment, mut params: #FunctionParameters) ->
 			#ResultWithError<#FunctionReturnValue> {
-			const FUNC_NAME: &'static str = #concat_str!(
+			const FUNC_NAME: &str = #concat_str!(
 				<#ExpT as #INativeClass>::NAME,
 				"::",
 				::std::stringify!(#export_name)
 			);
-			const THIS_PARAM_NAME: &'static str = #concat_str!("this parameter of ", FUNC_NAME);
+			const THIS_PARAM_NAME: &str = #concat_str!("this parameter of ", FUNC_NAME);
 			let mut drain = params.drain(..);
 			let this_val = drain.next().unwrap();
 			#(#params_decl_list)*
@@ -120,9 +129,9 @@ fn define_export_for_member_function(
 	imports: &CrateImports,
 	ExpT: &TokenStream,
 	NATIVE_BOX_WRAP_NAME: &TokenStream,
-	fn_dat: &FunctionData,
+	fn_dat: &FunctionData
 ) -> TokenStream {
-	if fn_dat.exports.len() == 0 {
+	if fn_dat.exports.is_empty() {
 		return quote! {};
 	}
 	let CrateImports {
@@ -152,25 +161,23 @@ fn define_export_for_member_function(
 	let borrow_type = if is_self_mut { quote!(borrow_mut) } else { quote!(borrow) };
 	let (params_decl_list, param_names_list) = for_params(
 		// The signature contains a self param which is transformed from a this parameter,
-		fn_dat.signature.inputs.iter().skip(2/*skip self & ctx*/),
-		|_i, input, name| quote_spanned! {input.span() =>
+		fn_dat.signature.inputs.iter().skip(2 /*skip self & ctx*/),
+		|_i, input, name|
+			quote_spanned! {input.span() =>
 			let #name = #from_option_of_primitive_value(drain.next())?;
-		},
+		}
 	);
-	let rest_exports = define_alias_exports(
-		&imports,
-		iter,
-		&export_name,
-	);
-	let res = quote_spanned! { main_export.attribute.get_span() =>
+	let rest_exports = define_alias_exports(imports, iter, export_name);
+	let res =
+		quote_spanned! { main_export.attribute.get_span() =>
 		pub fn #export_name(env: &mut #Environment, mut params: #FunctionParameters) ->
 			#ResultWithError<#FunctionReturnValue> {
-			const FUNC_NAME: &'static str = #concat_str!(
+			const FUNC_NAME: &str = #concat_str!(
 				<#ExpT as #INativeClass>::NAME,
 				"::",
 				::std::stringify!(#export_name)
 			);
-			const THIS_PARAM_NAME: &'static str = #concat_str!("this parameter of ", FUNC_NAME);
+			const THIS_PARAM_NAME: &str = #concat_str!("this parameter of ", FUNC_NAME);
 			// if params.len() != #num_params_incl_this {
 			// 	return #Err_(#EvilangError::new(#ErrorT::UnexpectedRuntimeError(#RuntimeError::InvalidNumberArgumentsToFunction {
 			// 		got: params.len(),
@@ -191,6 +198,7 @@ fn define_export_for_member_function(
 				),
 				|| THIS_PARAM_NAME.into(),
 			)?;
+			#[allow(clippy::useless_conversion)]
 			return #Ok_(result.into());
 		}
 		#(#rest_exports)*
@@ -201,9 +209,9 @@ fn define_export_for_member_function(
 fn define_export_for_static_function(
 	imports: &CrateImports,
 	ExpT: &TokenStream,
-	fn_dat: &FunctionData,
+	fn_dat: &FunctionData
 ) -> TokenStream {
-	if fn_dat.exports.len() == 0 {
+	if fn_dat.exports.is_empty() {
 		return quote! {};
 	}
 	let CrateImports {
@@ -221,17 +229,15 @@ fn define_export_for_static_function(
 	let orig_name = &fn_dat.signature.ident;
 	let export_name = &main_export.export_ident;
 	let (params_decl_list, param_names_list) = for_params(
-		fn_dat.signature.inputs.iter().skip(1/*skip ctx*/),
-		|_i, input, name| quote_spanned! {input.span() =>
+		fn_dat.signature.inputs.iter().skip(1 /*skip ctx*/),
+		|_i, input, name|
+			quote_spanned! {input.span() =>
 			let #name = #from_option_of_primitive_value(drain.next())?;
-		},
+		}
 	);
-	let rest_exports = define_alias_exports(
-		&imports,
-		iter,
-		&export_name,
-	);
-	let res = quote_spanned! { main_export.attribute.get_span() =>
+	let rest_exports = define_alias_exports(imports, iter, export_name);
+	let res =
+		quote_spanned! { main_export.attribute.get_span() =>
 		pub fn #export_name(env: &mut #Environment, mut params: #FunctionParameters) ->
 			#ResultWithError<#FunctionReturnValue> {
 			let mut drain = params.drain(..);
@@ -240,6 +246,7 @@ fn define_export_for_static_function(
 				#NativeClassStaticFunctionContext::new(env),
 				#(#param_names_list),*
 			)?;
+			#[allow(clippy::useless_conversion)]
 			return #Ok_(result.into());
 		}
 		#(#rest_exports)*
@@ -250,28 +257,20 @@ fn define_export_for_static_function(
 fn define_export_for_raw_native_function(
 	imports: &CrateImports,
 	ExpT: &TokenStream,
-	fn_dat: &FunctionData,
+	fn_dat: &FunctionData
 ) -> TokenStream {
-	if fn_dat.exports.len() == 0 {
+	if fn_dat.exports.is_empty() {
 		return quote! {};
 	}
-	let CrateImports {
-		ResultWithError,
-		Environment,
-		FunctionParameters,
-		FunctionReturnValue,
-		..
-	} = imports;
+	let CrateImports { ResultWithError, Environment, FunctionParameters, FunctionReturnValue, .. } =
+		imports;
 	let mut iter = fn_dat.exports.iter();
 	let main_export = iter.next().expect("Expected an export");
 	let orig_name = &fn_dat.signature.ident;
 	let export_name = &main_export.export_ident;
-	let rest_exports = define_alias_exports(
-		&imports,
-		iter,
-		&export_name,
-	);
-	let res = quote_spanned! { main_export.attribute.get_span() =>
+	let rest_exports = define_alias_exports(imports, iter, export_name);
+	let res =
+		quote_spanned! { main_export.attribute.get_span() =>
 		#[inline(always)]
 		pub fn #export_name(env: &mut #Environment, params: #FunctionParameters) ->
 			#ResultWithError<#FunctionReturnValue> {
@@ -306,7 +305,7 @@ impl ExportAttribute {
 }
 
 impl TryParseAttribute for ExportAttribute {
-	const NAME: &'static str = "export";
+	const NAME: &str = "export";
 
 	fn new_from_value_expr(expr: &Expr) -> Self {
 		Self {
@@ -317,7 +316,7 @@ impl TryParseAttribute for ExportAttribute {
 	}
 
 	fn set_attribute(&mut self, attr: Attribute) {
-		self.attribute = Some(attr)
+		self.attribute = Some(attr);
 	}
 
 	fn get_attribute(&self) -> Option<&Attribute> {
@@ -332,16 +331,10 @@ pub(crate) struct FnExportData {
 }
 
 impl FnExportData {
-	pub fn new(
-		attribute: ExportAttribute,
-		orig_name_str: Cow<str>,
-	) -> Self {
+	pub fn new(attribute: ExportAttribute, orig_name_str: Cow<str>) -> Self {
 		let export_ident = Ident::new(
-			attribute.export_as
-				.as_ref()
-				.map(String::as_str)
-				.unwrap_or_else(|| orig_name_str.as_ref()),
-			Span::call_site(),
+			attribute.export_as.as_deref().unwrap_or_else(|| orig_name_str.as_ref()),
+			Span::call_site()
 		);
 		Self { attribute, export_ident }
 	}
@@ -361,9 +354,7 @@ impl FunctionData {
 			signature,
 			exports: exports
 				.into_iter()
-				.map(|v|
-					FnExportData::new(v, orig_name_str.into())
-				)
+				.map(|v| FnExportData::new(v, orig_name_str.into()))
 				.collect(),
 		}
 	}
@@ -377,54 +368,77 @@ pub(crate) struct RootData {
 }
 
 impl RootData {
-	pub fn parse_and_strip_extra_attributes(attr: proc_macro::TokenStream, mut implementation: ItemImpl) -> (RootData, ItemImpl) {
+	pub fn parse_and_strip_extra_attributes(
+		attr: proc_macro::TokenStream,
+		mut implementation: ItemImpl
+	) -> (RootData, ItemImpl) {
 		let mut functions = Vec::<FunctionData>::new();
 		implementation = ItemImpl {
-			items: implementation.items.into_iter().map(|impl_item| match impl_item {
-				ImplItem::Fn(f) => {
-					// dbg!(&f.attrs);
-					let (exports_iter, attrs_iter) =
-						f.attrs
-							.into_iter()
-							.map(ExportAttribute::try_parse_attribute)
-							.split(Either::is_right);
-					let exports: Vec<_> = exports_iter.map(Either::unwrap_left).collect();
-					let attrs = attrs_iter.map(Either::unwrap_right).collect();
-					// dbg!((&exports, &attrs));
-					functions.push(FunctionData::new(
-						f.sig.clone(),
-						exports,
-					));
-					ImplItem::Fn(ImplItemFn {
-						attrs,
-						..f
-					})
-				}
-				v => v
-			}).collect(),
+			items: implementation.items
+				.into_iter()
+				.map(|impl_item| {
+					match impl_item {
+						ImplItem::Fn(f) => {
+							// dbg!(&f.attrs);
+							let (exports_iter, attrs_iter) = f.attrs
+								.into_iter()
+								.map(ExportAttribute::try_parse_attribute)
+								.split(Either::is_right);
+							let exports: Vec<_> = exports_iter.map(Either::unwrap_left).collect();
+							let attrs = attrs_iter.map(Either::unwrap_right).collect();
+							// dbg!((&exports, &attrs));
+							functions.push(FunctionData::new(f.sig.clone(), exports));
+							ImplItem::Fn(ImplItemFn {
+								attrs,
+								..f
+							})
+						}
+						v => v,
+					}
+				})
+				.collect(),
 			..implementation
 		};
-		(Self {
-			self_ty: implementation.self_ty.deref().clone(),
-			functions,
-			attributes: RootAttributes::parse_args(attr.into()),
-		}, implementation)
+		(
+			Self {
+				self_ty: implementation.self_ty.deref().clone(),
+				functions,
+				attributes: RootAttributes::parse_args(attr.into()),
+			},
+			implementation,
+		)
 	}
 
 	pub fn generate_implementation(self) -> TokenStream {
 		let module = self.attributes.evilang_lib_crate
 			.as_ref()
 			.map(Path::to_token_stream)
-			.unwrap_or_else(|| quote! {::#MODULE_NAME});
+			.unwrap_or_else(|| quote! { ::#MODULE_NAME });
 		let imports = CrateImports::new(module);
-		let CrateImports { ResultWithError, Environment, GcPtrToObject, PrimitiveValue, concat_str, INativeClass, INativeClass_BuildClass, Ok_, gc_ptr_cell_from, RuntimeObject, VariablesMap, HashMap, INativeClass_IsStructWrapper, .. } = &imports;
+		let CrateImports {
+			ResultWithError,
+			Environment,
+			GcPtrToObject,
+			PrimitiveValue,
+			concat_str,
+			INativeClass,
+			INativeClass_BuildClass,
+			Ok_,
+			gc_ptr_cell_from,
+			RuntimeObject,
+			VariablesMap,
+			HashMap,
+			INativeClass_IsStructWrapper,
+			..
+		} = &imports;
 		let SelfT = &self.self_ty;
-		let ExpT = quote! {super::#SelfT};
+		let ExpT = quote! { super::#SelfT };
 		let Self_exports = str_concat_token_stream(
 			SelfT.to_token_stream().into(),
-			quote! {_exports}.into(),
+			(quote! { _exports }).into()
 		);
-		let NATIVE_BOX_WRAP_NAME = quote! {(<#ExpT as #INativeClass_IsStructWrapper>::NATIVE_BOX_WRAP_NAME)};
+		let NATIVE_BOX_WRAP_NAME =
+			quote! { (<#ExpT as #INativeClass_IsStructWrapper>::NATIVE_BOX_WRAP_NAME) };
 
 		// let get_export_tuples_for_function = |func: &FunctionData| {
 		// 	func.exports.iter().map(|export| {
@@ -445,24 +459,18 @@ impl RootData {
 		});
 
 		let handle_exports_for_function = |func: &FunctionData| {
-			if func.exports.len() == 0 {
+			if func.exports.is_empty() {
 				return quote!();
 			}
 			if let Some(FnArg::Receiver(_)) = func.signature.inputs.first() {
-				return define_export_for_member_function(
-					&imports,
-					&ExpT,
-					&NATIVE_BOX_WRAP_NAME,
-					func,
-				);
-			};
+				return define_export_for_member_function(&imports, &ExpT, &NATIVE_BOX_WRAP_NAME, func);
+			}
 			{
-				let (others_iter, ctors_iter) =
-					func.exports
-						.iter()
-						.split(|v| v.export_ident == "constructor");
+				let (others_iter, ctors_iter) = func.exports
+					.iter()
+					.split(|v| v.export_ident == "constructor");
 				let ctors: Vec<_> = ctors_iter.collect();
-				if ctors.len() > 0 {
+				if !ctors.is_empty() {
 					if ctors.len() != 1 || others_iter.count() > 0 {
 						return quote_spanned! {func.signature.span() =>
 							compile_error!("A function exported as a constructor can not have multiple #[export] attributes");
@@ -474,22 +482,14 @@ impl RootData {
 						&NATIVE_BOX_WRAP_NAME,
 						func,
 						// others,
-						&ctors[0],
+						ctors[0]
 					);
 				}
 			}
 			if func.exports.iter().any(|v| v.attribute.raw) {
-				return define_export_for_raw_native_function(
-					&imports,
-					&ExpT,
-					func,
-				);
+				return define_export_for_raw_native_function(&imports, &ExpT, func);
 			}
-			return define_export_for_static_function(
-				&imports,
-				&ExpT,
-				func,
-			);
+			return define_export_for_static_function(&imports, &ExpT, func);
 		};
 
 		let member_exports = self.functions.iter().map(|func| {
@@ -499,7 +499,7 @@ impl RootData {
 
 		quote! {
 			impl #INativeClass_IsStructWrapper for #SelfT {
-				const NATIVE_BOX_WRAP_NAME: &'static str = #concat_str!("!native:", <#SelfT as #INativeClass>::NAME);
+				const NATIVE_BOX_WRAP_NAME: &str = #concat_str!("!native:", <#SelfT as #INativeClass>::NAME);
 			}
 			impl #INativeClass_BuildClass for #SelfT {
 				fn build_class(env: &mut #Environment) -> #ResultWithError<#GcPtrToObject> {

@@ -21,11 +21,8 @@ fn print_program(input: &str) -> TestRes {
 		Ok(parsed) => {
 			println!("Input: {}\nParsed:\n{:#?}", input, parsed);
 		}
-		Err(error_type) => {
-			panic!("{}", error_type)
-		}
+		Err(error_type) => { panic!("{}", error_type) }
 	}
-	return;
 }
 
 fn ensure_program(input: &str, expected: StatementList) -> TestRes {
@@ -34,11 +31,8 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 			println!("Input: {}\nParsed:\n{:#?}", input, parsed);
 			assert_eq!(parsed.deref(), &expected, "Mismatched parsed AST and expected AST");
 		}
-		Err(error_type) => {
-			panic!("{}", error_type)
-		}
+		Err(error_type) => { panic!("{}", error_type) }
 	}
-	return;
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -61,5 +55,5 @@ fn main() -> Result<(), Box<dyn Error>> {
 	};
 	let env = Environment::execute_file(file, DefaultResolver::new_box())?;
 	dbg!(&env.global_scope.borrow().res_stack);
-	return Ok(());
+	Ok(())
 }

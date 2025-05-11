@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
+use std::fmt::{ Debug, Display, Formatter };
+use std::ops::{ Add, Div, Mul, Neg, Rem, Sub };
 
-use num_traits::{Num, One, Zero};
+use num_traits::{ Num, One, Zero };
 
-use crate::errors::{ErrorT, EvilangError};
+use crate::errors::{ ErrorT, EvilangError };
 
 #[derive(Debug, Clone)]
 pub enum NumberT {
@@ -189,7 +189,12 @@ impl Num for NumberT {
 	fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
 		Ok(match i128::from_str_radix(str, radix) {
 			Ok(v) => NumberT::Integer(v),
-			Err(_) => NumberT::Float(f64::from_str_radix(str, radix).map_err(|_err| EvilangError::new(ErrorT::InvalidNumericLiteral(str.into()).into()))?),
+			Err(_) =>
+				NumberT::Float(
+					f64
+						::from_str_radix(str, radix)
+						.map_err(|_err| EvilangError::new(ErrorT::InvalidNumericLiteral(str.into())))?
+				),
 		})
 	}
 }

@@ -1,4 +1,4 @@
-use crate::common::{run_asserts_in_file, TestRes};
+use crate::common::{ run_asserts_in_file, TestRes };
 
 mod common;
 

@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::tokenizer::{Keyword, TokenType};
+use crate::tokenizer::{ Keyword, TokenType };
 
 //language=regexp
 const NUMBER_REGEX: &str = r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?";
@@ -23,10 +23,7 @@ fn is_identifier_char(ch: char) -> bool {
 	if ch.is_alphanumeric() {
 		return true;
 	}
-	return match ch {
-		'_' | '$' => true,
-		_ => false
-	};
+	return matches!(ch, '_' | '$');
 }
 
 fn regex_matcher(regex_str: &str) -> Matcher {
@@ -35,24 +32,27 @@ fn regex_matcher(regex_str: &str) -> Matcher {
 }
 
 fn starts_with_matcher(start: &'static str) -> Matcher {
-	return Box::new(move |s: &str| if s.starts_with(start) {
-		Some(start)
-	} else {
-		None
-	});
+	return Box::new(move |s: &str| if s.starts_with(start) { Some(start) } else { None });
 }
 
 fn keyword_matcher(start: &'static str) -> Matcher {
 	let start_code_points_len = start.chars().count();
-	return Box::new(move |s: &str| if s.starts_with(start) {
-		if s.chars().nth(start_code_points_len).map_or(false, |v| !is_identifier_char(v)) {
-			Some(start)
+	return Box::new(move |s: &str| (
+		if s.starts_with(start) {
+			if
+				s
+					.chars()
+					.nth(start_code_points_len)
+					.is_some_and(|v| !is_identifier_char(v))
+			{
+				Some(start)
+			} else {
+				None
+			}
 		} else {
 			None
 		}
-	} else {
-		None
-	});
+	));
 }
 
 fn one_of_many<const COUNT: usize>(starters: [&'static str; COUNT]) -> Matcher {
@@ -120,7 +120,7 @@ pub(super) fn get_token_matchers() -> Vec<(Matcher, Option<TokenType>)> {
 		(keyword_matcher("import"), Some(TokenType::Keyword(Keyword::Import))),
 		(keyword_matcher("as"), Some(TokenType::Keyword(Keyword::As))),
 		//
-		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier)),
+		(regex_matcher(IDENTIFIER_REGEX), Some(TokenType::Identifier))
 	];
 	return regex_str_with_type;
 }

@@ -1,20 +1,33 @@
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{ Add, Div, Mul, Rem, Sub };
 use std::ops::Deref;
 
-use itertools::{Either::Left, Either::Right};
+use itertools::{ Either::Left, Either::Right };
 
-use crate::ast::expression::{BoxExpression, DottedIdentifiers, Expression, IdentifierT, MemberIndexer};
+use crate::ast::expression::{
+	BoxExpression,
+	DottedIdentifiers,
+	Expression,
+	IdentifierT,
+	MemberIndexer,
+};
 use crate::ast::operator::Operator;
 use crate::ast::structs::CallExpression;
-use crate::errors::{Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError};
+use crate::errors::{ Descriptor, ErrorT, EvilangError, ResultWithError, RuntimeError };
 use crate::interpreter::environment::Environment;
-use crate::interpreter::runtime_values::{GcPtrVariableExt, PrimitiveValue, ref_to_value::RefToValue};
+use crate::interpreter::runtime_values::{
+	GcPtrVariableExt,
+	PrimitiveValue,
+	ref_to_value::RefToValue,
+};
 use crate::interpreter::runtime_values::functions::Function;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::types::FunctionParameters;
-use crate::interpreter::runtime_values::objects::runtime_object::{GcPtrToObject, RuntimeObject};
-use crate::interpreter::utils::{expect_object, expect_object_or_set_object_if_null};
-use crate::interpreter::variables_containers::map::{IVariablesMapConstMembers, IVariablesMapDelegator};
+use crate::interpreter::runtime_values::objects::runtime_object::{ GcPtrToObject, RuntimeObject };
+use crate::interpreter::utils::{ expect_object, expect_object_or_set_object_if_null };
+use crate::interpreter::variables_containers::map::{
+	IVariablesMapConstMembers,
+	IVariablesMapDelegator,
+};
 use crate::tokenizer::TokenType;
 use crate::types::cell_ref::gc_clone;
 use crate::types::consts::CONSTRUCTOR;
@@ -22,21 +35,27 @@ use crate::types::string::CowStringT;
 use crate::types::traits::ConsumeOrCloneOf;
 
 macro_rules! by_ref {
-    ($b:ident) => {($b)};
+	($b:ident) => {($b)};
 }
 
 macro_rules! by_clone {
-    ($b:ident) => {($b.clone())};
+	($b:ident) => {($b.clone())};
 }
 
 macro_rules! auto_implement_binary_operators {
-    ($val: expr, $typ:ident, $a:ident, $b:ident, $($op_t: path, $oper: ident => $res_typ: ident ($by_what: tt));*;) => {
+	(
+		$val:expr,
+		$typ:ident,
+		$a:ident,
+		$b:ident,
+		$($op_t:path, $oper:ident => $res_typ:ident($by_what:tt));*;
+	) => {
 	    match $val {
 	        $(($op_t, PrimitiveValue::$typ($a), PrimitiveValue::$typ($b)) =>
 	            Some(PrimitiveValue::$res_typ($a.$oper($by_what!($b)))),)*
 		    _ => None,
 	    }
-    };
+	};
 	(by_ref $b:ident) => {
 		($b)
 	};
@@ -49,8 +68,8 @@ impl Environment {
 	pub fn eval(&mut self, expression: &Expression) -> ResultWithError<RefToValue> {
 		return Ok(match expression {
 			Expression::NullLiteral => PrimitiveValue::Null.into(),
-			Expression::BooleanLiteral(a) => PrimitiveValue::Boolean(a.clone()).into(),
-			Expression::NumericLiteral(a) => PrimitiveValue::Number(a.clone()).into(),
+			Expression::BooleanLiteral(a) => PrimitiveValue::Boolean(*a).into(),
+			Expression::NumericLiteral(a) => PrimitiveValue::Number(*a).into(),
 			Expression::StringLiteral(a) => PrimitiveValue::String(a.clone()).into(),
 			Expression::UnaryExpression { operator, argument } =>
 				self.execute_unary_operator_expression(operator, argument)?,
@@ -87,14 +106,21 @@ impl Environment {
 		});
 	}
 
-	fn name_from_member_indexer<'a>(&mut self, member: &'a MemberIndexer) -> ResultWithError<CowStringT<'a>> {
+	fn name_from_member_indexer<'a>(
+		&mut self,
+		member: &'a MemberIndexer
+	) -> ResultWithError<CowStringT<'a>> {
 		match member {
 			MemberIndexer::PropertyName(name) => Ok(name.as_str().into()),
 			MemberIndexer::SubscriptExpression(expr) => {
 				match self.eval(expr)?.consume_or_clone()?.consume_as_string() {
 					Left(str) => Ok(str.into()),
 					Right(val) => {
-						return Err(RuntimeError::ExpectedValidSubscript(Descriptor::new_both(val.into(), expr.deref().deref().into())).into());
+						return Err(
+							RuntimeError::ExpectedValidSubscript(
+								Descriptor::new_both(val.into(), expr.deref().into())
+							).into()
+						);
 					}
 				}
 			}
@@ -104,58 +130,61 @@ impl Environment {
 		}
 	}
 
-	pub fn get_namespace_object(&mut self, idens: &DottedIdentifiers) -> ResultWithError<GcPtrToObject> {
+	pub fn get_namespace_object(
+		&mut self,
+		idens: &DottedIdentifiers
+	) -> ResultWithError<GcPtrToObject> {
 		let mut iter = idens.identifiers.iter();
 		let Some(obj_expr) = iter.next() else {
-			return Err(RuntimeError::ExpectedNamespaceObject(Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))).into());
+			return Err(
+				RuntimeError::ExpectedNamespaceObject(
+					Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()))
+				).into()
+			);
 		};
 		let f = || Descriptor::Expression(Expression::DottedIdentifiers(idens.clone()));
 		let mut res_ref = self.get_identifier(obj_expr.into())?;
 		let mut res_ref_name = obj_expr;
-		while let Some(next_name) = iter.next() {
-			let obj = expect_object_or_set_object_if_null(
-				self,
-				res_ref,
-				res_ref_name.into(),
-				f,
-			)?;
-			res_ref = RefToValue::new_object_property_ref(
-				obj,
-				next_name.clone(),
-			);
+		for next_name in iter {
+			let obj = expect_object_or_set_object_if_null(self, res_ref, res_ref_name.into(), f)?;
+			res_ref = RefToValue::new_object_property_ref(obj, next_name.clone());
 			res_ref_name = next_name;
-		};
-		let ret_obj = expect_object_or_set_object_if_null(
-			self,
-			res_ref,
-			res_ref_name.into(),
-			f,
-		)?;
+		}
+		let ret_obj = expect_object_or_set_object_if_null(self, res_ref, res_ref_name.into(), f)?;
 		Ok(ret_obj)
 	}
 
-	pub fn get_dotted_identifiers<'a, TIter: Iterator<Item=&'a IdentifierT>>(
+	pub fn get_dotted_identifiers<'a, TIter: Iterator<Item = &'a IdentifierT>>(
 		&mut self,
 		expression: &Expression,
-		mut iter: TIter,
+		mut iter: TIter
 	) -> ResultWithError<RefToValue> {
 		let Some(obj_expr) = iter.next() else {
 			return Ok(PrimitiveValue::Null.into());
 		};
 		let mut res = self.get_identifier(obj_expr.into())?;
-		while let Some(next_name) = iter.next() {
+		for next_name in iter {
 			let obj = expect_object(res, Some(expression))?;
 			res = RefToValue::new_object_property_ref(obj, next_name.clone());
-		};
+		}
 		Ok(res)
 	}
 
 	pub fn get_identifier(&mut self, name: CowStringT) -> ResultWithError<RefToValue> {
 		let name_ref = name.deref();
-		let var = self.get_actual(name_ref.into()).or_else(|| {
-			self.assign_locally(name_ref.into(), PrimitiveValue::Null.into());
-			self.get_actual(name_ref.into())
-		}).ok_or_else(|| EvilangError::new(ErrorT::NeverError("When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into())))?;
+		let var = self
+			.get_actual(name_ref.into())
+			.or_else(|| {
+				self.assign_locally(name_ref.into(), PrimitiveValue::Null);
+				self.get_actual(name_ref.into())
+			})
+			.ok_or_else(||
+				EvilangError::new(
+					ErrorT::NeverError(
+						"When a variable is not found it is set to null and then it is immediately retrieved, but it was still not found".into()
+					)
+				)
+			)?;
 		if var.is_hoisted() {
 			return Err(ErrorT::CantAccessHoistedVariable(name.into()).into());
 		}
@@ -166,16 +195,20 @@ impl Environment {
 		return expect_object(self.eval(expr)?, Some(expr));
 	}
 
-	pub fn execute_unary_operator_expression(&mut self, operator: &Operator, argument: &Expression) -> ResultWithError<RefToValue> {
+	pub fn execute_unary_operator_expression(
+		&mut self,
+		operator: &Operator,
+		argument: &Expression
+	) -> ResultWithError<RefToValue> {
 		let arg_eval = self.eval(argument)?;
 		let prim_borrow = arg_eval.borrow();
 		let prim_ref = prim_borrow.deref();
 		return Ok(match (operator, prim_ref) {
 			(Operator::LogicalNot, PrimitiveValue::Boolean(v)) => PrimitiveValue::Boolean(!*v).into(),
-			(Operator::Plus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(v.clone()).into(),
-			(Operator::Minus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(-v.clone()).into(),
+			(Operator::Plus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(*v).into(),
+			(Operator::Minus, PrimitiveValue::Number(v)) => PrimitiveValue::Number(-*v).into(),
 			(op, _) => {
-				return Err(ErrorT::UnimplementedUnaryOperatorForValues(op.clone(), argument.clone()).into());
+				return Err(ErrorT::UnimplementedUnaryOperatorForValues(*op, argument.clone()).into());
 			}
 		});
 	}
@@ -184,7 +217,7 @@ impl Environment {
 		&mut self,
 		operator: &Operator,
 		left: &BoxExpression,
-		right: &BoxExpression,
+		right: &BoxExpression
 	) -> ResultWithError<RefToValue> {
 		let left_eval = self.eval(left.deref())?;
 		match operator {
@@ -205,7 +238,7 @@ impl Environment {
 				};
 			}
 			_ => {}
-		};
+		}
 
 		let right_eval = self.eval(right.deref())?;
 		return self.execute_binary_expression(operator, left_eval, right_eval, left, right);
@@ -217,7 +250,7 @@ impl Environment {
 		mut left: RefToValue,
 		right: RefToValue,
 		left_expr: &Expression,
-		right_expr: &Expression,
+		right_expr: &Expression
 	) -> ResultWithError<RefToValue> {
 		if operator.is_assignment() {
 			if *operator == Operator::Assignment {
@@ -231,7 +264,7 @@ impl Environment {
 					left.borrow().deref(),
 					right.borrow().deref(),
 					left_expr,
-					right_expr,
+					right_expr
 				)?;
 				if val_to_assign.is_hoisted() {
 					return Err(ErrorT::CantSetToHoistedValue.into());
@@ -243,13 +276,17 @@ impl Environment {
 
 		let lder = left.borrow();
 		let rder = right.borrow();
-		return Ok(self.execute_operation_on_primitive(
-			operator,
-			lder.deref(),
-			rder.deref(),
-			left_expr,
-			right_expr,
-		)?.into());
+		return Ok(
+			self
+				.execute_operation_on_primitive(
+					operator,
+					lder.deref(),
+					rder.deref(),
+					left_expr,
+					right_expr
+				)?
+				.into()
+		);
 	}
 
 	pub fn execute_operation_on_primitive(
@@ -258,9 +295,10 @@ impl Environment {
 		left: &PrimitiveValue,
 		right: &PrimitiveValue,
 		left_expr: &Expression,
-		right_expr: &Expression,
+		right_expr: &Expression
 	) -> ResultWithError<PrimitiveValue> {
-		let int_result: Option<PrimitiveValue> = auto_implement_binary_operators!(
+		let int_result: Option<PrimitiveValue> =
+			auto_implement_binary_operators!(
 			(operator, left, right),
 			Number, a, b,
 			Operator::Plus, add => Number (by_clone);
@@ -279,79 +317,88 @@ impl Environment {
 		return match (operator, left, right) {
 			(Operator::Plus, PrimitiveValue::String(a), PrimitiveValue::String(b)) =>
 				Ok(PrimitiveValue::String(a.clone() + b)),
-			(Operator::Equals, a, b) =>
-				Ok(PrimitiveValue::Boolean(a == b)),
-			(Operator::NotEquals, a, b) =>
-				Ok(PrimitiveValue::Boolean(a != b)),
+			(Operator::Equals, a, b) => Ok(PrimitiveValue::Boolean(a == b)),
+			(Operator::NotEquals, a, b) => Ok(PrimitiveValue::Boolean(a != b)),
 			(op, _l, _r) => {
-				return Err(ErrorT::UnimplementedBinaryOperatorForValues(op.clone(), left_expr.clone(), right_expr.clone()).into());
+				return Err(
+					ErrorT::UnimplementedBinaryOperatorForValues(
+						*op,
+						left_expr.clone(),
+						right_expr.clone()
+					).into()
+				);
 			}
 		};
 	}
 
-	fn eval_new_object_expression(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
+	fn eval_new_object_expression(
+		&mut self,
+		call_expr: &CallExpression
+	) -> ResultWithError<RefToValue> {
 		let class = self.eval_expr_expect_object(&call_expr.callee)?;
 		let obj = RuntimeObject::allocate_instance(class, None);
 		let res = RuntimeObject::call_method_on_object_with_args(
 			gc_clone(&obj),
 			self,
 			CONSTRUCTOR.into(),
-			call_expr,
+			call_expr
 		)?;
-		return Ok(match res {
-			PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => PrimitiveValue::Object(obj),
-			rv => rv
-		}.into());
+		return Ok(
+			(
+				match res {
+					PrimitiveValue::Null | PrimitiveValue::_HoistedVariable => PrimitiveValue::Object(obj),
+					rv => rv,
+				}
+			).into()
+		);
 	}
 
 	//noinspection RsLift
 	fn eval_function_call(&mut self, call_expr: &CallExpression) -> ResultWithError<RefToValue> {
 		// dbg!(&call_expr.callee);
 		match call_expr.callee.deref() {
-			Expression::MemberAccess {
-				object,
-				member
-			} => {
+			Expression::MemberAccess { object, member } => {
 				let method_name = self.name_from_member_indexer(member)?;
-				return Ok(RuntimeObject::call_method_on_object_with_args(
-					self.eval_expr_expect_object(&object)?,
-					self,
-					method_name,
-					call_expr,
-				)?.into());
+				return Ok(
+					RuntimeObject::call_method_on_object_with_args(
+						self.eval_expr_expect_object(object)?,
+						self,
+						method_name,
+						call_expr
+					)?.into()
+				);
 			}
-			Expression::DottedIdentifiers(idens)
-			if idens.identifiers.len() > 1 && idens
-				.delimiters
-				.last()
-				.map(|v| v.typ == TokenType::Dot)
-				.unwrap_or(false)
+			Expression::DottedIdentifiers(idens) if
+				idens.identifiers.len() > 1 &&
+				idens.delimiters
+					.last()
+					.map(|v| v.typ == TokenType::Dot)
+					.unwrap_or(false)
 			=> {
 				let left_iter = &idens.identifiers[0..idens.identifiers.len() - 1];
-				let object = self.get_dotted_identifiers(
-					call_expr.callee.deref(),
-					left_iter.iter(),
-				)?;
+				let object = self.get_dotted_identifiers(call_expr.callee.deref(), left_iter.iter())?;
 				let method_name = idens.identifiers.last().unwrap();
-				return Ok(RuntimeObject::call_method_on_object_with_args(
-					expect_object(object, Some(call_expr.callee.deref()))?,
-					self,
-					method_name.into(),
-					call_expr,
-				)?.into());
+				return Ok(
+					RuntimeObject::call_method_on_object_with_args(
+						expect_object(object, Some(call_expr.callee.deref()))?,
+						self,
+						method_name.into(),
+						call_expr
+					)?.into()
+				);
 			}
 			expr => {
 				let function = self.eval(expr)?.consume_or_clone()?;
 				let PrimitiveValue::Function(ref gc_fn) = function else {
-					return Err(RuntimeError::ExpectedFunction(Descriptor::new_both(function.into(), expr.into())).into());
+					return Err(
+						RuntimeError::ExpectedFunction(
+							Descriptor::new_both(function.into(), expr.into())
+						).into()
+					);
 				};
-				let args = call_expr
-					.arguments
+				let args = call_expr.arguments
 					.iter()
-					.map(|v| self
-						.eval(v)
-						.and_then(RefToValue::consume_or_clone)
-					)
+					.map(|v| self.eval(v).and_then(RefToValue::consume_or_clone))
 					.collect::<ResultWithError<FunctionParameters>>()?;
 				return Ok(gc_fn.execute(self, args)?.into());
 			}

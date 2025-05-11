@@ -3,8 +3,8 @@ use std::ops::Index;
 use darling::ast::NestedMeta;
 use darling::FromMeta;
 use itertools::Either;
-use itertools::Either::{Left, Right};
-use syn::{Attribute, Expr, Meta, Path};
+use itertools::Either::{ Left, Right };
+use syn::{ Attribute, Expr, Meta, Path };
 
 use crate::utils::MODULE_NAME;
 
@@ -15,8 +15,7 @@ pub(crate) trait ParseArgs {
 impl<T: FromMeta> ParseArgs for T {
 	fn parse_args(args: proc_macro2::TokenStream) -> Self {
 		let attr_args = NestedMeta::parse_meta_list(args).unwrap();
-		let res = Self::from_list(&attr_args).unwrap();
-		res
+		Self::from_list(&attr_args).unwrap()
 	}
 }
 
@@ -32,22 +31,24 @@ fn is_path_match(p: &Path, self_name: &str) -> bool {
 }
 
 pub(crate) trait TryParseAttribute: Default + ParseArgs {
-	const NAME: &'static str;
+	const NAME: &str;
 
 	fn new_from_value_expr(expr: &Expr) -> Self;
 
 	fn set_attribute(&mut self, attr: Attribute);
+	#[allow(dead_code)]
 	fn get_attribute(&self) -> Option<&Attribute>;
 
 	fn try_parse_attribute(attr: Attribute) -> Either<Self, Attribute> {
 		let mut rv = match &attr.meta {
-			Meta::Path(v) if is_path_match(v, <Self as TryParseAttribute>::NAME) =>
-				Self::default(),
+			Meta::Path(v) if is_path_match(v, <Self as TryParseAttribute>::NAME) => Self::default(),
 			Meta::List(list) if is_path_match(&list.path, <Self as TryParseAttribute>::NAME) =>
 				Self::parse_args(list.tokens.clone()),
 			Meta::NameValue(nv) if is_path_match(&nv.path, <Self as TryParseAttribute>::NAME) =>
 				Self::new_from_value_expr(&nv.value),
-			_ => return Right(attr)
+			_ => {
+				return Right(attr);
+			}
 		};
 		rv.set_attribute(attr);
 		Left(rv)

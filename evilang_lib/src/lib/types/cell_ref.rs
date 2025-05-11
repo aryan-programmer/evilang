@@ -1,4 +1,4 @@
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{ Finalize, Gc, GcCell, Trace };
 
 pub type GcPtr<T> = Gc<T>;
 pub type GcPtrCell<T> = GcCell<T>;

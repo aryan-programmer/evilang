@@ -1,5 +1,10 @@
-use crate::ast::expression::{DottedIdentifiers, Expression, IdentifierT};
-use crate::ast::structs::{ClassDeclaration, FunctionDeclaration, FunctionParameterDeclaration, VariableDeclaration};
+use crate::ast::expression::{ DottedIdentifiers, Expression, IdentifierT };
+use crate::ast::structs::{
+	ClassDeclaration,
+	FunctionDeclaration,
+	FunctionParameterDeclaration,
+	VariableDeclaration,
+};
 
 pub type BoxStatement = Box<Statement>;
 
@@ -50,7 +55,7 @@ impl Statement {
 	pub fn if_statement(
 		condition: Expression,
 		if_branch: BoxStatement,
-		else_branch: Option<BoxStatement>,
+		else_branch: Option<BoxStatement>
 	) -> Statement {
 		return Statement::IfStatement { condition, if_branch, else_branch };
 	}
@@ -70,7 +75,7 @@ impl Statement {
 		initialization: BoxStatement,
 		condition: Expression,
 		increment: BoxStatement,
-		body: BoxStatement,
+		body: BoxStatement
 	) -> Statement {
 		return Statement::ForLoop {
 			initialization,
@@ -84,33 +89,29 @@ impl Statement {
 	pub fn function_declaration(
 		name: IdentifierT,
 		parameters: Vec<FunctionParameterDeclaration>,
-		body: BoxStatement,
+		body: BoxStatement
 	) -> Statement {
-		return Statement::FunctionDeclarationStatement(FunctionDeclaration::new(name, parameters, body));
+		return Statement::FunctionDeclarationStatement(
+			FunctionDeclaration::new(name, parameters, body)
+		);
 	}
 
 	#[inline(always)]
 	pub fn class_declaration(
 		name: IdentifierT,
 		super_class: Option<Expression>,
-		methods: Vec<FunctionDeclaration>,
+		methods: Vec<FunctionDeclaration>
 	) -> Statement {
 		return Statement::ClassDeclarationStatement(ClassDeclaration::new(name, super_class, methods));
 	}
 
 	#[inline(always)]
-	pub fn namespace_statement(
-		namespace: DottedIdentifiers,
-		body: StatementList,
-	) -> Statement {
+	pub fn namespace_statement(namespace: DottedIdentifiers, body: StatementList) -> Statement {
 		return Statement::NamespaceStatement { namespace, body };
 	}
 
 	#[inline(always)]
-	pub fn import_statement(
-		file_name: Expression,
-		as_object: DottedIdentifiers,
-	) -> Statement {
+	pub fn import_statement(file_name: Expression, as_object: DottedIdentifiers) -> Statement {
 		return Statement::ImportStatement { file_name, as_object };
 	}
 }
@@ -121,3 +122,4 @@ impl From<Expression> for Statement {
 		return Statement::ExpressionStatement(value);
 	}
 }
+

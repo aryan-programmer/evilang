@@ -13,23 +13,23 @@ pub enum DerefOfRefToValue<'a> {
 	Value(PrimitiveValue),
 }
 
-impl<'a> ConsumeOrCloneOf for DerefOfRefToValue<'a> {
+impl ConsumeOrCloneOf for DerefOfRefToValue<'_> {
 	type Target = PrimitiveValue;
 	fn consume_or_clone(self) -> ResultWithError<PrimitiveValue> {
 		return match self {
 			DerefOfRefToValue::DerefRValue(v) => v.try_clone_err(),
-			DerefOfRefToValue::DerefLValue(r) => r.deref().deref().try_clone_err(),
+			DerefOfRefToValue::DerefLValue(r) => r.deref().try_clone_err(),
 			DerefOfRefToValue::Value(cl) => Ok(cl),
 		};
 	}
 }
 
-impl<'a> Deref for DerefOfRefToValue<'a> {
+impl Deref for DerefOfRefToValue<'_> {
 	type Target = PrimitiveValue;
 
 	fn deref(&self) -> &Self::Target {
 		return match self {
-			DerefOfRefToValue::DerefRValue(v) => *v,
+			DerefOfRefToValue::DerefRValue(v) => v,
 			DerefOfRefToValue::DerefLValue(r) => r.deref(),
 			DerefOfRefToValue::Value(cl) => cl,
 		};

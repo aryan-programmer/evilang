@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{ Display, Formatter };
 
-use gc::{Finalize, Trace};
+use gc::{ Finalize, Trace };
 
 use crate::ast::structs::FunctionDeclaration;
 use crate::errors::ResultWithError;
@@ -8,8 +8,11 @@ use crate::interpreter::environment::Environment;
 use crate::interpreter::runtime_values::functions::closure::Closure;
 use crate::interpreter::runtime_values::functions::ifunction::IFunction;
 use crate::interpreter::runtime_values::functions::native_function::NativeFunction;
-use crate::interpreter::runtime_values::functions::types::{FunctionParameters, FunctionReturnValue};
-use crate::types::cell_ref::{gc_clone, GcPtr};
+use crate::interpreter::runtime_values::functions::types::{
+	FunctionParameters,
+	FunctionReturnValue,
+};
+use crate::types::cell_ref::{ gc_clone, GcPtr };
 
 pub mod closure;
 pub mod types;
@@ -38,17 +41,14 @@ impl Display for Function {
 				});
 				res
 			}
-			Function::Closure(cl) => f.write_str(cl.code.name.as_str())
+			Function::Closure(cl) => f.write_str(cl.code.name.as_str()),
 		}
 	}
 }
 
 impl Function {
 	pub fn new_closure(env: &Environment, decl: FunctionDeclaration) -> GcPtrToFunction {
-		let closure = Closure::new(
-			decl,
-			gc_clone(&env.scope),
-		);
+		let closure = Closure::new(decl, gc_clone(&env.scope));
 		let function_closure = Function::Closure(closure);
 		return GcPtr::new(function_closure);
 	}
@@ -56,7 +56,11 @@ impl Function {
 
 impl IFunction for Function {
 	#[inline(always)]
-	fn execute(&self, env: &mut Environment, params: FunctionParameters) -> ResultWithError<FunctionReturnValue> {
+	fn execute(
+		&self,
+		env: &mut Environment,
+		params: FunctionParameters
+	) -> ResultWithError<FunctionReturnValue> {
 		return match self {
 			Function::Closure(cl) => cl.execute(env, params),
 			Function::NativeFunction(f) => f.execute(env, params),
