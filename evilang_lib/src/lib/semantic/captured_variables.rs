@@ -38,14 +38,7 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
 	}
 
 	fn analyze(&mut self) {
-        // First pass: collect hoisted declarations in the root function scope?
-        // The interpreter does hoisting.
-        // `setup_scope` scans for VariableDeclarations (hoists identifiers?) and FunctionDeclarations.
-        // `hoist_identifier` in `Environment`.
-
-        // Simulating hoisting for the current block (root body):
         self.collect_hoisted_declarations(&self.root_function.body);
-
 		self.visit_statement(&self.root_function.body);
 	}
 
@@ -73,7 +66,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
     }
 
     fn collect_hoisted_declarations(&mut self, stmt: &Statement) {
-        // This is a simplified hoisting simulation matching `Environment::setup_scope_for_statement`
         match stmt {
             Statement::VariableDeclarations(decls) => {
                 for decl in decls {
@@ -87,11 +79,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
                 self.declare_variable(cdecl.name.clone());
             }
             Statement::BlockStatement(_stmts) => {
-                // Hoisting does NOT recurse into blocks for `var` (unless it's JS `var` which functions scoped).
-                // But this is `let`. `evilang` `let` is block scoped?
-                // `Environment::setup_scope_for_statement` handles hoisting for the CURRENT scope.
-                // It does NOT look into blocks.
-                // So we don't recurse here.
             }
             _ => {}
         }
@@ -125,8 +112,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
 			}
 			Statement::VariableDeclarations(decls) => {
 				for decl in decls {
-                    // Declaration already handled by hoisting/collect phase?
-                    // But initialization expression needs visiting.
 					if let Some(init) = &decl.initializer {
 						self.visit_expression(init);
 					}
@@ -148,10 +133,7 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
 				self.visit_statement(body);
 			}
 			Statement::ForLoop { initialization, condition, increment, body } => {
-                // For loop creates a scope? `eval_for_loop__creates_scope` says yes.
                 self.push_scope();
-                // Initialization can be VariableDeclarations.
-                // We need to handle hoisting for this "loop scope".
                 self.collect_hoisted_declarations(initialization);
 
 				self.visit_statement(initialization);
@@ -162,10 +144,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
                 self.pop_scope();
 			}
 			Statement::FunctionDeclarationStatement(func_decl) => {
-                // Inner function.
-                // Its name is already declared in current scope.
-                // We need to verify if its body uses any variables from `scope_stack`.
-
                 self.push_scope(); // Inner function scope
                 for param in &func_decl.parameters {
                     self.declare_variable(param.identifier.clone());
@@ -175,8 +153,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
                 self.pop_scope();
             }
             Statement::ClassDeclarationStatement(class_decl) => {
-                 // Class methods...
-                 // Similar to function declarations.
                  for method in &class_decl.methods {
                     self.push_scope();
                     for param in &method.parameters {
@@ -188,8 +164,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
                  }
             }
 			Statement::NamespaceStatement { body, .. } => {
-                // Namespaces seem to be static?
-                // But body is statements.
                 self.push_scope();
                 self.collect_hoisted_declarations_list(body);
                 self.visit_statement_list(body);
@@ -254,9 +228,6 @@ impl<'a> CapturedVariablesAnalyzer<'a> {
             }
              Expression::DottedIdentifiers(dotted) => {
                  if let Some(first) = dotted.identifiers.first() {
-                     // First one is the variable?
-                     // e.g. `foo.bar`. `foo` is the variable. `bar` is property.
-                     // Check if `first` is declared.
                       if !self.is_variable_declared(first) {
                         self.captured_variables.insert(first.clone());
                     }
