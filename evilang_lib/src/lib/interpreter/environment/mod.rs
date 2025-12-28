@@ -142,7 +142,7 @@ impl Environment {
 		self.setup_and_eval_statements(&parse(input)?)
 	}
 
-	pub fn setup_scope_for_statement(
+	pub fn hoist_scope_for_statement(
 		&mut self,
 		statement: &Statement
 	) -> ResultWithError<StatementMetaGeneration> {
@@ -153,14 +153,42 @@ impl Environment {
 				}
 			}
 			Statement::FunctionDeclarationStatement(fdecl) => {
-				self.declare((&fdecl.name).into(), Function::new_closure(self, fdecl.clone()).into())?;
+				self.hoist_identifier((&fdecl.name).into())?;
 			}
 			Statement::ClassDeclarationStatement(cdecl) => {
-				let class = RuntimeObject::new_class_decl(self, cdecl)?;
-				self.declare((&cdecl.name).into(), class.into())?;
+				self.hoist_identifier((&cdecl.name).into())?;
 			}
 			_ => {}
 		}
+		return Ok(StatementMetaGeneration::NormalGeneration);
+	}
+
+	pub fn init_scope_for_statement(
+		&mut self,
+		statement: &Statement
+	) -> ResultWithError<StatementMetaGeneration> {
+		match statement {
+			Statement::FunctionDeclarationStatement(fdecl) => {
+				self.assign_locally(
+					(&fdecl.name).into(),
+					Function::new_closure(self, fdecl.clone()).into()
+				);
+			}
+			Statement::ClassDeclarationStatement(cdecl) => {
+				let class = RuntimeObject::new_class_decl(self, cdecl)?;
+				self.assign_locally((&cdecl.name).into(), class.into());
+			}
+			_ => {}
+		}
+		return Ok(StatementMetaGeneration::NormalGeneration);
+	}
+
+	pub fn setup_scope_for_statement(
+		&mut self,
+		statement: &Statement
+	) -> ResultWithError<StatementMetaGeneration> {
+		self.hoist_scope_for_statement(statement)?;
+		self.init_scope_for_statement(statement)?;
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
 
@@ -169,7 +197,10 @@ impl Environment {
 		statements: &StatementList
 	) -> ResultWithError<StatementMetaGeneration> {
 		for statement in statements.iter() {
-			self.setup_scope_for_statement(statement)?;
+			self.hoist_scope_for_statement(statement)?;
+		}
+		for statement in statements.iter() {
+			self.init_scope_for_statement(statement)?;
 		}
 		return Ok(StatementMetaGeneration::NormalGeneration);
 	}
