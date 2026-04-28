@@ -1,0 +1,26 @@
+fn useState(default) {
+	let value = default;
+	fn returner(name) {
+		if(name == "get") {
+			return get;
+		} else if(name == "set") {
+			return set;
+		}
+		fn get() {
+			return value;
+		}
+		fn set(nval) {
+			value = nval;
+		}
+	}
+	return returner;
+}
+let state = useState(10);
+let getX = state("get");
+let setX = state("set");
+
+println(getX());
+setX(getX() + 32);
+println(getX());
+setX(-13);
+println(getX());

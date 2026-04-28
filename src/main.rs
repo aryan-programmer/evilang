@@ -37,23 +37,12 @@ fn ensure_program(input: &str, expected: StatementList) -> TestRes {
 
 fn main() -> Result<(), Box<dyn Error>> {
 	let args = CliArguments::parse();
-	if args.src_debug {
-		// dbg!(std::mem::size_of::<PrimitiveValue>());
-		// dbg!(std::mem::size_of::<NumberT>());
-		// dbg!(std::mem::size_of::<StringT>());
-		// dbg!(std::mem::size_of::<GcPtrToFunction>());
-		// dbg!(std::mem::size_of::<Function>());
-		// dbg!(std::mem::size_of::<NativeFunction>());
-		// dbg!(std::mem::size_of::<Closure>());
-		// dbg!(std::mem::size_of::<FunctionDeclaration>());
-		// dbg!(std::mem::size_of::<GcPtrToObject>());
-		// dbg!(std::mem::size_of::<Option<GcPtrToObject>>());
-		// dbg!(std::mem::size_of::<RuntimeObject>());
-	}
 	let Some(file) = args.file else {
 		return Ok(());
 	};
 	let env = Environment::execute_file(file, DefaultResolver::new_box())?;
-	dbg!(&env.global_scope.borrow().res_stack);
+	if args.src_debug {
+		dbg!(&env.global_scope.borrow().res_stack);
+	}
 	Ok(())
 }

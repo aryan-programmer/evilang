@@ -57,6 +57,17 @@ pub fn print(
 	Ok(PrimitiveValue::Null)
 }
 
+pub fn println(
+	_env: &mut Environment,
+	params: FunctionParameters
+) -> ResultWithError<FunctionReturnValue> {
+	for x in params.into_iter() {
+		print!("{}", x);
+	}
+	println!();
+	Ok(PrimitiveValue::Null)
+}
+
 pub fn debug(
 	_env: &mut Environment,
 	params: FunctionParameters
@@ -95,6 +106,7 @@ pub fn make_native_functions_list() -> HashMap<IdentifierT, NativeFunctionFn> {
 			("push_res_stack", push_res_stack as NativeFunctionFn),
 			("debug", debug as NativeFunctionFn),
 			("print", print as NativeFunctionFn),
+			("println", println as NativeFunctionFn),
 			("allocate_object", allocate_object as NativeFunctionFn),
 			("to_string", to_string as NativeFunctionFn),
 		]
