@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 use std::mem::replace;
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
-use gc::{ Finalize, Trace };
+use gc::{Finalize, Trace};
 use maybe_owned::MaybeOwned;
 
 use crate::ast::expression::IdentifierT;
-use crate::errors::{ ErrorT, ResultWithError };
-use crate::interpreter::runtime_values::{ GcPtrVariable, GcPtrVariableExt, PrimitiveValue };
-use crate::types::cell_ref::{ gc_ptr_cell_from, GcPtr, GcPtrCell };
+use crate::errors::{ErrorT, ResultWithError};
+use crate::interpreter::runtime_values::{GcPtrVariable, GcPtrVariableExt, PrimitiveValue};
+use crate::types::cell_ref::{gc_ptr_cell_from, GcPtr, GcPtrCell};
 use crate::types::string::CowStringT;
 
 pub trait IVariablesMapConstMembers {
-	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>>;
+	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<'_, GcPtrVariable>>;
 	fn contains_key(&self, name: CowStringT) -> bool;
 }
 
@@ -45,7 +45,7 @@ macro_rules! delegate_ivariables_map {
 	) => {
 		impl IVariablesMapConstMembers for $for_type {
 			#[inline(always)]
-			fn get_actual(&$self, name: CowStringT) -> Option<::maybe_owned::MaybeOwned<GcPtrVariable>> {
+			fn get_actual(&$self, name: CowStringT) -> Option<::maybe_owned::MaybeOwned<'_, GcPtrVariable>> {
 				return $const_delegator.get_actual(name);
 			}
 			#[inline(always)]
@@ -92,7 +92,9 @@ impl Default for VariablesMap {
 impl VariablesMap {
 	#[inline(always)]
 	pub fn new() -> Self {
-		Self { variables: HashMap::new() }
+		Self {
+			variables: HashMap::new(),
+		}
 	}
 	#[inline(always)]
 	pub fn new_direct(variables: HashMap<IdentifierT, GcPtrVariable>) -> Self {
@@ -109,7 +111,7 @@ impl VariablesMap {
 }
 
 impl IVariablesMapConstMembers for VariablesMap {
-	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>> {
+	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<'_, GcPtrVariable>> {
 		return self.variables.get(name.deref()).map(|v| v.into());
 	}
 

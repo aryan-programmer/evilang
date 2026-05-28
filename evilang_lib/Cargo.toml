@@ -18,7 +18,12 @@ thiserror = "1.0.43"
 evilang_traits = { path = "../evilang_traits", version = "0.1.0" }
 maybe-owned = "0.3.4"
 itertools = "0.11.0"
+regex-automata = { version = "0.4.14", features = ["dfa-search", "dfa-onepass"] }
+uuid = { version = "1.23.1", features = ["v4"] }
 
 [lib]
 name = "evilang_lib"
 path = "src/lib/lib.rs"
+
+[features]
+error_backtraces = []

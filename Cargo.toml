@@ -12,9 +12,13 @@ authors = ["Aryan Chudasama"]
 [dependencies]
 clap = "4.5.38"
 either = "1.9.0"
-evilang_lib = { version = "0.1.0", path = "evilang_lib" }
+evilang_lib = { version = "0.1.0", path = "evilang_lib", features = [] }
 evilang_traits = { version = "0.1.0", path = "evilang_traits" }
+regex-automata = { version = "0.4.14", features = ["dfa-search", "dfa-onepass"] }
 
 [[bin]]
 name = "evilang_main"
 path = "src/main.rs"
+
+[profile.release]
+debug = "line-tables-only"

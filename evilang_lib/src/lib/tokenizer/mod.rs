@@ -1,6 +1,6 @@
-use crate::errors::{ ErrorT, ResultWithError };
-use crate::tokenizer::matchers::{ get_token_matchers, Matcher };
-pub use crate::tokenizer::token::{ Keyword, TokenType };
+use crate::errors::{ErrorT, ResultWithError};
+use crate::tokenizer::matchers::{get_token_matchers, Matcher};
+pub use crate::tokenizer::token::{Keyword, TokenType};
 use crate::types::string::StringT;
 
 mod matchers;
@@ -28,19 +28,25 @@ impl Iterator for TokenStream {
 				return if self.sent_eof_dummy {
 					None
 				} else {
-					Some(Ok(Token { typ: TokenType::_EOFDummy, data: StringT::new() }))
+					Some(Ok(Token {
+						typ: TokenType::_EOFDummy,
+						data: StringT::new(),
+					}))
 				};
 			}
 			let from = &self.str[self.position..];
 			for (matcher, token_t) in self.token_matchers.iter() {
-				let Some(s) = matcher(from) else {
+				let Some(s) = matcher.check_match(from) else {
 					continue;
 				};
 				self.position += s.len();
 				let Some(token_type) = token_t else {
 					continue 'outer;
 				};
-				return Some(Ok(Token { typ: *token_type, data: s.parse().unwrap() }));
+				return Some(Ok(Token {
+					typ: *token_type,
+					data: s.to_string(),
+				}));
 			}
 			return Some(Err(ErrorT::TokenCannotBeParsed.into()));
 		}

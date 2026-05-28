@@ -39,7 +39,7 @@ pub trait IGenericVariablesScope<T: IGenericVariablesScope<T> + 'static>: Trace 
 }
 
 impl<T: IGenericVariablesScope<T> + 'static> IVariablesMapConstMembers for T {
-	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<GcPtrVariable>> {
+	fn get_actual(&self, name: CowStringT) -> Option<MaybeOwned<'_, GcPtrVariable>> {
 		self
 			.resolve_variable_scope(name.deref().into())
 			.borrow()

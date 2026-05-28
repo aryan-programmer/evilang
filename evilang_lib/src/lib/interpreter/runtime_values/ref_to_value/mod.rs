@@ -1,17 +1,16 @@
 use std::mem::replace;
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
 use delegate::delegate;
 use maybe_owned::MaybeOwned;
 
 use crate::ast::expression::IdentifierT;
-use crate::errors::{ ErrorT, ResultWithError };
-use crate::interpreter::runtime_values::{ GcPtrVariable, PrimitiveValue };
+use crate::errors::{ErrorT, ResultWithError};
 use crate::interpreter::runtime_values::objects::runtime_object::GcPtrToObject;
 pub use crate::interpreter::runtime_values::ref_to_value::deref_of_ref_to_value::DerefOfRefToValue;
+use crate::interpreter::runtime_values::{GcPtrVariable, PrimitiveValue};
 use crate::interpreter::variables_containers::map::{
-	IVariablesMapConstMembers,
-	IVariablesMapDelegator,
+	IVariablesMapConstMembers, IVariablesMapDelegator,
 };
 use crate::types::cell_ref::gc_ptr_cell_from;
 use crate::types::traits::ConsumeOrCloneOf;
@@ -51,8 +50,10 @@ impl ConsumeOrCloneOf for RefToValue {
 		return match self {
 			RefToValue::Value(v) => Ok(v),
 			RefToValue::ObjectProperty { snapshot: None, .. } => Ok(PrimitiveValue::Null),
-			RefToValue::ObjectProperty { snapshot: Some(v), .. } | RefToValue::Variable(v) =>
-				v.borrow().try_clone_err(),
+			RefToValue::ObjectProperty {
+				snapshot: Some(v), ..
+			}
+			| RefToValue::Variable(v) => v.borrow().try_clone_err(),
 		};
 	}
 }
@@ -64,7 +65,9 @@ impl RefToValue {
 	}
 
 	pub fn new_object_property_ref(object: GcPtrToObject, property_name: IdentifierT) -> Self {
-		let snapshot = object.get_actual(property_name.deref().into()).map(MaybeOwned::into_owned);
+		let snapshot = object
+			.get_actual(property_name.deref().into())
+			.map(MaybeOwned::into_owned);
 		RefToValue::ObjectProperty {
 			object,
 			property_name,
@@ -75,15 +78,17 @@ impl RefToValue {
 	pub fn set(&mut self, value: PrimitiveValue) -> ResultWithError<Option<PrimitiveValue>> {
 		return match self {
 			RefToValue::Value(_v) => Err(ErrorT::ExpectedLhsExpression.into()),
-			RefToValue::Variable(v) => { Ok(Some(replace(v.borrow_mut().deref_mut(), value))) }
-			RefToValue::ObjectProperty { object, property_name, snapshot: _ } => {
-				Ok(object.assign_locally(property_name.as_str().into(), value))
-			}
+			RefToValue::Variable(v) => Ok(Some(replace(v.borrow_mut().deref_mut(), value))),
+			RefToValue::ObjectProperty {
+				object,
+				property_name,
+				snapshot: _,
+			} => Ok(object.assign_locally(property_name.as_str().into(), value)),
 		};
 	}
 
 	#[inline(always)]
-	pub fn borrow(&self) -> DerefOfRefToValue {
+	pub fn borrow(&self) -> DerefOfRefToValue<'_> {
 		/*
 		return match self {
 			RefToValue::Value(v) |
@@ -95,11 +100,13 @@ impl RefToValue {
 		*/
 		return match self {
 			RefToValue::Value(v) => DerefOfRefToValue::DerefRValue(v),
-			RefToValue::ObjectProperty { snapshot: None, .. } =>
-				DerefOfRefToValue::Value(PrimitiveValue::Null),
-			RefToValue::ObjectProperty { snapshot: Some(v), .. } | RefToValue::Variable(v) => {
-				DerefOfRefToValue::DerefLValue(v.borrow())
+			RefToValue::ObjectProperty { snapshot: None, .. } => {
+				DerefOfRefToValue::Value(PrimitiveValue::Null)
 			}
+			RefToValue::ObjectProperty {
+				snapshot: Some(v), ..
+			}
+			| RefToValue::Variable(v) => DerefOfRefToValue::DerefLValue(v.borrow()),
 		};
 	}
 
